@@ -7,7 +7,7 @@
     <style>
         body {
             margin: 0;
-            background: #111;
+            background: #1a1a1a;
             font-family: Arial, sans-serif;
             color: white;
             display: flex;
@@ -20,6 +20,10 @@
         }
         #menu {
             text-align: center;
+            background: #222;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         button {
             padding: 15px 30px;
@@ -29,7 +33,9 @@
             border: none;
             border-radius: 8px;
             font-weight: bold;
+            transition: 0.2s;
         }
+        button:active { transform: scale(0.95); }
         #btn-ct { background: #0055ff; color: white; }
         #btn-t { background: #ff2222; color: white; }
         
@@ -38,9 +44,10 @@
             position: relative;
         }
         canvas {
-            background: #ffffff;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            background: #2b2b2b;
+            box-shadow: 0 0 30px rgba(0,0,0,0.9);
             display: block;
+            border-radius: 6px;
         }
         #ui {
             width: 100%;
@@ -49,16 +56,18 @@
             margin-bottom: 8px;
             font-size: 18px;
             font-weight: bold;
+            text-shadow: 1px 1px 2px black;
         }
         .hud-btn {
-            background: #333;
+            background: #444;
             color: white;
             padding: 8px 16px;
             font-size: 16px;
             border-radius: 5px;
+            border: 1px solid #666;
+            cursor: pointer;
         }
 
-        /* Экранные кнопки управления для телефона */
         #controls {
             display: flex;
             justify-content: space-between;
@@ -72,8 +81,8 @@
             gap: 5px;
         }
         .control-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid white;
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.5);
             color: white;
             font-size: 20px;
             font-weight: bold;
@@ -84,7 +93,7 @@
             user-select: none;
         }
         .control-btn:active {
-            background: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.4);
         }
         #btn-up { grid-column: 2; grid-row: 1; }
         #btn-left { grid-column: 1; grid-row: 2; }
@@ -100,15 +109,16 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: #ff4444;
+            background: #ff3333;
             border: 3px solid white;
             color: white;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
             user-select: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         .action-btn:active {
             background: #cc0000;
@@ -118,14 +128,15 @@
 <body>
 
     <div id="menu">
-        <h1>Выбор стороны</h1>
+        <h1>Тактический Шутер</h1>
+        <p style="color: #aaa; margin-bottom: 20px;">Выберите сторону конфликта</p>
         <button id="btn-ct" onclick="startGame('CT')">Спецназ (Синие)</button>
         <button id="btn-t" onclick="startGame('T')">Террористы (Красные)</button>
     </div>
 
     <div id="game-container">
         <div id="ui">
-            <div>Здоровье: <span id="hp">100</span></div>
+            <div>Здоровье: <span id="hp" style="color: #ff4444;">100</span></div>
             <div>Патроны: <span id="ammo">7</span>/7</div>
             <button class="hud-btn" onclick="reloadWeapon()">Перезарядка</button>
         </div>
@@ -133,16 +144,14 @@
         <canvas id="gameCanvas" width="800" height="500"></canvas>
 
         <div id="controls">
-            <!-- Джойстик движения -->
             <div class="dpad">
                 <div class="control-btn" id="btn-up">▲</div>
                 <div class="control-btn" id="btn-left">◀</div>
                 <div class="control-btn" id="btn-down">▼</div>
                 <div class="control-btn" id="btn-right">▶</div>
             </div>
-            <!-- Кнопки действий -->
             <div class="actions">
-                <div class="action-btn" id="btn-shoot">СТРЕЛЯТЬ</div>
+                <div class="action-btn" id="btn-shoot">ОГОНЬ</div>
             </div>
         </div>
     </div>
@@ -154,7 +163,6 @@ const ctx = canvas.getContext('2d');
 let gameStarted = false;
 let playerTeam = '';
 
-// Управление (Клавиатура + Кнопки)
 const keys = { w: false, a: false, s: false, d: false };
 
 window.addEventListener('keydown', e => {
@@ -172,7 +180,6 @@ window.addEventListener('keyup', e => {
     if (e.key === 'd' || e.key === 'в') keys.d = false;
 });
 
-// Привязка экранных кнопок для телефона
 function bindTouchButton(id, keyName) {
     const el = document.getElementById(id);
     el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
@@ -189,7 +196,6 @@ bindTouchButton('btn-right', 'd');
 document.getElementById('btn-shoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
 document.getElementById('btn-shoot').addEventListener('mousedown', () => { shoot(); });
 
-// Поворот за мышкой (на ПК) или по направлению движения / врагам (на телефоне)
 let mouseX = 400, mouseY = 250;
 canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
@@ -197,15 +203,20 @@ canvas.addEventListener('mousemove', e => {
     mouseY = e.clientY - rect.top;
 });
 
-// Карты и стены
+const MAP_WIDTH = 1600;
+const MAP_HEIGHT = 1200;
+
+// Стены с красивыми параметрами
 const walls = [
-    { x: 200, y: 150, w: 400, h: 25 },
-    { x: 150, y: 350, w: 25, h: 120 },
-    { x: 550, y: 250, w: 25, h: 180 }
+    { x: 300, y: 200, w: 500, h: 40 },
+    { x: 200, y: 600, w: 40, h: 400 },
+    { x: 900, y: 400, w: 40, h: 500 },
+    { x: 600, y: 950, w: 600, h: 40 },
+    { x: 1100, y: 200, w: 300, h: 40 }
 ];
 
 let player = {
-    x: 100, y: 100, radius: 15, speed: 3, hp: 100, maxHp: 100,
+    x: 400, y: 400, radius: 15, speed: 3.5, hp: 100, maxHp: 100,
     ammo: 7, maxAmmo: 7, isReloading: false, isDead: false, angle: 0
 };
 
@@ -218,9 +229,9 @@ function startGame(team) {
     document.getElementById('game-container').style.display = 'block';
     
     bots = [
-        { x: 700, y: 80, radius: 15, speed: 1.2, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
-        { x: 700, y: 420, radius: 15, speed: 1.2, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
-        { x: 400, y: 400, radius: 15, speed: 1.2, hp: 100, team: team, angle: 0, shootTimer: 0 }
+        { x: 1300, y: 300, radius: 15, speed: 1.5, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
+        { x: 1200, y: 1000, radius: 15, speed: 1.5, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
+        { x: 500, y: 800, radius: 15, speed: 1.5, hp: 100, team: team, angle: 0, shootTimer: 0 }
     ];
 
     gameStarted = true;
@@ -235,8 +246,8 @@ function shoot() {
     bullets.push({
         x: player.x + Math.cos(player.angle) * 20,
         y: player.y + Math.sin(player.angle) * 20,
-        dx: Math.cos(player.angle) * 10,
-        dy: Math.sin(player.angle) * 10,
+        dx: Math.cos(player.angle) * 12,
+        dy: Math.sin(player.angle) * 12,
         damage: 50,
         team: playerTeam
     });
@@ -258,7 +269,7 @@ function checkWallCollision(x, y, r) {
             return true;
         }
     }
-    return x < r || x > canvas.width - r || y < r || y > canvas.height - r;
+    return x < r || x > MAP_WIDTH - r || y < r || y > MAP_HEIGHT - r;
 }
 
 function drawCharacter(x, y, angle, team, isDead) {
@@ -267,7 +278,7 @@ function drawCharacter(x, y, angle, team, isDead) {
     ctx.rotate(angle);
 
     if (isDead) {
-        ctx.fillStyle = "#777";
+        ctx.fillStyle = "#555";
         ctx.beginPath();
         ctx.arc(0, 0, 12, 0, Math.PI * 2);
         ctx.fill();
@@ -276,15 +287,18 @@ function drawCharacter(x, y, angle, team, isDead) {
     }
 
     // Ноги
-    ctx.fillStyle = "#333";
+    ctx.fillStyle = "#111";
     ctx.fillRect(-8, -12, 5, 8);
     ctx.fillRect(3, -12, 5, 8);
 
-    // Тело (форма)
-    ctx.fillStyle = team === 'CT' ? '#0055ff' : '#ff2222';
+    // Тело с тенью/обводкой
+    ctx.fillStyle = team === 'CT' ? '#0066ff' : '#ff3333';
     ctx.beginPath();
     ctx.arc(0, 0, 14, 0, Math.PI * 2);
     ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#fff";
+    ctx.stroke();
 
     // Голова
     ctx.fillStyle = "#ffccaa";
@@ -292,8 +306,8 @@ function drawCharacter(x, y, angle, team, isDead) {
     ctx.arc(4, 0, 7, 0, Math.PI * 2);
     ctx.fill();
 
-    // Пистолет (Дигл)
-    ctx.fillStyle = "#444";
+    // Оружие (Дигл)
+    ctx.fillStyle = "#222";
     ctx.fillRect(10, 4, 10, 4);
 
     ctx.restore();
@@ -312,21 +326,20 @@ function update() {
         if (!checkWallCollision(player.x + moveX, player.y, player.radius)) player.x += moveX;
         if (!checkWallCollision(player.x, player.y + moveY, player.radius)) player.y += moveY;
 
-        // Поворот: на ПК за мышкой, на телефоне — в сторону ближайшего живого бота или по направлению движения
         let targetBot = bots.find(b => b.hp > 0 && b.team !== playerTeam);
         if (moveX !== 0 || moveY !== 0) {
             player.angle = Math.atan2(moveY, moveX);
         } else if (targetBot) {
             player.angle = Math.atan2(targetBot.y - player.y, targetBot.x - player.x);
         } else {
-            player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+            let worldMouseX = mouseX + (player.x - canvas.width / 2);
+            let worldMouseY = mouseY + (player.y - canvas.height / 2);
+            player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
         }
     }
 
-    // Логика ботов
     bots.forEach(bot => {
         if (bot.hp <= 0) return;
-
         let target = (bot.team !== playerTeam && !player.isDead) ? player : null;
         
         if (target) {
@@ -356,7 +369,6 @@ function update() {
         }
     });
 
-    // Пули
     for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i];
         b.x += b.dx;
@@ -392,30 +404,79 @@ function update() {
 }
 
 function draw() {
+    // Очищаем фон холста
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = "#888";
-    for (let w of walls) {
+    ctx.save();
+    let cameraX = canvas.width / 2 - player.x;
+    let cameraY = canvas.height / 2 - player.y;
+    ctx.translate(cameraX, cameraY);
+
+    // --- ОТРИСОВКА КРАСИВОГО ФОНА И СЕТКИ ---
+    ctx.fillStyle = "#333740"; // Приятный серо-синий цвет бетонного пола
+    ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    // Рисуем сетку пола для тактического стиля
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+    ctx.lineWidth = 1;
+    let gridSize = 60;
+    for (let x = 0; x <= MAP_WIDTH; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, MAP_HEIGHT);
+        ctx.stroke();
+    }
+    for (let y = 0; y <= MAP_HEIGHT; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(MAP_WIDTH, y);
+        ctx.stroke();
+    }
+
+    // Границы карты (красивый бортик)
+    ctx.strokeStyle = "#555b6e";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    // --- СТЕНЫ С ТЕНЬЮ И ОБЪЕМОМ ---
+    walls.forEach(w => {
+        // Тень стены
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.fillRect(w.x + 6, w.y + 6, w.w, w.h);
+        
+        // Сама стена
+        ctx.fillStyle = "#5c6370";
         ctx.fillRect(w.x, w.y, w.w, w.h);
-    }
 
+        // Внутренняя текстура стены
+        ctx.strokeStyle = "#474e5d";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(w.x, w.y, w.w, w.h);
+    });
+
+    // Рисуем ботов
     bots.forEach(bot => drawCharacter(bot.x, bot.y, bot.angle, bot.team, bot.hp <= 0));
-    drawCharacter(player.x, player.y, player.angle, playerTeam, player.isDead);
-    
-    if (player.isDead) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "white";
-        ctx.font = "26px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("ВЫ УБИТЫ (Режим призрака)", canvas.width / 2, canvas.height / 2);
-    }
 
-    ctx.fillStyle = "#000";
+    // Рисуем игрока
+    drawCharacter(player.x, player.y, player.angle, playerTeam, player.isDead);
+
+    // Рисуем пули (светящиеся точки)
+    ctx.fillStyle = "#ffee55";
     for (let b of bullets) {
         ctx.beginPath();
-        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
         ctx.fill();
+    }
+
+    ctx.restore();
+
+    if (player.isDead) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ff4444";
+        ctx.font = "bold 28px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("ВЫ УБИТЫ (Режим призрака)", canvas.width / 2, canvas.height / 2);
     }
 }
 
