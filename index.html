@@ -1,490 +1,2561 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Оффлайн Шутер Вид Сверху</title>
-    <style>
-        body {
-            margin: 0;
-            background: #1a1a1a;
-            font-family: Arial, sans-serif;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-            touch-action: none;
-        }
-        #menu {
-            text-align: center;
-            background: #222;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 20px;
-            margin: 10px;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        button:active { transform: scale(0.95); }
-        #btn-ct { background: #0055ff; color: white; }
-        #btn-t { background: #ff2222; color: white; }
-        
-        #game-container {
-            display: none;
-            position: relative;
-        }
-        canvas {
-            background: #2b2b2b;
-            box-shadow: 0 0 30px rgba(0,0,0,0.9);
-            display: block;
-            border-radius: 6px;
-        }
-        #ui {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-        }
-        .hud-btn {
-            background: #444;
-            color: white;
-            padding: 8px 16px;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #666;
-            cursor: pointer;
-        }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>Тактический шутер</title>
 
-        #controls {
-            display: flex;
-            justify-content: space-between;
-            width: 800px;
-            margin-top: 10px;
-        }
-        .dpad {
-            display: grid;
-            grid-template-columns: repeat(3, 50px);
-            grid-template-rows: repeat(2, 50px);
-            gap: 5px;
-        }
-        .control-btn {
-            background: rgba(255, 255, 255, 0.15);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            user-select: none;
-        }
-        .control-btn:active {
-            background: rgba(255, 255, 255, 0.4);
-        }
-        #btn-up { grid-column: 2; grid-row: 1; }
-        #btn-left { grid-column: 1; grid-row: 2; }
-        #btn-down { grid-column: 2; grid-row: 2; }
-        #btn-right { grid-column: 3; grid-row: 2; }
+<style>
+*{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+}
 
-        .actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .action-btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: #ff3333;
-            border: 3px solid white;
-            color: white;
-            font-size: 14px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            user-select: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .action-btn:active {
-            background: #cc0000;
-        }
-    </style>
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#0d1117;
+    color:#fff;
+    font-family:Arial,sans-serif;
+    touch-action:none;
+    user-select:none;
+}
+
+body{
+    position:fixed;
+    inset:0;
+}
+
+button{
+    font:inherit;
+}
+
+#menu{
+    position:fixed;
+    inset:0;
+    z-index:50;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:radial-gradient(
+        circle at 50% 35%,
+        #293442,
+        #0d1117 72%
+    );
+}
+
+.card{
+    width:min(520px,94vw);
+    padding:30px 22px;
+    border:1px solid #ffffff20;
+    border-radius:22px;
+    background:#141a21f5;
+    box-shadow:0 25px 80px #000b;
+    text-align:center;
+}
+
+.card h1{
+    margin:0 0 8px;
+    font-size:34px;
+}
+
+.card p{
+    color:#9da8b5;
+    margin:0 0 24px;
+}
+
+.teams{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+}
+
+.team{
+    border:0;
+    color:#fff;
+    padding:19px 8px;
+    border-radius:14px;
+    font-weight:800;
+    font-size:18px;
+}
+
+.team small{
+    display:block;
+    margin-top:5px;
+    opacity:.75;
+    font-size:11px;
+}
+
+.ct{
+    background:#1769e8;
+}
+
+.tt{
+    background:#d9363e;
+}
+
+.tip{
+    font-size:11px!important;
+    line-height:1.5;
+    margin-top:18px!important;
+    color:#6f7b89!important;
+}
+
+#game{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:#fff;
+    overflow:hidden;
+}
+
+#canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    background:#fff;
+}
+
+#hud{
+    position:absolute;
+    z-index:5;
+    top:0;
+    left:0;
+    right:0;
+
+    padding:
+        max(9px,env(safe-area-inset-top))
+        10px
+        0;
+
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+
+    pointer-events:none;
+}
+
+.box{
+    padding:7px 10px;
+    border-radius:11px;
+    background:#10151ddd;
+    border:1px solid #ffffff20;
+    box-shadow:0 4px 14px #0004;
+    min-width:88px;
+}
+
+.label{
+    font-size:9px;
+    color:#9da8b5;
+    text-transform:uppercase;
+}
+
+.value{
+    font-size:19px;
+    font-weight:800;
+}
+
+#hp{
+    color:#59dc72;
+}
+
+#ammo{
+    color:#ffd34d;
+}
+
+#reload{
+    margin-top:5px;
+    border:0;
+    border-radius:7px;
+    background:#303a47;
+    color:#fff;
+    padding:6px 8px;
+    font-size:11px;
+    font-weight:700;
+    pointer-events:auto;
+}
+
+#status{
+    padding:6px 10px;
+    border-radius:99px;
+    background:#10151ddd;
+    font-size:11px;
+    color:#c9d1d9;
+}
+
+#controls{
+    position:absolute;
+    z-index:6;
+    left:0;
+    right:0;
+    bottom:0;
+
+    height:210px;
+
+    padding:
+        8px
+        max(12px,env(safe-area-inset-right))
+        max(10px,env(safe-area-inset-bottom))
+        max(12px,env(safe-area-inset-left));
+
+    display:flex;
+    justify-content:space-between;
+    align-items:end;
+
+    pointer-events:none;
+}
+
+.stick{
+    position:relative;
+    width:155px;
+    height:155px;
+    pointer-events:auto;
+}
+
+.base{
+    position:absolute;
+    inset:8px;
+    border-radius:50%;
+    background:#0b101899;
+    border:2px solid #ffffff38;
+    box-shadow:inset 0 0 25px #0008;
+}
+
+.knob{
+    position:absolute;
+    width:64px;
+    height:64px;
+    left:45.5px;
+    top:45.5px;
+    border-radius:50%;
+    background:#ffffff35;
+    border:2px solid #ffffff85;
+    box-shadow:0 5px 15px #0007;
+}
+
+#shoot .base{
+    background:#641b1c99;
+    border-color:#ff777755;
+}
+
+#shoot .knob{
+    background:#ff454555;
+    border-color:#ffaaaaaa;
+}
+
+.stick span{
+    position:absolute;
+    bottom:1px;
+    left:0;
+    right:0;
+    text-align:center;
+    font-size:9px;
+    color:#fff9;
+    pointer-events:none;
+}
+
+#death,
+#win{
+    display:none;
+    position:absolute;
+    z-index:20;
+    inset:0;
+    align-items:center;
+    justify-content:center;
+    background:#000b;
+    text-align:center;
+}
+
+.overlay{
+    padding:26px;
+    border-radius:18px;
+    background:#141a21;
+    border:1px solid #ffffff20;
+    box-shadow:0 20px 70px #000b;
+}
+
+.overlay h2{
+    margin:0 0 7px;
+    font-size:29px;
+}
+
+.overlay p{
+    margin:0 0 16px;
+    color:#aab4c0;
+}
+
+.overlay button{
+    border:0;
+    border-radius:10px;
+    padding:11px 18px;
+    background:#2d7ef7;
+    color:#fff;
+    font-weight:800;
+}
+
+@media (orientation:portrait){
+
+    #menu .card{
+        max-height:90vh;
+    }
+
+    #game:after{
+        content:"Поверните телефон горизонтально";
+
+        position:absolute;
+        z-index:30;
+        inset:0;
+
+        display:flex;
+        align-items:center;
+        justify-content:center;
+
+        background:#0d1117;
+        color:#fff;
+
+        font-weight:800;
+        font-size:20px;
+        text-align:center;
+
+        padding:30px;
+    }
+}
+
+@media (min-width:800px) and (pointer:fine){
+
+    #controls{
+        height:130px;
+    }
+
+    .stick{
+        width:105px;
+        height:105px;
+    }
+
+    .base{
+        inset:6px;
+    }
+
+    .knob{
+        width:45px;
+        height:45px;
+        left:30px;
+        top:30px;
+    }
+}
+</style>
 </head>
+
 <body>
 
-    <div id="menu">
-        <h1>Тактический Шутер</h1>
-        <p style="color: #aaa; margin-bottom: 20px;">Выберите сторону конфликта</p>
-        <button id="btn-ct" onclick="startGame('CT')">Спецназ (Синие)</button>
-        <button id="btn-t" onclick="startGame('T')">Террористы (Красные)</button>
-    </div>
+<!-- МЕНЮ -->
 
-    <div id="game-container">
-        <div id="ui">
-            <div>Здоровье: <span id="hp" style="color: #ff4444;">100</span></div>
-            <div>Патроны: <span id="ammo">7</span>/7</div>
-            <button class="hud-btn" onclick="reloadWeapon()">Перезарядка</button>
+<div id="menu">
+
+    <div class="card">
+
+        <h1>Тактический шутер</h1>
+
+        <p>
+            Offline • вид сверху • тестовый раунд
+        </p>
+
+        <div class="teams">
+
+            <button
+                class="team ct"
+                onclick="startGame('CT')"
+            >
+                СПЕЦНАЗ
+
+                <small>
+                    Синие • CT
+                </small>
+            </button>
+
+            <button
+                class="team tt"
+                onclick="startGame('T')"
+            >
+                ТЕРРОРИСТЫ
+
+                <small>
+                    Красные • T
+                </small>
+            </button>
+
         </div>
 
-        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <p class="tip">
+            Левый стик — движение<br>
+            Правый стик — направление + стрельба<br>
+            Кнопка сверху справа — перезарядка
+        </p>
 
-        <div id="controls">
-            <div class="dpad">
-                <div class="control-btn" id="btn-up">▲</div>
-                <div class="control-btn" id="btn-left">◀</div>
-                <div class="control-btn" id="btn-down">▼</div>
-                <div class="control-btn" id="btn-right">▶</div>
-            </div>
-            <div class="actions">
-                <div class="action-btn" id="btn-shoot">ОГОНЬ</div>
-            </div>
-        </div>
     </div>
+
+</div>
+
+
+<!-- ИГРА -->
+
+<div id="game">
+
+    <canvas id="canvas"></canvas>
+
+
+    <!-- HUD -->
+
+    <div id="hud">
+
+        <div class="box">
+
+            <div class="label">
+                Здоровье
+            </div>
+
+            <div
+                class="value"
+                id="hp"
+            >
+                100
+            </div>
+
+        </div>
+
+
+        <div id="status">
+            Раунд 1
+        </div>
+
+
+        <div
+            class="box"
+            style="text-align:right"
+        >
+
+            <div class="label">
+                Патроны
+            </div>
+
+            <div class="value">
+
+                <span id="ammo">
+                    7
+                </span>
+
+                /7
+
+            </div>
+
+            <button
+                id="reload"
+                onclick="reloadWeapon()"
+            >
+                ↻ Перезарядка
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- СТИКИ -->
+
+    <div id="controls">
+
+        <div
+            class="stick"
+            id="move"
+        >
+
+            <div class="base"></div>
+
+            <div class="knob"></div>
+
+            <span>
+                ДВИЖЕНИЕ
+            </span>
+
+        </div>
+
+
+        <div
+            class="stick"
+            id="shoot"
+        >
+
+            <div class="base"></div>
+
+            <div class="knob"></div>
+
+            <span>
+                ПРИЦЕЛ / ОГОНЬ
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- СМЕРТЬ -->
+
+    <div id="death">
+
+        <div class="overlay">
+
+            <h2 style="color:#ff5964">
+                Вы убиты
+            </h2>
+
+            <p>
+                Вы стали призраком до конца раунда.
+            </p>
+
+            <button onclick="newRound()">
+                Новый раунд
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ПОБЕДА -->
+
+    <div id="win">
+
+        <div class="overlay">
+
+            <h2 style="color:#59dc72">
+                Раунд выигран
+            </h2>
+
+            <p id="winText"></p>
+
+            <button onclick="newRound()">
+                Следующий раунд
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
 
-let gameStarted = false;
-let playerTeam = '';
+const canvas =
+    document.getElementById("canvas");
 
-const keys = { w: false, a: false, s: false, d: false };
+const ctx =
+    canvas.getContext("2d");
 
-window.addEventListener('keydown', e => {
-    if (e.key === 'w' || e.key === 'ц') keys.w = true;
-    if (e.key === 'a' || e.key === 'ф') keys.a = true;
-    if (e.key === 's' || e.key === 'ы') keys.s = true;
-    if (e.key === 'd' || e.key === 'в') keys.d = true;
-    if (e.key === 'r' || e.key === 'к') reloadWeapon();
-});
 
-window.addEventListener('keyup', e => {
-    if (e.key === 'w' || e.key === 'ц') keys.w = false;
-    if (e.key === 'a' || e.key === 'ф') keys.a = false;
-    if (e.key === 's' || e.key === 'ы') keys.s = false;
-    if (e.key === 'd' || e.key === 'в') keys.d = false;
-});
+let W = innerWidth;
+let H = innerHeight;
 
-function bindTouchButton(id, keyName) {
-    const el = document.getElementById(id);
-    el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[keyName] = true; });
-    el.addEventListener('touchend', (e) => { e.preventDefault(); keys[keyName] = false; });
-    el.addEventListener('mousedown', () => { keys[keyName] = true; });
-    el.addEventListener('mouseup', () => { keys[keyName] = false; });
-}
+let D =
+    Math.min(
+        devicePixelRatio || 1,
+        2
+    );
 
-bindTouchButton('btn-up', 'w');
-bindTouchButton('btn-left', 'a');
-bindTouchButton('btn-down', 's');
-bindTouchButton('btn-right', 'd');
+let started = false;
 
-document.getElementById('btn-shoot').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
-document.getElementById('btn-shoot').addEventListener('mousedown', () => { shoot(); });
+let team = "CT";
 
-let mouseX = 400, mouseY = 250;
-canvas.addEventListener('mousemove', e => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-});
+let round = 1;
 
-const MAP_WIDTH = 1600;
-const MAP_HEIGHT = 1200;
+let last = 0;
 
-// Стены с красивыми параметрами
-const walls = [
-    { x: 300, y: 200, w: 500, h: 40 },
-    { x: 200, y: 600, w: 40, h: 400 },
-    { x: 900, y: 400, w: 40, h: 500 },
-    { x: 600, y: 950, w: 600, h: 40 },
-    { x: 1100, y: 200, w: 300, h: 40 }
-];
 
-let player = {
-    x: 400, y: 400, radius: 15, speed: 3.5, hp: 100, maxHp: 100,
-    ammo: 7, maxAmmo: 7, isReloading: false, isDead: false, angle: 0
+/*
+    РАЗМЕР КАРТЫ
+*/
+
+const map = {
+    w:2400,
+    h:1600
 };
 
+
+/*
+    СТЕНЫ
+*/
+
+const walls = [
+
+    {
+        x:330,
+        y:240,
+        w:650,
+        h:55
+    },
+
+    {
+        x:330,
+        y:295,
+        w:55,
+        h:340
+    },
+
+    {
+        x:1080,
+        y:170,
+        w:55,
+        h:450
+    },
+
+    {
+        x:1080,
+        y:565,
+        w:430,
+        h:55
+    },
+
+    {
+        x:1660,
+        y:240,
+        w:430,
+        h:55
+    },
+
+    {
+        x:2035,
+        y:240,
+        w:55,
+        h:360
+    },
+
+    {
+        x:360,
+        y:1040,
+        w:520,
+        h:55
+    },
+
+    {
+        x:825,
+        y:850,
+        w:55,
+        h:270
+    },
+
+    {
+        x:1080,
+        y:930,
+        w:620,
+        h:55
+    },
+
+    {
+        x:1645,
+        y:930,
+        w:55,
+        h:320
+    },
+
+    {
+        x:1850,
+        y:1170,
+        w:370,
+        h:55
+    },
+
+    {
+        x:1850,
+        y:1170,
+        w:55,
+        h:190
+    }
+
+];
+
+
+/*
+    ИГРОК
+*/
+
+const p = {
+
+    x:500,
+
+    y:500,
+
+    r:18,
+
+    speed:250,
+
+    hp:100,
+
+    ammo:7,
+
+    reloading:false,
+
+    dead:false,
+
+    angle:0
+
+};
+
+
 let bots = [];
+
 let bullets = [];
 
-function startGame(team) {
-    playerTeam = team;
-    document.getElementById('menu').style.display = 'none';
-    document.getElementById('game-container').style.display = 'block';
-    
-    bots = [
-        { x: 1300, y: 300, radius: 15, speed: 1.5, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
-        { x: 1200, y: 1000, radius: 15, speed: 1.5, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
-        { x: 500, y: 800, radius: 15, speed: 1.5, hp: 100, team: team, angle: 0, shootTimer: 0 }
-    ];
+let particles = [];
 
-    gameStarted = true;
-    loop();
+
+let cam = {
+
+    x:0,
+
+    y:0
+
+};
+
+
+/*
+    КЛАВИАТУРА
+*/
+
+const keys = {
+
+    w:false,
+    a:false,
+    s:false,
+    d:false
+
+};
+
+
+/*
+    СТИКИ
+*/
+
+const move = {
+
+    x:0,
+    y:0
+
+};
+
+const aim = {
+
+    x:0,
+    y:0,
+
+    active:false
+
+};
+
+
+/*
+    CANVAS
+*/
+
+function resize(){
+
+    W = innerWidth;
+
+    H = innerHeight;
+
+    D =
+        Math.min(
+            devicePixelRatio || 1,
+            2
+        );
+
+    canvas.width =
+        W * D;
+
+    canvas.height =
+        H * D;
+
+    canvas.style.width =
+        W + "px";
+
+    canvas.style.height =
+        H + "px";
 }
 
-function shoot() {
-    if (player.isDead || player.isReloading || player.ammo <= 0) return;
-    player.ammo--;
-    document.getElementById('ammo').innerText = player.ammo;
 
-    bullets.push({
-        x: player.x + Math.cos(player.angle) * 20,
-        y: player.y + Math.sin(player.angle) * 20,
-        dx: Math.cos(player.angle) * 12,
-        dy: Math.sin(player.angle) * 12,
-        damage: 50,
-        team: playerTeam
-    });
-}
+addEventListener(
+    "resize",
+    resize
+);
 
-function reloadWeapon() {
-    if (player.isReloading || player.ammo === player.maxAmmo || player.isDead) return;
-    player.isReloading = true;
-    setTimeout(() => {
-        player.ammo = player.maxAmmo;
-        document.getElementById('ammo').innerText = player.ammo;
-        player.isReloading = false;
-    }, 1500);
-}
+resize();
 
-function checkWallCollision(x, y, r) {
-    for (let w of walls) {
-        if (x + r > w.x && x - r < w.x + w.w && y + r > w.y && y - r < w.y + w.h) {
-            return true;
-        }
-    }
-    return x < r || x > MAP_WIDTH - r || y < r || y > MAP_HEIGHT - r;
-}
 
-function drawCharacter(x, y, angle, team, isDead) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
+/*
+    НАЧАЛО ИГРЫ
+*/
 
-    if (isDead) {
-        ctx.fillStyle = "#555";
-        ctx.beginPath();
-        ctx.arc(0, 0, 12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-        return;
-    }
+function startGame(t){
 
-    // Ноги
-    ctx.fillStyle = "#111";
-    ctx.fillRect(-8, -12, 5, 8);
-    ctx.fillRect(3, -12, 5, 8);
+    team = t;
 
-    // Тело с тенью/обводкой
-    ctx.fillStyle = team === 'CT' ? '#0066ff' : '#ff3333';
-    ctx.beginPath();
-    ctx.arc(0, 0, 14, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#fff";
-    ctx.stroke();
+    round = 1;
 
-    // Голова
-    ctx.fillStyle = "#ffccaa";
-    ctx.beginPath();
-    ctx.arc(4, 0, 7, 0, Math.PI * 2);
-    ctx.fill();
+    document
+        .getElementById("menu")
+        .style.display = "none";
 
-    // Оружие (Дигл)
-    ctx.fillStyle = "#222";
-    ctx.fillRect(10, 4, 10, 4);
+    document
+        .getElementById("game")
+        .style.display = "block";
 
-    ctx.restore();
-}
+    newRound(true);
 
-function update() {
-    if (!gameStarted) return;
+    started = true;
 
-    if (!player.isDead) {
-        let moveX = 0, moveY = 0;
-        if (keys.w) moveY -= player.speed;
-        if (keys.s) moveY += player.speed;
-        if (keys.a) moveX -= player.speed;
-        if (keys.d) moveX += player.speed;
+    last =
+        performance.now();
 
-        if (!checkWallCollision(player.x + moveX, player.y, player.radius)) player.x += moveX;
-        if (!checkWallCollision(player.x, player.y + moveY, player.radius)) player.y += moveY;
-
-        let targetBot = bots.find(b => b.hp > 0 && b.team !== playerTeam);
-        if (moveX !== 0 || moveY !== 0) {
-            player.angle = Math.atan2(moveY, moveX);
-        } else if (targetBot) {
-            player.angle = Math.atan2(targetBot.y - player.y, targetBot.x - player.x);
-        } else {
-            let worldMouseX = mouseX + (player.x - canvas.width / 2);
-            let worldMouseY = mouseY + (player.y - canvas.height / 2);
-            player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
-        }
-    }
-
-    bots.forEach(bot => {
-        if (bot.hp <= 0) return;
-        let target = (bot.team !== playerTeam && !player.isDead) ? player : null;
-        
-        if (target) {
-            let angleToTarget = Math.atan2(target.y - bot.y, target.x - bot.x);
-            bot.angle = angleToTarget;
-
-            let dist = Math.hypot(target.x - bot.x, target.y - bot.y);
-            if (dist > 140) {
-                let bx = Math.cos(angleToTarget) * bot.speed;
-                let by = Math.sin(angleToTarget) * bot.speed;
-                if (!checkWallCollision(bot.x + bx, bot.y, bot.radius)) bot.x += bx;
-                if (!checkWallCollision(bot.x, bot.y + by, bot.radius)) bot.y += by;
-            }
-
-            bot.shootTimer++;
-            if (bot.shootTimer > 100) {
-                bullets.push({
-                    x: bot.x + Math.cos(bot.angle) * 20,
-                    y: bot.y + Math.sin(bot.angle) * 20,
-                    dx: Math.cos(bot.angle) * 8,
-                    dy: Math.sin(bot.angle) * 8,
-                    damage: 50,
-                    team: bot.team
-                });
-                bot.shootTimer = 0;
-            }
-        }
-    });
-
-    for (let i = bullets.length - 1; i >= 0; i--) {
-        let b = bullets[i];
-        b.x += b.dx;
-        b.y += b.dy;
-
-        if (checkWallCollision(b.x, b.y, 3)) {
-            bullets.splice(i, 1);
-            continue;
-        }
-
-        if (b.team !== playerTeam && !player.isDead) {
-            if (Math.hypot(player.x - b.x, player.y - b.y) < player.radius) {
-                player.hp -= b.damage;
-                document.getElementById('hp').innerText = Math.max(0, player.hp);
-                if (player.hp <= 0) player.isDead = true;
-                bullets.splice(i, 1);
-                continue;
-            }
-        }
-
-        let hitBot = false;
-        for (let bot of bots) {
-            if (b.team !== bot.team && bot.hp > 0) {
-                if (Math.hypot(bot.x - b.x, bot.y - b.y) < bot.radius) {
-                    bot.hp -= b.damage;
-                    hitBot = true;
-                    break;
-                }
-            }
-        }
-        if (hitBot) bullets.splice(i, 1);
-    }
-}
-
-function draw() {
-    // Очищаем фон холста
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    let cameraX = canvas.width / 2 - player.x;
-    let cameraY = canvas.height / 2 - player.y;
-    ctx.translate(cameraX, cameraY);
-
-    // --- ОТРИСОВКА КРАСИВОГО ФОНА И СЕТКИ ---
-    ctx.fillStyle = "#333740"; // Приятный серо-синий цвет бетонного пола
-    ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-
-    // Рисуем сетку пола для тактического стиля
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.04)";
-    ctx.lineWidth = 1;
-    let gridSize = 60;
-    for (let x = 0; x <= MAP_WIDTH; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, MAP_HEIGHT);
-        ctx.stroke();
-    }
-    for (let y = 0; y <= MAP_HEIGHT; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(MAP_WIDTH, y);
-        ctx.stroke();
-    }
-
-    // Границы карты (красивый бортик)
-    ctx.strokeStyle = "#555b6e";
-    ctx.lineWidth = 6;
-    ctx.strokeRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-
-    // --- СТЕНЫ С ТЕНЬЮ И ОБЪЕМОМ ---
-    walls.forEach(w => {
-        // Тень стены
-        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-        ctx.fillRect(w.x + 6, w.y + 6, w.w, w.h);
-        
-        // Сама стена
-        ctx.fillStyle = "#5c6370";
-        ctx.fillRect(w.x, w.y, w.w, w.h);
-
-        // Внутренняя текстура стены
-        ctx.strokeStyle = "#474e5d";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(w.x, w.y, w.w, w.h);
-    });
-
-    // Рисуем ботов
-    bots.forEach(bot => drawCharacter(bot.x, bot.y, bot.angle, bot.team, bot.hp <= 0));
-
-    // Рисуем игрока
-    drawCharacter(player.x, player.y, player.angle, playerTeam, player.isDead);
-
-    // Рисуем пули (светящиеся точки)
-    ctx.fillStyle = "#ffee55";
-    for (let b of bullets) {
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    ctx.restore();
-
-    if (player.isDead) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#ff4444";
-        ctx.font = "bold 28px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("ВЫ УБИТЫ (Режим призрака)", canvas.width / 2, canvas.height / 2);
-    }
-}
-
-function loop() {
-    update();
-    draw();
     requestAnimationFrame(loop);
 }
+
+
+/*
+    НОВЫЙ РАУНД
+*/
+
+function newRound(){
+
+    Object.assign(
+        p,
+        {
+            x:500,
+            y:500,
+            hp:100,
+            ammo:7,
+            reloading:false,
+            dead:false,
+            angle:0
+        }
+    );
+
+    bullets = [];
+
+    particles = [];
+
+
+    const enemy =
+        team === "CT"
+            ? "T"
+            : "CT";
+
+
+    bots = [
+
+        makeBot(
+            1880,
+            400,
+            enemy
+        ),
+
+        makeBot(
+            2040,
+            800,
+            enemy
+        ),
+
+        makeBot(
+            1500,
+            760,
+            enemy
+        ),
+
+        makeBot(
+            800,
+            1300,
+            enemy
+        ),
+
+        makeBot(
+            820,
+            650,
+            team
+        ),
+
+        makeBot(
+            1450,
+            1250,
+            team
+        )
+
+    ];
+
+
+    document
+        .getElementById("death")
+        .style.display = "none";
+
+    document
+        .getElementById("win")
+        .style.display = "none";
+
+    document
+        .getElementById("status")
+        .textContent =
+            "Раунд " + round;
+
+    hud();
+}
+
+
+/*
+    БОТ
+*/
+
+function makeBot(
+    x,
+    y,
+    t
+){
+
+    return {
+
+        x:x,
+
+        y:y,
+
+        r:18,
+
+        speed:
+            t === team
+                ? 155
+                : 105,
+
+        hp:100,
+
+        team:t,
+
+        angle:0,
+
+        cool:
+            Math.random(),
+
+        dead:false
+
+    };
+
+}
+
+
+/*
+    HUD
+*/
+
+function hud(){
+
+    document
+        .getElementById("hp")
+        .textContent =
+            Math.max(
+                0,
+                Math.ceil(p.hp)
+            );
+
+    document
+        .getElementById("ammo")
+        .textContent =
+            p.ammo;
+
+
+    const hp =
+        document.getElementById("hp");
+
+
+    hp.style.color =
+        p.hp > 50
+            ? "#59dc72"
+            : p.hp > 20
+                ? "#ffd34d"
+                : "#ff5964";
+
+}
+
+
+/*
+    ПЕРЕЗАРЯДКА
+*/
+
+function reloadWeapon(){
+
+    if(
+        p.dead ||
+        p.reloading ||
+        p.ammo === 7
+    ){
+
+        return;
+
+    }
+
+
+    p.reloading = true;
+
+
+    document
+        .getElementById("reload")
+        .textContent =
+            "... Перезарядка";
+
+
+    setTimeout(
+        function(){
+
+            if(!p.dead){
+
+                p.ammo = 7;
+
+                hud();
+
+            }
+
+            p.reloading = false;
+
+
+            document
+                .getElementById("reload")
+                .textContent =
+                    "↻ Перезарядка";
+
+        },
+        850
+    );
+
+}
+
+
+/*
+    КОЛЛИЗИЯ СО СТЕНАМИ
+*/
+
+function wall(
+    x,
+    y,
+    r
+){
+
+    if(
+        x < r ||
+        y < r ||
+        x > map.w - r ||
+        y > map.h - r
+    ){
+
+        return true;
+
+    }
+
+
+    for(
+        const w of walls
+    ){
+
+        if(
+
+            x + r > w.x &&
+
+            x - r <
+                w.x + w.w &&
+
+            y + r > w.y &&
+
+            y - r <
+                w.y + w.h
+
+        ){
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/*
+    ДВИЖЕНИЕ
+*/
+
+function moveEntity(
+    e,
+    dx,
+    dy
+){
+
+    if(
+        !wall(
+            e.x + dx,
+            e.y,
+            e.r
+        )
+    ){
+
+        e.x += dx;
+
+    }
+
+
+    if(
+        !wall(
+            e.x,
+            e.y + dy,
+            e.r
+        )
+    ){
+
+        e.y += dy;
+
+    }
+
+}
+
+
+/*
+    ПРОВЕРКА ВИДИМОСТИ
+*/
+
+function blocked(
+    x1,
+    y1,
+    x2,
+    y2
+){
+
+    const n =
+        Math.ceil(
+            Math.hypot(
+                x2 - x1,
+                y2 - y1
+            ) / 18
+        );
+
+
+    for(
+        let i = 1;
+        i < n;
+        i++
+    ){
+
+        const t =
+            i / n;
+
+
+        const x =
+            x1 +
+            (x2 - x1) * t;
+
+
+        const y =
+            y1 +
+            (y2 - y1) * t;
+
+
+        if(
+            wall(
+                x,
+                y,
+                2
+            )
+        ){
+
+            return true;
+
+        }
+
+    }
+
+
+    return false;
+
+}
+
+
+/*
+    ПОИСК ВРАГА
+*/
+
+function nearest(e){
+
+    const a = [];
+
+
+    if(e === p){
+
+        bots.forEach(
+            b => {
+
+                if(
+                    !b.dead &&
+                    b.team !== team
+                ){
+
+                    a.push(b);
+
+                }
+
+            }
+        );
+
+    }
+
+    else{
+
+        if(
+            !p.dead &&
+            e.team !== team
+        ){
+
+            a.push(p);
+
+        }
+
+
+        bots.forEach(
+            b => {
+
+                if(
+
+                    b !== e &&
+
+                    !b.dead &&
+
+                    b.team !== e.team
+
+                ){
+
+                    a.push(b);
+
+                }
+
+            }
+        );
+
+    }
+
+
+    a.sort(
+        (u,v) =>
+
+            Math.hypot(
+                u.x - e.x,
+                u.y - e.y
+            )
+
+            -
+
+            Math.hypot(
+                v.x - e.x,
+                v.y - e.y
+            )
+    );
+
+
+    return a[0] || null;
+
+}
+
+
+/*
+    ВЫСТРЕЛ ИГРОКА
+*/
+
+function fire(){
+
+    if(
+        p.dead ||
+        p.reloading ||
+        p.ammo <= 0
+    ){
+
+        return;
+
+    }
+
+
+    p.ammo--;
+
+    hud();
+
+
+    const a =
+        p.angle;
+
+
+    bullets.push({
+
+        x:
+            p.x +
+            Math.cos(a) * 25,
+
+        y:
+            p.y +
+            Math.sin(a) * 25,
+
+        dx:
+            Math.cos(a) * 920,
+
+        dy:
+            Math.sin(a) * 920,
+
+        team:team,
+
+        life:1.3
+
+    });
+
+
+    for(
+        let i=0;
+        i<5;
+        i++
+    ){
+
+        particles.push({
+
+            x:
+                p.x +
+                Math.cos(a)*25,
+
+            y:
+                p.y +
+                Math.sin(a)*25,
+
+            vx:
+                (Math.random()-.5)*110,
+
+            vy:
+                (Math.random()-.5)*110,
+
+            life:.16
+
+        });
+
+    }
+
+}
+
+
+/*
+    ВЫСТРЕЛ БОТА
+*/
+
+function botFire(b){
+
+    const a =
+        b.angle;
+
+
+    bullets.push({
+
+        x:
+            b.x +
+            Math.cos(a)*24,
+
+        y:
+            b.y +
+            Math.sin(a)*24,
+
+        dx:
+            Math.cos(a)*650,
+
+        dy:
+            Math.sin(a)*650,
+
+        team:b.team,
+
+        life:1.6
+
+    });
+
+}
+
+
+/*
+    УРОН ИГРОКУ
+*/
+
+function hurt(n){
+
+    if(p.dead){
+
+        return;
+
+    }
+
+
+    p.hp -= n;
+
+    hud();
+
+
+    if(p.hp <= 0){
+
+        p.hp = 0;
+
+        p.dead = true;
+
+        document
+            .getElementById("death")
+            .style.display = "flex";
+
+    }
+
+}
+
+
+/*
+    ОБНОВЛЕНИЕ ИГРЫ
+*/
+
+function update(dt){
+
+    if(!p.dead){
+
+        let x = 0;
+
+        let y = 0;
+
+
+        if(keys.w) y--;
+
+        if(keys.s) y++;
+
+        if(keys.a) x--;
+
+        if(keys.d) x++;
+
+
+        x += move.x;
+
+        y += move.y;
+
+
+        const l =
+            Math.hypot(x,y);
+
+
+        if(l > 1){
+
+            x /= l;
+
+            y /= l;
+
+        }
+
+
+        moveEntity(
+            p,
+            x*p.speed*dt,
+            y*p.speed*dt
+        );
+
+
+        /*
+            Правый стик:
+            куда направлен —
+            туда стреляем
+        */
+
+        if(
+            aim.active &&
+            Math.hypot(
+                aim.x,
+                aim.y
+            ) > .15
+        ){
+
+            p.angle =
+                Math.atan2(
+                    aim.y,
+                    aim.x
+                );
+
+            fire();
+
+        }
+
+    }
+
+
+    /*
+        БОТЫ
+    */
+
+    for(
+        const b of bots
+    ){
+
+        if(b.dead){
+
+            continue;
+
+        }
+
+
+        const t =
+            nearest(b);
+
+
+        if(!t){
+
+            continue;
+
+        }
+
+
+        const dx =
+            t.x - b.x;
+
+
+        const dy =
+            t.y - b.y;
+
+
+        const d =
+            Math.hypot(
+                dx,
+                dy
+            );
+
+
+        b.angle =
+            Math.atan2(
+                dy,
+                dx
+            );
+
+
+        if(d > 270){
+
+            moveEntity(
+
+                b,
+
+                dx/d *
+                b.speed *
+                dt,
+
+                dy/d *
+                b.speed *
+                dt
+
+            );
+
+        }
+
+
+        b.cool -= dt;
+
+
+        if(
+
+            d < 680 &&
+
+            b.cool <= 0 &&
+
+            !blocked(
+                b.x,
+                b.y,
+                t.x,
+                t.y
+            )
+
+        ){
+
+            botFire(b);
+
+            b.cool =
+                .8 +
+                Math.random()*1.1;
+
+        }
+
+    }
+
+
+    /*
+        ПУЛИ
+    */
+
+    for(
+        let i=bullets.length-1;
+        i>=0;
+        i--
+    ){
+
+        const b =
+            bullets[i];
+
+
+        b.x +=
+            b.dx * dt;
+
+        b.y +=
+            b.dy * dt;
+
+
+        b.life -= dt;
+
+
+        if(
+
+            b.life <= 0 ||
+
+            wall(
+                b.x,
+                b.y,
+                3
+            )
+
+        ){
+
+            bullets.splice(i,1);
+
+            continue;
+
+        }
+
+
+        let hit = false;
+
+
+        /*
+            Попадание в игрока
+        */
+
+        if(
+
+            b.team !== team &&
+
+            !p.dead &&
+
+            Math.hypot(
+                p.x-b.x,
+                p.y-b.y
+            ) < p.r
+
+        ){
+
+            hurt(50);
+
+            hit = true;
+
+        }
+
+
+        /*
+            Попадание в бота
+        */
+
+        if(!hit){
+
+            for(
+                const q of bots
+            ){
+
+                if(
+
+                    !q.dead &&
+
+                    b.team !== q.team &&
+
+                    Math.hypot(
+                        q.x-b.x,
+                        q.y-b.y
+                    ) < q.r
+
+                ){
+
+                    q.hp -= 50;
+
+                    hit = true;
+
+
+                    if(q.hp <= 0){
+
+                        q.dead = true;
+
+                        burst(
+                            q.x,
+                            q.y
+                        );
+
+                    }
+
+                    break;
+
+                }
+
+            }
+
+        }
+
+
+        if(hit){
+
+            bullets.splice(i,1);
+
+        }
+
+    }
+
+
+    /*
+        ЧАСТИЦЫ
+    */
+
+    for(
+        let i=particles.length-1;
+        i>=0;
+        i--
+    ){
+
+        const q =
+            particles[i];
+
+
+        q.x +=
+            q.vx * dt;
+
+        q.y +=
+            q.vy * dt;
+
+        q.life -= dt;
+
+
+        if(q.life <= 0){
+
+            particles.splice(i,1);
+
+        }
+
+    }
+
+
+    /*
+        ПОБЕДА
+    */
+
+    if(
+
+        !p.dead &&
+
+        !bots.some(
+            b =>
+                !b.dead &&
+                b.team !== team
+        )
+
+    ){
+
+        document
+            .getElementById("winText")
+            .textContent =
+                "Все противники уничтожены. Раунд " +
+                round +
+                " завершён.";
+
+        document
+            .getElementById("win")
+            .style.display =
+                "flex";
+
+    }
+
+}
+
+
+/*
+    ЭФФЕКТ СМЕРТИ
+*/
+
+function burst(
+    x,
+    y
+){
+
+    for(
+        let i=0;
+        i<14;
+        i++
+    ){
+
+        particles.push({
+
+            x:x,
+
+            y:y,
+
+            vx:
+                (Math.random()-.5)*230,
+
+            vy:
+                (Math.random()-.5)*230,
+
+            life:
+                .4 +
+                Math.random()*.4
+
+        });
+
+    }
+
+}
+
+
+/*
+    ОТРИСОВКА ПЕРСОНАЖА
+*/
+
+function character(
+    e
+){
+
+    ctx.save();
+
+    ctx.translate(
+        e.x,
+        e.y
+    );
+
+    ctx.rotate(
+        e.angle
+    );
+
+
+    /*
+        Мёртвый
+    */
+
+    if(e.dead){
+
+        ctx.fillStyle =
+            "#aab0b7";
+
+        ctx.globalAlpha =
+            .55;
+
+        ctx.beginPath();
+
+        ctx.ellipse(
+            0,
+            0,
+            22,
+            11,
+            0,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+        ctx.restore();
+
+        return;
+
+    }
+
+
+    /*
+        НОГИ
+    */
+
+    ctx.strokeStyle =
+        "#222";
+
+    ctx.lineWidth = 5;
+
+    ctx.lineCap =
+        "round";
+
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        -5,
+        -7
+    );
+
+    ctx.lineTo(
+        -10,
+        -18
+    );
+
+
+    ctx.moveTo(
+        5,
+        -7
+    );
+
+    ctx.lineTo(
+        10,
+        -18
+    );
+
+    ctx.stroke();
+
+
+    /*
+        ТЕЛО
+    */
+
+    ctx.fillStyle =
+        e.team === "CT"
+            ? "#1769e8"
+            : "#d9363e";
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        0,
+        15,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    ctx.strokeStyle =
+        "#20252b";
+
+    ctx.lineWidth = 2;
+
+    ctx.stroke();
+
+
+    /*
+        ПЛЕЧИ
+    */
+
+    ctx.fillStyle =
+        e.team === "CT"
+            ? "#0e52b8"
+            : "#a91f27";
+
+
+    ctx.fillRect(
+        -14,
+        -8,
+        28,
+        7
+    );
+
+
+    /*
+        ГОЛОВА
+    */
+
+    ctx.fillStyle =
+        "#e7b28e";
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        5,
+        -2,
+        8,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+        ШЛЕМ
+    */
+
+    ctx.fillStyle =
+        e.team === "CT"
+            ? "#123e79"
+            : "#741a20";
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+        5,
+        -5,
+        8,
+        Math.PI,
+        Math.PI*2
+    );
+
+    ctx.fill();
+
+
+    /*
+        DEAGLE
+    */
+
+    ctx.fillStyle =
+        "#222";
+
+
+    ctx.fillRect(
+        10,
+        -2,
+        17,
+        5
+    );
+
+
+    ctx.fillRect(
+        14,
+        3,
+        5,
+        8
+    );
+
+
+    ctx.restore();
+
+}
+
+
+/*
+    ОТРИСОВКА
+*/
+
+function draw(){
+
+    ctx.setTransform(
+        D,
+        0,
+        0,
+        D,
+        0,
+        0
+    );
+
+
+    ctx.clearRect(
+        0,
+        0,
+        W,
+        H
+    );
+
+
+    /*
+        Камера
+    */
+
+    cam.x +=
+        (
+            p.x -
+            W/2 -
+            cam.x
+        ) * .12;
+
+
+    cam.y +=
+        (
+            p.y -
+            H/2 -
+            cam.y
+        ) * .12;
+
+
+    ctx.save();
+
+
+    ctx.translate(
+        -Math.round(cam.x),
+        -Math.round(cam.y)
+    );
+
+
+    /*
+        Белая карта
+    */
+
+    ctx.fillStyle =
+        "#fff";
+
+
+    ctx.fillRect(
+        0,
+        0,
+        map.w,
+        map.h
+    );
+
+
+    /*
+        Граница карты
+    */
+
+    ctx.strokeStyle =
+        "#c6ccd3";
+
+    ctx.lineWidth = 8;
+
+    ctx.strokeRect(
+        4,
+        4,
+        map.w-8,
+        map.h-8
+    );
+
+
+    /*
+        СТЕНЫ
+    */
+
+    for(
+        const w of walls
+    ){
+
+        ctx.fillStyle =
+            "#e4e7eb";
+
+
+        ctx.fillRect(
+            w.x,
+            w.y,
+            w.w,
+            w.h
+        );
+
+
+        ctx.strokeStyle =
+            "#8d96a1";
+
+        ctx.lineWidth = 3;
+
+
+        ctx.strokeRect(
+            w.x,
+            w.y,
+            w.w,
+            w.h
+        );
+
+    }
+
+
+    /*
+        БОТЫ
+    */
+
+    for(
+        const b of bots
+    ){
+
+        character(b);
+
+    }
+
+
+    /*
+        ИГРОК
+    */
+
+    character(p);
+
+
+    /*
+        ПУЛИ
+    */
+
+    for(
+        const b of bullets
+    ){
+
+        ctx.fillStyle =
+            "#222";
+
+        ctx.beginPath();
+
+        ctx.arc(
+            b.x,
+            b.y,
+            4,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+
+        ctx.strokeStyle =
+            "#ffca3a";
+
+        ctx.lineWidth = 2;
+
+        ctx.stroke();
+
+    }
+
+
+    /*
+        ЧАСТИЦЫ
+    */
+
+    for(
+        const q of particles
+    ){
+
+        ctx.globalAlpha =
+            Math.max(
+                0,
+                q.life*3
+            );
+
+        ctx.fillStyle =
+            "#ffb52e";
+
+
+        ctx.beginPath();
+
+        ctx.arc(
+            q.x,
+            q.y,
+            3,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+
+    }
+
+
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+}
+
+
+/*
+    ИГРОВОЙ ЦИКЛ
+*/
+
+function loop(t){
+
+    const dt =
+        Math.min(
+            (t-last)/1000,
+            .035
+        );
+
+    last = t;
+
+    update(dt);
+
+    draw();
+
+    if(started){
+
+        requestAnimationFrame(
+            loop
+        );
+
+    }
+
+}
+
+
+/*
+    ВИРТУАЛЬНЫЙ СТИК
+*/
+
+function bindStick(
+    id,
+    out
+){
+
+    const el =
+        document.getElementById(id);
+
+    const knob =
+        el.querySelector(".knob");
+
+
+    let pid = null;
+
+
+    function set(e){
+
+        const r =
+            el.getBoundingClientRect();
+
+
+        const cx =
+            r.left +
+            r.width/2;
+
+
+        const cy =
+            r.top +
+            r.height/2;
+
+
+        let dx =
+            e.clientX-cx;
+
+
+        let dy =
+            e.clientY-cy;
+
+
+        const max =
+            r.width*.32;
+
+
+        const len =
+            Math.hypot(dx,dy);
+
+
+        if(len > max){
+
+            dx =
+                dx/len*max;
+
+            dy =
+                dy/len*max;
+
+        }
+
+
+        out.x =
+            dx/max;
+
+        out.y =
+            dy/max;
+
+
+        knob.style.transform =
+            `translate(${dx}px,${dy}px)`;
+
+    }
+
+
+    function end(){
+
+        pid = null;
+
+        out.x = 0;
+
+        out.y = 0;
+
+        out.active = false;
+
+        knob.style.transform =
+            "translate(0,0)";
+
+    }
+
+
+    el.addEventListener(
+        "pointerdown",
+        e => {
+
+            e.preventDefault();
+
+            pid =
+                e.pointerId;
+
+            out.active = true;
+
+            el.setPointerCapture(
+                pid
+            );
+
+            set(e);
+
+        }
+    );
+
+
+    el.addEventListener(
+        "pointermove",
+        e => {
+
+            if(
+                e.pointerId === pid
+            ){
+
+                set(e);
+
+            }
+
+        }
+    );
+
+
+    el.addEventListener(
+        "pointerup",
+        end
+    );
+
+
+    el.addEventListener(
+        "pointercancel",
+        end
+    );
+
+}
+
+
+bindStick(
+    "move",
+    move
+);
+
+
+bindStick(
+    "shoot",
+    aim
+);
+
+
+/*
+    КЛАВИАТУРА ДЛЯ ПК
+*/
+
+addEventListener(
+    "keydown",
+    e => {
+
+        const k =
+            e.key.toLowerCase();
+
+
+        if(
+            k==="w" ||
+            k==="ц"
+        ){
+
+            keys.w = true;
+
+        }
+
+
+        if(
+            k==="a" ||
+            k==="ф"
+        ){
+
+            keys.a = true;
+
+        }
+
+
+        if(
+            k==="s" ||
+            k==="ы"
+        ){
+
+            keys.s = true;
+
+        }
+
+
+        if(
+            k==="d" ||
+            k==="в"
+        ){
+
+            keys.d = true;
+
+        }
+
+
+        if(
+            k==="r" ||
+            k==="к"
+        ){
+
+            reloadWeapon();
+
+        }
+
+    }
+);
+
+
+addEventListener(
+    "keyup",
+    e => {
+
+        const k =
+            e.key.toLowerCase();
+
+
+        if(
+            k==="w" ||
+            k==="ц"
+        ){
+
+            keys.w = false;
+
+        }
+
+
+        if(
+            k==="a" ||
+            k==="ф"
+        ){
+
+            keys.a = false;
+
+        }
+
+
+        if(
+            k==="s" ||
+            k==="ы"
+        ){
+
+            keys.s = false;
+
+        }
+
+
+        if(
+            k==="d" ||
+            k==="в"
+        ){
+
+            keys.d = false;
+
+        }
+
+    }
+);
+
+
+document.addEventListener(
+    "contextmenu",
+    e =>
+        e.preventDefault()
+);
+
 </script>
 
 </body>
