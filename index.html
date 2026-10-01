@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оффлайн Шутер Вид Сверху</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #menu {
+            text-align: center;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        #btn-ct { background: #0055ff; color: white; }
+        #btn-t { background: #ff2222; color: white; }
+        canvas {
+            background: #ffffff;
+            display: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        #ui {
+            display: none;
+            width: 800px;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .hud-btn {
+            background: #333;
+            color: white;
+            padding: 8px 16px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menu">
+        <h1>Выбор стороны</h1>
+        <button id="btn-ct" onclick="startGame('CT')">Спецназ (Синие)</button>
+        <button id="btn-t" onclick="startGame('T')">Террористы (Красные)</button>
+    </div>
+
+    <div id="ui">
+        <div>Здоровье: <span id="hp">100</span></div>
+        <div>Патроны: <span id="ammo">7</span>/7</div>
+        <button class="hud-btn" onclick="reloadWeapon()">Перезарядка (R)</button>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameStarted = false;
+let playerTeam = '';
+
+// Управление
+const keys = { w: false, a: false, s: false, d: false };
+
+window.addEventListener('keydown', e => {
+    if (e.key === 'w' || e.key === 'ц') keys.w = true;
+    if (e.key === 'a' || e.key === 'ф') keys.a = true;
+    if (e.key === 's' || e.key === 'ы') keys.s = true;
+    if (e.key === 'd' || e.key === 'в') keys.d = true;
+    if (e.key === 'r' || e.key === 'к') reloadWeapon();
+});
+
+window.addEventListener('keyup', e => {
+    if (e.key === 'w' || e.key === 'ц') keys.w = false;
+    if (e.key === 'a' || e.key === 'ф') keys.a = false;
+    if (e.key === 's' || e.key === 'ы') keys.s = false;
+    if (e.key === 'd' || e.key === 'в') keys.d = false;
+});
+
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mousedown', () => {
+    if (gameStarted) shoot();
+});
+
+// Карты и стены
+const walls = [
+    { x: 200, y: 150, w: 400, h: 30 },
+    { x: 150, y: 400, w: 30, h: 150 },
+    { x: 600, y: 300, w: 30, h: 200 }
+];
+
+// Игрок и боты
+let player = {
+    x: 100, y: 100, radius: 15, speed: 3, hp: 100, maxHp: 100,
+    ammo: 7, maxAmmo: 7, isReloading: false, isDead: false, angle: 0
+};
+
+let bots = [];
+
+function startGame(team) {
+    playerTeam = team;
+    document.getElementById('menu').style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById('ui').style.display = 'flex';
+    
+    // Спавн ботов
+    bots = [
+        { x: 700, y: 100, radius: 15, speed: 1.5, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
+        { x: 700, y: 500, radius: 15, speed: 1.5, hp: 100, team: team === 'CT' ? 'T' : 'CT', angle: 0, shootTimer: 0 },
+        { x: 400, y: 500, radius: 15, speed: 1.5, hp: 100, team: team, angle: 0, shootTimer: 0 }
+    ];
+
+    gameStarted = true;
+    loop();
+}
+
+let bullets = [];
+
+function shoot() {
+    if (player.isDead || player.isReloading || player.ammo <= 0) return;
+    player.ammo--;
+    document.getElementById('ammo').innerText = player.ammo;
+
+    // Спавн пули дигла
+    bullets.push({
+        x: player.x + Math.cos(player.angle) * 20,
+        y: player.y + Math.sin(player.angle) * 20,
+        dx: Math.cos(player.angle) * 10,
+        dy: Math.sin(player.angle) * 10,
+        damage: 50,
+        team: playerTeam
+    });
+}
+
+function reloadWeapon() {
+    if (player.isReloading || player.ammo === player.maxAmmo || player.isDead) return;
+    player.isReloading = true;
+    setTimeout(() => {
+        player.ammo = player.maxAmmo;
+        document.getElementById('ammo').innerText = player.ammo;
+        player.isReloading = false;
+    }, 1500);
+}
+
+// Проверка столкновения со стенами
+function checkWallCollision(x, y, r) {
+    for (let w of walls) {
+        if (x + r > w.x && x - r < w.x + w.w && y + r > w.y && y - r < w.y + w.h) {
+            return true;
+        }
+    }
+    return x < r || x > canvas.width - r || y < r || y > canvas.height - r;
+}
+
+// Отрисовка человечка (вид сверху: голова, плечи, ноги)
+function drawCharacter(x, y, angle, team, isDead) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    if (isDead) {
+        ctx.fillStyle = "#777";
+        ctx.beginPath();
+        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+    }
+
+    // Ноги (анимация движения)
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-8, -12, 5, 8);
+    ctx.fillRect(3, -12, 5, 8);
+
+    // Плечи / Тело (форма)
+    ctx.fillStyle = team === 'CT' ? '#0055ff' : '#ff2222';
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Голова
+    ctx.fillStyle = "#ffccaa";
+    ctx.beginPath();
+    ctx.arc(4, 0, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Пистолет (Дигл)
+    ctx.fillStyle = "#444";
+    ctx.fillRect(10, 4, 10, 4);
+
+    ctx.restore();
+}
+
+// Игровой цикл
+function update() {
+    if (!gameStarted) return;
+
+    // Движение игрока
+    if (!player.isDead) {
+        let moveX = 0, moveY = 0;
+        if (keys.w) moveY -= player.speed;
+        if (keys.s) moveY += player.speed;
+        if (keys.a) moveX -= player.speed;
+        if (keys.d) moveX += player.speed;
+
+        if (!checkWallCollision(player.x + moveX, player.y, player.radius)) player.x += moveX;
+        if (!checkWallCollision(player.x, player.y + moveY, player.radius)) player.y += moveY;
+
+        player.angle = Math.atan2(mouseY - player.y, mouseX - player.x);
+    }
+
+    // Логика ботов
+    bots.forEach(bot => {
+        if (bot.hp <= 0) return;
+
+        // Ищем ближайшего врага
+        let target = (bot.team !== playerTeam && !player.isDead) ? player : null;
+        
+        if (target) {
+            let angleToTarget = Math.atan2(target.y - bot.y, target.x - bot.x);
+            bot.angle = angleToTarget;
+
+            // Движение к игроку, если далеко
+            let dist = Math.hypot(target.x - bot.x, target.y - bot.y);
+            if (dist > 150) {
+                let bx = Math.cos(angleToTarget) * bot.speed;
+                let by = Math.sin(angleToTarget) * bot.speed;
+                if (!checkWallCollision(bot.x + bx, bot.y, bot.radius)) bot.x += bx;
+                if (!checkWallCollision(bot.x, bot.y + by, bot.radius)) bot.y += by;
+            }
+
+            // Стрельба бота
+            bot.shootTimer++;
+            if (bot.shootTimer > 90) { // раз в 1.5 секунды
+                bullets.push({
+                    x: bot.x + Math.cos(bot.angle) * 20,
+                    y: bot.y + Math.sin(bot.angle) * 20,
+                    dx: Math.cos(bot.angle) * 8,
+                    dy: Math.sin(bot.angle) * 8,
+                    damage: 50,
+                    team: bot.team
+                });
+                bot.shootTimer = 0;
+            }
+        }
+    });
+
+    // Обновление пуль
+    for (let i = bullets.length - 1; i >= 0; i--) {
+        let b = bullets[i];
+        b.x += b.dx;
+        b.y += b.dy;
+
+        // Столкновение со стенами
+        if (checkWallCollision(b.x, b.y, 3)) {
+            bullets.splice(i, 1);
+            continue;
+        }
+
+        // Попадание по игроку
+        if (b.team !== playerTeam && !player.isDead) {
+            let dist = Math.hypot(player.x - b.x, player.y - b.y);
+            if (dist < player.radius) {
+                player.hp -= b.damage;
+                document.getElementById('hp').innerText = Math.max(0, player.hp);
+                if (player.hp <= 0) {
+                    player.isDead = true;
+                }
+                bullets.splice(i, 1);
+                continue;
+            }
+        }
+
+        // Попадание по ботам
+        let hitBot = false;
+        for (let bot of bots) {
+            if (b.team !== bot.team && bot.hp > 0) {
+                let dist = Math.hypot(bot.x - b.x, bot.y - b.y);
+                if (dist < bot.radius) {
+                    bot.hp -= b.damage;
+                    hitBot = true;
+                    break;
+                }
+            }
+        }
+        if (hitBot) {
+            bullets.splice(i, 1);
+        }
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Рисуем стены
+    ctx.fillStyle = "#888";
+    for (let w of walls) {
+        ctx.fillRect(w.x, w.y, w.w, w.h);
+    }
+
+    // Рисуем ботов
+    bots.forEach(bot => {
+        drawCharacter(bot.x, bot.y, bot.angle, bot.team, bot.hp <= 0);
+    });
+
+    // Рисуем игрока
+    drawCharacter(player.x, player.y, player.angle, playerTeam, player.isDead);
+    
+    if (player.isDead) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "white";
+        ctx.font = "30px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("ВЫ УБИТЫ (Режим призрака)", canvas.width / 2, canvas.height / 2);
+    }
+
+    // Рисуем пули
+    ctx.fillStyle = "#000";
+    for (let b of bullets) {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+</script>
+
+</body>
+</html>
