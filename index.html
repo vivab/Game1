@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CS 1.6 WebGL Mobile - Improved AI & Controls</title>
+    <title>CS 1.6 WebGL Mobile - Full Round System</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background: #0b0e11; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #080a0c; font-family: 'Segoe UI', Arial, sans-serif; touch-action: none; }
         #canvas-container { width: 100%; height: 100%; position: absolute; left: 0; top: 0; }
         
-        /* UI HUD */
+        /* HUD */
         #hud {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 15px; z-index: 2;
@@ -32,71 +32,142 @@
         .ct-color { color: #5294e2; }
         .t-color { color: #e74c3c; }
 
-        /* Classic Kill Feed */
+        /* Kill Feed */
         #kill-feed {
             position: absolute; top: 55px; right: 15px; text-align: right; font-size: 13px;
             font-weight: bold; color: #fff; display: flex; flex-direction: column; gap: 6px; pointer-events: none;
         }
         .kill-entry {
-            background: rgba(0, 0, 0, 0.65); padding: 4px 10px; border-radius: 4px;
-            border-left: 3px solid #f39c12; animation: fadeOut 4s forwards;
+            background: rgba(0, 0, 0, 0.75); padding: 5px 10px; border-radius: 4px;
+            border-left: 3px solid #f39c12; animation: fadeOut 3.5s forwards;
         }
 
-        /* Dynamic Floating Joystick */
+        /* Freeze & Status Overlays */
+        #status-overlay {
+            position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: #fff; font-size: 26px; font-weight: bold;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8); pointer-events: none; display: none; z-index: 5;
+        }
+
+        /* Death Screen Modal */
+        #death-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(150, 10, 10, 0.35); backdrop-filter: blur(4px);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 8; color: #fff; text-shadow: 0 2px 4px #000; pointer-events: none;
+        }
+        #death-card {
+            background: rgba(12, 15, 20, 0.9); border: 2px solid #e74c3c;
+            padding: 20px 30px; border-radius: 12px; text-align: center;
+            box-shadow: 0 0 25px rgba(231, 76, 60, 0.5); width: 290px;
+        }
+        #death-card h2 { color: #e74c3c; font-size: 20px; margin-bottom: 8px; text-transform: uppercase; }
+        #killer-name { font-size: 22px; color: #f39c12; font-weight: bold; margin-bottom: 12px; }
+        #weapon-preview {
+            width: 100%; height: 90px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            margin-bottom: 8px; position: relative; overflow: hidden;
+        }
+        #weapon-svg { width: 70px; height: 45px; fill: #d1d8e0; }
+        #weapon-skin-name { font-size: 13px; color: #3498db; font-weight: bold; text-transform: uppercase; }
+
+        /* Team Selection Modal */
+        #team-select {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 10, 14, 0.95); z-index: 10;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        #team-select h1 { font-size: 30px; color: #f39c12; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 2px; }
+        .team-btns { display: flex; gap: 20px; }
+        .team-btn {
+            width: 150px; height: 120px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.2);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 18px; font-weight: bold; color: #fff; cursor: pointer; transition: transform 0.2s, background 0.2s;
+        }
+        .team-btn-t { background: rgba(192, 57, 43, 0.7); border-color: #e74c3c; }
+        .team-btn-ct { background: rgba(41, 128, 185, 0.7); border-color: #3498db; }
+        .team-btn:active { transform: scale(0.95); }
+
+        /* Dynamic Joystick & Touch Controls */
         #joystick-container {
             position: absolute; width: 120px; height: 120px;
-            border-radius: 50%; background: rgba(255, 255, 255, 0.1); border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%; background: rgba(255, 255, 255, 0.12); border: 2px solid rgba(255, 255, 255, 0.3);
             pointer-events: none; display: none; transform: translate(-50%, -50%); z-index: 5;
         }
         #joystick-thumb {
             position: absolute; top: 35px; left: 35px; width: 50px; height: 50px;
-            border-radius: 50%; background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border-radius: 50%; background: rgba(255, 255, 255, 0.8); box-shadow: 0 0 10px rgba(0,0,0,0.5);
             pointer-events: none;
         }
 
-        /* Touch Buttons */
         #touch-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 3; touch-action: none; }
         .touch-btn {
             position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.18);
             border: 2px solid rgba(255, 255, 255, 0.35); color: #fff; font-weight: bold; font-size: 15px;
             display: flex; justify-content: center; align-items: center; pointer-events: auto;
-            touch-action: none; backdrop-filter: blur(4px); transition: background 0.1s;
+            touch-action: none; backdrop-filter: blur(4px);
         }
         .touch-btn:active, .touch-btn.active { background: rgba(255, 255, 255, 0.45); border-color: #2ecc71; }
         
-        #btn-fire { bottom: 40px; right: 25px; width: 85px; height: 85px; background: rgba(231, 76, 60, 0.7); border-color: #e74c3c; font-size: 22px; }
-        #btn-jump { bottom: 140px; right: 25px; width: 60px; height: 60px; }
-        #btn-crouch { bottom: 40px; right: 125px; width: 60px; height: 60px; }
-        #btn-reload { bottom: 140px; right: 125px; width: 60px; height: 60px; }
-
-        #blocker {
-            position: absolute; width: 100%; height: 100%; background: rgba(10, 12, 16, 0.92);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: #fff; cursor: pointer; z-index: 10; text-align: center; padding: 20px;
-        }
-        #blocker h1 { font-size: 32px; margin-bottom: 10px; color: #f39c12; letter-spacing: 1px; }
-        #blocker p { font-size: 15px; color: #aaa; margin-top: 6px; }
+        #btn-fire { bottom: 35px; right: 25px; width: 85px; height: 85px; background: rgba(231, 76, 60, 0.75); border-color: #e74c3c; font-size: 22px; }
+        #btn-jump { bottom: 135px; right: 25px; width: 60px; height: 60px; }
+        #btn-crouch { bottom: 35px; right: 125px; width: 60px; height: 60px; }
+        #btn-reload { bottom: 135px; right: 125px; width: 60px; height: 60px; }
     </style>
 </head>
 <body>
 
     <div id="canvas-container"></div>
 
+    <!-- ВЫБОР КОМАНДЫ -->
+    <div id="team-select">
+        <h1>ВЫБЕРИТЕ КОМАНДУ</h1>
+        <div class="team-btns">
+            <div class="team-btn team-btn-t" id="select-t">
+                <span style="font-size:30px; margin-bottom:5px;">💣</span>
+                ТЕРРОРИСТЫ
+            </div>
+            <div class="team-btn team-btn-ct" id="select-ct">
+                <span style="font-size:30px; margin-bottom:5px;">🛡️</span>
+                СПЕЦНАЗ
+            </div>
+        </div>
+    </div>
+
+    <!-- HUD И ИГРОВОЙ ИНТЕРФЕЙС -->
     <div id="hud">
         <div id="crosshair"></div>
         <div id="top-bar">
             <div class="hud-panel"><span class="ct-color">CT: <span id="ct-count">4</span></span></div>
-            <div class="hud-panel"><span id="match-timer">02:00</span></div>
-            <div class="hud-panel"><span class="t-color">T: <span id="t-count">5</span></span></div>
+            <div class="hud-panel"><span id="match-timer" style="color:#f1c40f;">02:00</span></div>
+            <div class="hud-panel"><span class="t-color">T: <span id="t-count">4</span></span></div>
         </div>
         <div id="kill-feed"></div>
         <div id="bottom-bar">
             <div class="hud-panel">➕ HP: <span id="health-val" style="color:#2ecc71;">100</span></div>
-            <div class="hud-panel">Статус: <span id="state-val" style="color:#f39c12;">Стоит</span></div>
+            <div class="hud-panel">Статус: <span id="state-val" style="color:#f39c12;">Заморозка</span></div>
             <div class="hud-panel">🔫 Патроны: <span id="ammo-val">7</span> / ∞</div>
         </div>
     </div>
 
+    <div id="status-overlay"></div>
+
+    <!-- ЭКРАН СМЕРТИ (KILLCAM / OVERLAY) -->
+    <div id="death-screen">
+        <div id="death-card">
+            <h2>ВАС УБИЛ</h2>
+            <div id="killer-name">Bot_T_1</div>
+            <div id="weapon-preview">
+                <svg id="weapon-svg" viewBox="0 0 24 24">
+                    <path d="M2,9 L10,9 L12,6 L18,6 L22,9 L22,12 L19,13 L18,17 L15,17 L16,13 L10,13 L8,18 L5,18 L7,13 L2,13 Z"/>
+                </svg>
+                <div id="weapon-skin-name">Desert Eagle | Standard</div>
+            </div>
+            <p style="font-size: 12px; color: #888;">Ожидание окончания раунда...</p>
+        </div>
+    </div>
+
+    <!-- ТАЧ-УПРАВЛЕНИЕ -->
     <div id="touch-overlay">
         <div id="joystick-container">
             <div id="joystick-thumb"></div>
@@ -107,16 +178,10 @@
         <div id="btn-reload" class="touch-btn">🔄</div>
     </div>
 
-    <div id="blocker">
-        <h1>COUNTER-STRIKE WEB</h1>
-        <p>📱 Касание слева — Динамический джойстик (360°)</p>
-        <p>👁️ Свайп справа — Обзор камерой</p>
-        <p>👉 Нажмите на экран для начала игры</p>
-    </div>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
+        // === ИГРОВЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЯ ===
         let scene, camera, renderer;
         let yaw = 0, pitch = 0;
         let lookTouchId = null, lastTouchX = 0, lastTouchY = 0;
@@ -128,6 +193,13 @@
         let playerHealth = 100;
         let ammo = 7;
         let isReloading = false;
+        let playerTeam = 'CT'; // 'CT' или 'T'
+
+        // СОСТОЯНИЕ РАУНДА
+        let roundState = 'SELECT_TEAM'; // 'FREEZE', 'PLAYING', 'ROUND_END'
+        let roundTime = 120; // 2 минуты
+        let freezeTime = 7;   // 7 секунд заморозки
+        let roundTimerInterval = null, freezeTimerInterval = null;
 
         const mapObjects = [];
         const characters = [];
@@ -150,7 +222,6 @@
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.rotation.order = 'YXZ';
-            camera.position.set(0, STAND_HEIGHT, -25);
             scene.add(camera);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -163,28 +234,122 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
-            const sunLight = new THREE.DirectionalLight(0xfff8e7, 0.9);
+            const sunLight = new THREE.DirectionalLight(0xfff8e7, 0.95);
             sunLight.position.set(30, 50, 20);
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.width = 2048;
             sunLight.shadow.mapSize.height = 2048;
             scene.add(sunLight);
 
-            const blocker = document.getElementById('blocker');
-            blocker.addEventListener('touchstart', () => { blocker.style.display = 'none'; });
-            blocker.addEventListener('click', () => { blocker.style.display = 'none'; });
-
             createDetailedPistol();
             setupFloatingJoystick();
             setupKeyboardFallback();
             buildMap();
-            spawnTeams();
+
+            // Кнопки выбора команды
+            document.getElementById('select-t').addEventListener('click', () => chooseTeam('T'));
+            document.getElementById('select-ct').addEventListener('click', () => chooseTeam('CT'));
 
             window.addEventListener('resize', onWindowResize);
             animate();
         }
 
-        // === РЕАЛИСТИЧНЫЙ 3D ПИСТОЛЕТ (Desert Eagle style) ===
+        // === ВЫБОР КОМАНДЫ И СТАРТ РАУНДА ===
+        function chooseTeam(team) {
+            playerTeam = team;
+            document.getElementById('team-select').style.display = 'none';
+            spawnAllEntities();
+            startNewRound();
+        }
+
+        function startNewRound() {
+            clearInterval(roundTimerInterval);
+            clearInterval(freezeTimerInterval);
+
+            roundState = 'FREEZE';
+            freezeTime = 7;
+            roundTime = 120;
+            playerHealth = 100;
+            ammo = 7;
+            isReloading = false;
+
+            document.getElementById('health-val').innerText = playerHealth;
+            document.getElementById('ammo-val').innerText = ammo;
+            document.getElementById('death-screen').style.display = 'none';
+
+            // Размещение игрока на спавне своей команды
+            if (playerTeam === 'CT') {
+                camera.position.set(0, STAND_HEIGHT, -32);
+                yaw = 0; pitch = 0;
+            } else {
+                camera.position.set(0, STAND_HEIGHT, 32);
+                yaw = Math.PI; pitch = 0;
+            }
+            camera.rotation.y = yaw; camera.rotation.x = pitch;
+
+            // Сброс позиций и характеристик всех ботов
+            resetBots();
+            updateCounts();
+
+            // Таймер заморозки (7 сек)
+            const statusEl = document.getElementById('status-overlay');
+            statusEl.style.display = 'block';
+
+            freezeTimerInterval = setInterval(() => {
+                statusEl.innerText = `ДО НАЧАЛА РАУНДА: ${freezeTime}s`;
+                freezeTime--;
+                if (freezeTime < 0) {
+                    clearInterval(freezeTimerInterval);
+                    statusEl.style.display = 'none';
+                    roundState = 'PLAYING';
+                    startRoundTimer();
+                }
+            }, 1000);
+        }
+
+        function startRoundTimer() {
+            roundTimerInterval = setInterval(() => {
+                roundTime--;
+                const mins = Math.floor(roundTime / 60).toString().padStart(2, '0');
+                const secs = (roundTime % 60).toString().padStart(2, '0');
+                document.getElementById('match-timer').innerText = `${mins}:${secs}`;
+
+                if (roundTime <= 0) {
+                    clearInterval(roundTimerInterval);
+                    endRound('CT', "ВРЕМЯ ВЫШЛО! ПОБЕДА СПЕЦНАЗА");
+                }
+            }, 1000);
+        }
+
+        function checkRoundEnd() {
+            if (roundState !== 'PLAYING') return;
+
+            const tAlive = characters.filter(c => c.userData.team === 'T' && !c.userData.isDead).length + (playerTeam === 'T' && playerHealth > 0 ? 1 : 0);
+            const ctAlive = characters.filter(c => c.userData.team === 'CT' && !c.userData.isDead).length + (playerTeam === 'CT' && playerHealth > 0 ? 1 : 0);
+
+            if (tAlive === 0) {
+                endRound('CT', "ПОБЕДА СПЕЦНАЗА!");
+            } else if (ctAlive === 0) {
+                endRound('T', "ПОБЕДА ТЕРРОРИСТОВ!");
+            }
+        }
+
+        function endRound(winner, msg) {
+            roundState = 'ROUND_END';
+            clearInterval(roundTimerInterval);
+
+            const statusEl = document.getElementById('status-overlay');
+            statusEl.innerText = msg;
+            statusEl.style.color = winner === 'CT' ? '#3498db' : '#e74c3c';
+            statusEl.style.display = 'block';
+
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+                startNewRound();
+            }, 3500);
+        }
+
+        // === РЕАЛИСТИЧНЫЙ 3D ПИСТОЛЕТ ===
         function createDetailedPistol() {
             pistolGroup = new THREE.Group();
 
@@ -192,62 +357,30 @@
             const chromeMetal = new THREE.MeshStandardMaterial({ color: 0x5a626a, metalness: 0.9, roughness: 0.15 });
             const gripMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
 
-            // Затвор (Slide)
             const slide = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.075, 0.32), chromeMetal);
-            slide.position.set(0, 0.04, -0.1);
-            pistolGroup.add(slide);
+            slide.position.set(0, 0.04, -0.1); pistolGroup.add(slide);
 
-            // Вырез выброса гильз
-            const ejectPort = new THREE.Mesh(new THREE.BoxGeometry(0.056, 0.035, 0.08), darkMetal);
-            ejectPort.position.set(0, 0.05, -0.08);
-            pistolGroup.add(ejectPort);
-
-            // Ствол
             const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.34, 16), darkMetal);
-            barrel.rotation.x = Math.PI / 2;
-            barrel.position.set(0, 0.038, -0.11);
-            pistolGroup.add(barrel);
+            barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.038, -0.11); pistolGroup.add(barrel);
 
-            // Рама и Рукоятка
             const frame = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.28), darkMetal);
-            frame.position.set(0, 0.005, -0.09);
-            pistolGroup.add(frame);
+            frame.position.set(0, 0.005, -0.09); pistolGroup.add(frame);
 
             const grip = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.16, 0.085), gripMat);
-            grip.position.set(0, -0.07, -0.02);
-            grip.rotation.x = -0.3;
-            pistolGroup.add(grip);
+            grip.position.set(0, -0.07, -0.02); grip.rotation.x = -0.3; pistolGroup.add(grip);
 
-            // Спусковая скоба и крючок
-            const guard = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.07), darkMetal);
-            guard.position.set(0, -0.035, -0.09);
-            pistolGroup.add(guard);
-
-            const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.035, 0.015), chromeMetal);
-            trigger.position.set(0, -0.03, -0.085);
-            trigger.rotation.x = 0.2;
-            pistolGroup.add(trigger);
-
-            // Прицельные приспособления (Мушка и целик)
             const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.015, 0.015), darkMetal);
-            frontSight.position.set(0, 0.082, -0.24);
-            pistolGroup.add(frontSight);
+            frontSight.position.set(0, 0.082, -0.24); pistolGroup.add(frontSight);
 
-            const rearSight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.015, 0.015), darkMetal);
-            rearSight.position.set(0, 0.082, 0.04);
-            pistolGroup.add(rearSight);
-
-            // Вспышка выстрела
             const flashMat = new THREE.MeshBasicMaterial({ color: 0xffcc33, transparent: true, opacity: 0 });
             muzzleFlash = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), flashMat);
-            muzzleFlash.position.set(0, 0.04, -0.28);
-            pistolGroup.add(muzzleFlash);
+            muzzleFlash.position.set(0, 0.04, -0.28); pistolGroup.add(muzzleFlash);
 
             pistolGroup.position.set(0.18, -0.18, -0.38);
             camera.add(pistolGroup);
         }
 
-        // === ДИНАМИЧЕСКИЙ ПЛАВАЮЩИЙ ДЖОЙСТИК (360 DEGREES) ===
+        // === ДИНАМИЧЕСКИЙ ДЖОЙСТИК И УПРАВЛЕНИЕ ===
         function setupFloatingJoystick() {
             const overlay = document.getElementById('touch-overlay');
             const joyBase = document.getElementById('joystick-container');
@@ -258,26 +391,17 @@
             const maxRadius = 45;
 
             overlay.addEventListener('touchstart', (e) => {
+                if (roundState === 'FREEZE' || playerHealth <= 0) return;
                 for (let t of e.changedTouches) {
-                    // Левая половина экрана — ДЖОЙСТИК
                     if (t.clientX < window.innerWidth / 2 && joyTouchId === null) {
                         if (t.target.classList.contains('touch-btn')) continue;
-
-                        joyTouchId = t.identifier;
-                        joyCenter = { x: t.clientX, y: t.clientY };
-
-                        joyBase.style.left = `${t.clientX}px`;
-                        joyBase.style.top = `${t.clientY}px`;
-                        joyBase.style.display = 'block';
-                        joyThumb.style.transform = 'translate(0px, 0px)';
+                        joyTouchId = t.identifier; joyCenter = { x: t.clientX, y: t.clientY };
+                        joyBase.style.left = `${t.clientX}px`; joyBase.style.top = `${t.clientY}px`;
+                        joyBase.style.display = 'block'; joyThumb.style.transform = 'translate(0px, 0px)';
                         moveDir.x = 0; moveDir.y = 0;
-                    } 
-                    // Правая половина экрана — ОБЗОР КАМЕРЫ
-                    else if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
+                    } else if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
                         if (!t.target.classList.contains('touch-btn')) {
-                            lookTouchId = t.identifier;
-                            lastTouchX = t.clientX;
-                            lastTouchY = t.clientY;
+                            lookTouchId = t.identifier; lastTouchX = t.clientX; lastTouchY = t.clientY;
                         }
                     }
                 }
@@ -286,69 +410,35 @@
             window.addEventListener('touchmove', (e) => {
                 for (let t of e.changedTouches) {
                     if (t.identifier === joyTouchId) {
-                        let dx = t.clientX - joyCenter.x;
-                        let dy = t.clientY - joyCenter.y;
+                        let dx = t.clientX - joyCenter.x, dy = t.clientY - joyCenter.y;
                         let dist = Math.hypot(dx, dy);
-
-                        if (dist > maxRadius) {
-                            dx = (dx / dist) * maxRadius;
-                            dy = (dy / dist) * maxRadius;
-                        }
-
+                        if (dist > maxRadius) { dx = (dx / dist) * maxRadius; dy = (dy / dist) * maxRadius; }
                         joyThumb.style.transform = `translate(${dx}px, ${dy}px)`;
-                        // Точный плавный вектор движения 360°
-                        moveDir.x = dx / maxRadius;
-                        moveDir.y = -dy / maxRadius;
-                    }
-                    else if (t.identifier === lookTouchId) {
-                        const deltaX = t.clientX - lastTouchX;
-                        const deltaY = t.clientY - lastTouchY;
-                        lastTouchX = t.clientX;
-                        lastTouchY = t.clientY;
-
-                        const sens = 0.0038;
-                        yaw -= deltaX * sens;
-                        pitch -= deltaY * sens;
+                        moveDir.x = dx / maxRadius; moveDir.y = -dy / maxRadius;
+                    } else if (t.identifier === lookTouchId) {
+                        const deltaX = t.clientX - lastTouchX, deltaY = t.clientY - lastTouchY;
+                        lastTouchX = t.clientX; lastTouchY = t.clientY;
+                        yaw -= deltaX * 0.0038; pitch -= deltaY * 0.0038;
                         pitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitch));
-
-                        camera.rotation.y = yaw;
-                        camera.rotation.x = pitch;
+                        camera.rotation.y = yaw; camera.rotation.x = pitch;
                     }
                 }
             }, { passive: false });
 
-            function resetJoystick(id) {
-                if (id === joyTouchId) {
-                    joyTouchId = null;
-                    joyBase.style.display = 'none';
-                    moveDir.x = 0; moveDir.y = 0;
-                }
-                if (id === lookTouchId) {
-                    lookTouchId = null;
-                }
+            function resetJoy(id) {
+                if (id === joyTouchId) { joyTouchId = null; joyBase.style.display = 'none'; moveDir.x = 0; moveDir.y = 0; }
+                if (id === lookTouchId) lookTouchId = null;
             }
+            window.addEventListener('touchend', (e) => { for (let t of e.changedTouches) resetJoy(t.identifier); });
 
-            window.addEventListener('touchend', (e) => {
-                for (let t of e.changedTouches) resetJoystick(t.identifier);
-            });
-            window.addEventListener('touchcancel', (e) => {
-                for (let t of e.changedTouches) resetJoystick(t.identifier);
-            });
-
-            // Кнопки действий
             document.getElementById('btn-fire').addEventListener('touchstart', (e) => { e.preventDefault(); shoot(); });
             document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (!isJumping) { velocityY = 8.5; isJumping = true; }
+                e.preventDefault(); if (!isJumping && roundState === 'PLAYING') { velocityY = 8.5; isJumping = true; }
             });
-
             const crouchBtn = document.getElementById('btn-crouch');
             crouchBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                isCrouching = !isCrouching;
-                crouchBtn.classList.toggle('active', isCrouching);
+                e.preventDefault(); isCrouching = !isCrouching; crouchBtn.classList.toggle('active', isCrouching);
             });
-
             document.getElementById('btn-reload').addEventListener('touchstart', (e) => { e.preventDefault(); reloadAmmo(); });
         }
 
@@ -356,19 +446,17 @@
             let keys = {};
             window.addEventListener('keydown', (e) => {
                 keys[e.code] = true;
-                if (e.code === 'Space' && !isJumping) { velocityY = 8.5; isJumping = true; }
-                if (e.code === 'KeyC' || e.code === 'ControlLeft') isCrouching = !isCrouching;
+                if (e.code === 'Space' && !isJumping && roundState === 'PLAYING') { velocityY = 8.5; isJumping = true; }
+                if (e.code === 'KeyC') isCrouching = !isCrouching;
                 if (e.code === 'KeyR') reloadAmmo();
             });
             window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
             setInterval(() => {
-                if (lookTouchId === null) {
+                if (roundState === 'PLAYING' && lookTouchId === null) {
                     let kx = 0, ky = 0;
-                    if (keys['KeyW']) ky += 1;
-                    if (keys['KeyS']) ky -= 1;
-                    if (keys['KeyA']) kx -= 1;
-                    if (keys['KeyD']) kx += 1;
+                    if (keys['KeyW']) ky += 1; if (keys['KeyS']) ky -= 1;
+                    if (keys['KeyA']) kx -= 1; if (keys['KeyD']) kx += 1;
                     if (kx !== 0 || ky !== 0) { moveDir.x = kx; moveDir.y = ky; }
                 }
             }, 20);
@@ -384,111 +472,102 @@
             floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 
             const wallGeo = new THREE.BoxGeometry(80, 7, 2);
-            [
-                [0, 3.5, -40, 0], [0, 3.5, 40, 0],
-                [-40, 3.5, 0, Math.PI / 2], [40, 3.5, 0, Math.PI / 2]
-            ].forEach(w => {
-                const wall = new THREE.Mesh(wallGeo, wallMat);
-                wall.position.set(w[0], w[1], w[2]); wall.rotation.y = w[3];
+            [[0, 3.5, -40, 0], [0, 3.5, 40, 0], [-40, 3.5, 0, Math.PI / 2], [40, 3.5, 0, Math.PI / 2]].forEach(w => {
+                const wall = new THREE.Mesh(wallGeo, wallMat); wall.position.set(w[0], w[1], w[2]); wall.rotation.y = w[3];
                 scene.add(wall); mapObjects.push(wall);
             });
 
             const boxGeo = new THREE.BoxGeometry(3.2, 3.2, 3.2);
             [[-10, 1.6, -10], [10, 1.6, -10], [-10, 1.6, 10], [10, 1.6, 10], [0, 1.6, -18], [0, 1.6, 18], [-20, 1.6, 0], [20, 1.6, 0]].forEach(pos => {
-                const box = new THREE.Mesh(boxGeo, boxMat);
-                box.position.set(...pos); box.castShadow = true; box.receiveShadow = true;
+                const box = new THREE.Mesh(boxGeo, boxMat); box.position.set(...pos); box.castShadow = true; box.receiveShadow = true;
                 scene.add(box); mapObjects.push(box);
             });
         }
 
-        // === ДЕТАЛИЗИРОВАННЫЕ 3D МОДЕЛИ ИГРОКОВ (CT & T) ===
+        // === 3D-МОДЕЛИ В СТИЛЕ CS 1.6 ===
         function createCharacterModel(team, id) {
             const group = new THREE.Group();
             const isCT = team === 'CT';
 
-            // Материалы
-            const clothesMat = new THREE.MeshStandardMaterial({ color: isCT ? 0x223344 : 0x4a3828 });
-            const vestMat = new THREE.MeshStandardMaterial({ color: isCT ? 0x111a24 : 0x241d15 });
+            const clothesMat = new THREE.MeshStandardMaterial({ color: isCT ? 0x273c75 : 0x443121 });
+            const vestMat = new THREE.MeshStandardMaterial({ color: isCT ? 0x192a56 : 0x2f2013 });
             const skinMat = new THREE.MeshStandardMaterial({ color: 0xd29a62 });
-            const gearMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.5 });
-            const visorMat = new THREE.MeshStandardMaterial({ color: 0x00a8ff, metalness: 0.9, roughness: 0.1 });
+            const gearMat = new THREE.MeshStandardMaterial({ color: 0x1e272e, roughness: 0.5 });
 
             // Голова
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 0.32), skinMat);
             head.position.y = 1.62; head.name = "head"; group.add(head);
 
             if (isCT) {
-                // Шлем и забрало спецназа
-                const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.2, 0.36), gearMat);
+                // Шлем спецназа с визором
+                const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.36), gearMat);
                 helmet.position.set(0, 1.72, 0); group.add(helmet);
-                const visor = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.1, 0.08), visorMat);
+                const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.08), new THREE.MeshStandardMaterial({ color: 0x00a8ff, metalness: 0.8 }));
                 visor.position.set(0, 1.64, -0.15); group.add(visor);
             } else {
-                // Маска/Балаклава террориста
-                const mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.34), new THREE.MeshStandardMaterial({ color: 0x8b0000 }));
+                // Балаклава Террориста
+                const mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.34), new THREE.MeshStandardMaterial({ color: 0x800000 }));
                 mask.position.set(0, 1.6, 0); group.add(mask);
             }
 
-            // Торс и Бронежилет
+            // Торс и жилет
             const torso = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.28), clothesMat);
             torso.position.y = 1.1; torso.name = "torso"; group.add(torso);
-
             const vest = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.45, 0.32), vestMat);
             vest.position.y = 1.12; group.add(vest);
 
-            // Наплечники
-            [-0.3, 0.3].forEach(x => {
-                const pad = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.22), gearMat);
-                pad.position.set(x, 1.35, 0); group.add(pad);
-            });
-
-            // Руки и Перчатки
+            // Руки и Ноги
             const armGeo = new THREE.BoxGeometry(0.16, 0.55, 0.16);
-            const leftArm = new THREE.Mesh(armGeo, clothesMat); leftArm.position.set(-0.36, 1.05, 0); leftArm.name = "arm"; group.add(leftArm);
-            const rightArm = new THREE.Mesh(armGeo, clothesMat); rightArm.position.set(0.36, 1.05, 0); rightArm.name = "arm"; group.add(rightArm);
+            const leftArm = new THREE.Mesh(armGeo, clothesMat); leftArm.position.set(-0.36, 1.05, 0); group.add(leftArm);
+            const rightArm = new THREE.Mesh(armGeo, clothesMat); rightArm.position.set(0.36, 1.05, 0); group.add(rightArm);
 
-            const leftGlove = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.15, 0.17), gearMat);
-            leftGlove.position.set(-0.36, 0.78, 0); group.add(leftGlove);
-            const rightGlove = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.15, 0.17), gearMat);
-            rightGlove.position.set(0.36, 0.78, 0); group.add(rightGlove);
+            const legGeo = new THREE.BoxGeometry(0.2, 0.68, 0.2);
+            const leftLeg = new THREE.Mesh(legGeo, clothesMat); leftLeg.position.set(-0.15, 0.35, 0); group.add(leftLeg);
+            const rightLeg = new THREE.Mesh(legGeo, clothesMat); rightLeg.position.set(0.15, 0.35, 0); group.add(rightLeg);
 
-            // Автомат у бота
             const gun = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.65), gearMat);
             gun.position.set(0.22, 0.95, -0.3); group.add(gun);
 
-            // Ноги, Наколенники и Ботинки
-            const legGeo = new THREE.BoxGeometry(0.2, 0.68, 0.2);
-            const leftLeg = new THREE.Mesh(legGeo, clothesMat); leftLeg.position.set(-0.15, 0.35, 0); leftLeg.name = "leg"; group.add(leftLeg);
-            const rightLeg = new THREE.Mesh(legGeo, clothesMat); rightLeg.position.set(0.15, 0.35, 0); rightLeg.name = "leg"; group.add(rightLeg);
-
-            [-0.15, 0.15].forEach(x => {
-                const knee = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.1), gearMat);
-                knee.position.set(x, 0.38, -0.08); group.add(knee);
-
-                const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.28), gearMat);
-                boot.position.set(x, 0.08, -0.03); group.add(boot);
-            });
-
             group.userData = {
-                name: `${team}_Bot_${id}`,
+                name: `Bot_${team}_${id}`,
                 leftLeg, rightLeg, team,
                 health: 100, isDead: false,
-                animTime: Math.random() * 10, lastShoot: 0
+                animTime: Math.random() * 10, lastShoot: 0, spawnPos: new THREE.Vector3()
             };
             return group;
         }
 
-        function spawnTeams() {
-            [[-6,0,-30], [-2,0,-30], [2,0,-30], [6,0,-30]].forEach((p, i) => {
-                const b = createCharacterModel('CT', i + 1); b.position.set(...p); scene.add(b); characters.push(b);
+        function spawnAllEntities() {
+            characters.forEach(c => scene.remove(c));
+            characters.length = 0;
+
+            // Спавн бота Спецназа и Террористов
+            const ctSpawns = [[-6,0,-30], [-2,0,-30], [2,0,-30], [6,0,-30]];
+            const tSpawns = [[-6,0,30], [-2,0,30], [2,0,30], [6,0,30]];
+
+            ctSpawns.forEach((p, i) => {
+                const b = createCharacterModel('CT', i + 1);
+                b.userData.spawnPos.set(...p);
+                scene.add(b); characters.push(b);
             });
-            [[-10,0,30], [-5,0,30], [0,0,30], [5,0,30], [10,0,30]].forEach((p, i) => {
-                const b = createCharacterModel('T', i + 1); b.position.set(...p); scene.add(b); characters.push(b);
+            tSpawns.forEach((p, i) => {
+                const b = createCharacterModel('T', i + 1);
+                b.userData.spawnPos.set(...p);
+                scene.add(b); characters.push(b);
+            });
+        }
+
+        function resetBots() {
+            characters.forEach(bot => {
+                bot.userData.isDead = false;
+                bot.userData.health = 100;
+                bot.rotation.set(0, 0, 0);
+                bot.position.copy(bot.userData.spawnPos);
             });
         }
 
         function reloadAmmo() {
-            if (isReloading || ammo === 7) return;
+            if (isReloading || ammo === 7 || roundState !== 'PLAYING') return;
             isReloading = true;
             document.getElementById('ammo-val').innerText = "Перезарядка...";
             setTimeout(() => { ammo = 7; isReloading = false; document.getElementById('ammo-val').innerText = ammo; }, 1600);
@@ -496,17 +575,20 @@
 
         // === ИИ БОТОВ ===
         function updateBots(delta) {
+            if (roundState !== 'PLAYING') return;
+
             characters.forEach(bot => {
                 if (bot.userData.isDead) return;
 
-                let nearestEnemy = null;
-                let minDist = Infinity;
+                let nearestEnemy = null, minDist = Infinity;
 
-                if (bot.userData.team === 'T' && playerHealth > 0) {
+                // Проверка игрока
+                if (bot.userData.team !== playerTeam && playerHealth > 0) {
                     let d = bot.position.distanceTo(camera.position);
                     if (d < minDist) { minDist = d; nearestEnemy = { position: camera.position, isPlayer: true }; }
                 }
 
+                // Проверка других ботов
                 characters.forEach(other => {
                     if (other !== bot && !other.userData.isDead && other.userData.team !== bot.userData.team) {
                         let d = bot.position.distanceTo(other.position);
@@ -519,23 +601,18 @@
                     targetPos.y = bot.position.y;
                     bot.lookAt(targetPos);
 
-                    if (minDist > 6) {
+                    if (minDist > 5.5) {
                         const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(bot.quaternion);
-                        const nextX = bot.position.x + dir.x * 3.5 * delta;
-                        const nextZ = bot.position.z + dir.z * 3.5 * delta;
-
-                        if (!checkCollision(nextX, nextZ)) {
-                            bot.position.x = nextX;
-                            bot.position.z = nextZ;
-                        }
+                        const nextX = bot.position.x + dir.x * 3.6 * delta;
+                        const nextZ = bot.position.z + dir.z * 3.6 * delta;
+                        if (!checkCollision(nextX, nextZ)) { bot.position.x = nextX; bot.position.z = nextZ; }
                     }
 
                     bot.userData.animTime += delta * 8;
                     const swing = Math.sin(bot.userData.animTime) * 0.5;
-                    bot.userData.leftLeg.rotation.x = swing;
-                    bot.userData.rightLeg.rotation.x = -swing;
+                    bot.userData.leftLeg.rotation.x = swing; bot.userData.rightLeg.rotation.x = -swing;
 
-                    if (performance.now() - bot.userData.lastShoot > 900 + Math.random() * 600) {
+                    if (performance.now() - bot.userData.lastShoot > 950 + Math.random() * 500) {
                         bot.userData.lastShoot = performance.now();
                         botShoot(bot, nearestEnemy);
                     }
@@ -549,31 +626,34 @@
             if (!enemy.isPlayer) targetPos.y += 1.2;
 
             const dir = targetPos.sub(origin).normalize();
-            dir.x += (Math.random() - 0.5) * 0.09;
-            dir.y += (Math.random() - 0.5) * 0.09;
-            dir.z += (Math.random() - 0.5) * 0.09;
+            dir.x += (Math.random() - 0.5) * 0.08; dir.y += (Math.random() - 0.5) * 0.08; dir.z += (Math.random() - 0.5) * 0.08;
             dir.normalize();
 
             raycaster.set(origin, dir);
             const wallHits = raycaster.intersectObjects(mapObjects, false);
             let maxDist = wallHits.length > 0 ? wallHits[0].distance : Infinity;
 
-            const distToTarget = origin.distanceTo(enemy.position);
-
-            if (distToTarget < maxDist) {
-                let damage = Math.floor(Math.random() * 16) + 14;
+            if (origin.distanceTo(enemy.position) < maxDist) {
+                let damage = Math.floor(Math.random() * 16) + 15;
                 if (enemy.isPlayer) {
                     playerHealth = Math.max(0, playerHealth - damage);
                     document.getElementById('health-val').innerText = playerHealth;
-                    if (playerHealth === 0) addKillFeed(`${bot.userData.name}`, "Игрок (Вы)");
+
+                    if (playerHealth === 0) {
+                        // ЭКРАН СМЕРТИ (KILLCAM / OVERLAY)
+                        document.getElementById('killer-name').innerText = bot.userData.name;
+                        document.getElementById('death-screen').style.display = 'flex';
+                        addKillFeed(bot.userData.name, "Игрок (Вы)");
+                        checkRoundEnd();
+                    }
                 } else {
                     enemy.mesh.userData.health -= damage;
                     if (enemy.mesh.userData.health <= 0 && !enemy.mesh.userData.isDead) {
                         enemy.mesh.userData.isDead = true;
-                        enemy.mesh.rotation.x = -Math.PI / 2;
-                        enemy.mesh.position.y = 0.2;
+                        enemy.mesh.rotation.x = -Math.PI / 2; enemy.mesh.position.y = 0.2;
                         addKillFeed(bot.userData.name, enemy.mesh.userData.name);
                         updateCounts();
+                        checkRoundEnd();
                     }
                 }
             }
@@ -581,13 +661,11 @@
 
         // === СТРЕЛЬБА ИГРОКА ===
         function shoot() {
-            if (playerHealth <= 0) return;
+            if (playerHealth <= 0 || roundState !== 'PLAYING') return;
             if (ammo <= 0 || isReloading) { reloadAmmo(); return; }
-            ammo--;
-            document.getElementById('ammo-val').innerText = ammo;
+            ammo--; document.getElementById('ammo-val').innerText = ammo;
 
-            weaponRecoilZ = 0.06;
-            weaponRecoilRotX = 0.15;
+            weaponRecoilZ = 0.06; weaponRecoilRotX = 0.15;
             muzzleFlash.material.opacity = 1.0;
             setTimeout(() => { muzzleFlash.material.opacity = 0; }, 40);
 
@@ -595,35 +673,29 @@
             const dir = new THREE.Vector3((Math.random() - 0.5) * spread, (Math.random() - 0.5) * spread, -1).applyQuaternion(camera.quaternion).normalize();
 
             raycaster.set(camera.position, dir);
-
             const wallHits = raycaster.intersectObjects(mapObjects, false);
             let maxDist = wallHits.length > 0 ? wallHits[0].distance : Infinity;
 
             const targets = [];
-            characters.forEach(c => { if (!c.userData.isDead && c.userData.team === 'T') c.children.forEach(p => targets.push(p)); });
+            characters.forEach(c => { if (!c.userData.isDead && c.userData.team !== playerTeam) c.children.forEach(p => targets.push(p)); });
 
             const hits = raycaster.intersectObjects(targets, false);
 
             if (hits.length > 0 && hits[0].distance < maxDist) {
-                const part = hits[0].object;
-                const char = part.parent;
-
-                let damage = 35;
-                if (part.name === "head") damage = 110;
-
+                const part = hits[0].object; const char = part.parent;
+                let damage = part.name === "head" ? 110 : 35;
                 char.userData.health -= damage;
 
                 if (char.userData.health <= 0 && !char.userData.isDead) {
                     char.userData.isDead = true;
-                    char.rotation.x = -Math.PI / 2;
-                    char.position.y = 0.2;
+                    char.rotation.x = -Math.PI / 2; char.position.y = 0.2;
                     addKillFeed("Игрок", char.userData.name);
                     updateCounts();
+                    checkRoundEnd();
                 }
             }
         }
 
-        // КИЛЛ-ФИД (БЕЗ СПАМА ПОПАДАНИЙ)
         function addKillFeed(killer, victim) {
             const feed = document.getElementById('kill-feed');
             const el = document.createElement('div');
@@ -634,8 +706,8 @@
         }
 
         function updateCounts() {
-            const tAlive = characters.filter(c => c.userData.team === 'T' && !c.userData.isDead).length;
-            const ctAlive = characters.filter(c => c.userData.team === 'CT' && !c.userData.isDead).length;
+            const tAlive = characters.filter(c => c.userData.team === 'T' && !c.userData.isDead).length + (playerTeam === 'T' && playerHealth > 0 ? 1 : 0);
+            const ctAlive = characters.filter(c => c.userData.team === 'CT' && !c.userData.isDead).length + (playerTeam === 'CT' && playerHealth > 0 ? 1 : 0);
             document.getElementById('t-count').innerText = tAlive;
             document.getElementById('ct-count').innerText = ctAlive;
         }
@@ -645,7 +717,6 @@
                 const bbox = new THREE.Box3().setFromObject(obj);
                 bbox.min.x -= PLAYER_RADIUS; bbox.max.x += PLAYER_RADIUS;
                 bbox.min.z -= PLAYER_RADIUS; bbox.max.z += PLAYER_RADIUS;
-
                 if (nextX >= bbox.min.x && nextX <= bbox.max.x && nextZ >= bbox.min.z && nextZ <= bbox.max.z) return true;
             }
             return false;
@@ -660,51 +731,39 @@
             const delta = (time - prevTime) / 1000;
             prevTime = time;
 
-            // Отдача оружия
-            weaponRecoilZ *= 0.8;
-            weaponRecoilRotX *= 0.8;
+            weaponRecoilZ *= 0.8; weaponRecoilRotX *= 0.8;
 
-            // Покачивание оружия при ходьбе (Sway)
-            let isMoving = (moveDir.x !== 0 || moveDir.y !== 0) && playerHealth > 0;
-            if (isMoving) walkCycle += delta * 10;
-            else walkCycle *= 0.9;
+            let isMoving = (moveDir.x !== 0 || moveDir.y !== 0) && playerHealth > 0 && roundState === 'PLAYING';
+            if (isMoving) walkCycle += delta * 10; else walkCycle *= 0.9;
 
-            const swayX = Math.sin(walkCycle) * 0.008;
-            const swayY = Math.cos(walkCycle * 2) * 0.008;
-
-            pistolGroup.position.x = 0.18 + swayX;
-            pistolGroup.position.y = -0.18 + swayY;
+            pistolGroup.position.x = 0.18 + Math.sin(walkCycle) * 0.008;
+            pistolGroup.position.y = -0.18 + Math.cos(walkCycle * 2) * 0.008;
             pistolGroup.position.z = -0.38 + weaponRecoilZ;
             pistolGroup.rotation.x = weaponRecoilRotX;
 
             const targetHeight = isCrouching ? CROUCH_HEIGHT : STAND_HEIGHT;
             camera.position.y += (targetHeight - camera.position.y) * 12 * delta;
 
-            if (playerHealth > 0) {
+            if (isMoving) {
                 const speed = (isCrouching ? 3.0 : 7.2) * delta;
-                if (isMoving) {
-                    const forward = new THREE.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
-                    const right = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
+                const forward = new THREE.Vector3(Math.sin(yaw), 0, -Math.cos(yaw));
+                const right = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
+                const deltaPos = new THREE.Vector3();
+                deltaPos.addScaledVector(forward, moveDir.y * speed);
+                deltaPos.addScaledVector(right, moveDir.x * speed);
 
-                    const deltaPos = new THREE.Vector3();
-                    deltaPos.addScaledVector(forward, moveDir.y * speed);
-                    deltaPos.addScaledVector(right, moveDir.x * speed);
-
-                    if (!checkCollision(camera.position.x + deltaPos.x, camera.position.z)) camera.position.x += deltaPos.x;
-                    if (!checkCollision(camera.position.x, camera.position.z + deltaPos.z)) camera.position.z += deltaPos.z;
-                }
+                if (!checkCollision(camera.position.x + deltaPos.x, camera.position.z)) camera.position.x += deltaPos.x;
+                if (!checkCollision(camera.position.x, camera.position.z + deltaPos.z)) camera.position.z += deltaPos.z;
             }
 
             velocityY -= 25.0 * delta;
             camera.position.y += velocityY * delta;
 
             if (camera.position.y < targetHeight) {
-                velocityY = 0;
-                camera.position.y = targetHeight;
-                isJumping = false;
+                velocityY = 0; camera.position.y = targetHeight; isJumping = false;
             }
 
-            document.getElementById('state-val').innerText = isJumping ? "В прыжке 🦘" : (isCrouching ? "Сидя 🧎" : "Стоит 🧍");
+            document.getElementById('state-val').innerText = roundState === 'FREEZE' ? "Заморозка ⏳" : (isJumping ? "В прыжке 🦘" : (isCrouching ? "Сидя 🧎" : "Стоит 🧍"));
 
             updateBots(delta);
             renderer.render(scene, camera);
