@@ -77,18 +77,47 @@
         </div>
     </div>
 
-    <script async src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+    <script>
+        // Показ ошибок прямо на экране — критично для отладки на телефоне без компьютера
+        window.onerror = function (msg, src, line) {
+            var el = document.getElementById('loadingScreen');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.cssText = 'font-size:16px;padding:20px;text-align:center;color:#f44336;';
+                el.innerHTML = '⚠️ Ошибка: ' + msg + '<br>(строка ' + line + ')';
+            }
+        };
+
+        // Последовательная загрузка Three.js с запасных CDN:
+        // если jsdelivr недоступен (часто блокируется на мобильных сетях) — пробуем cdnjs и unpkg
+        (function () {
+            var cdns = [
+                'https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+                'https://unpkg.com/three@0.128.0/build/three.min.js'
+            ];
+            var i = 0;
+            function tryLoad() {
+                if (i >= cdns.length) {
+                    var el = document.getElementById('loadingScreen');
+                    el.style.cssText = 'font-size:16px;padding:20px;text-align:center;color:#f44336;';
+                    el.innerHTML = '❌ Не удалось загрузить Three.js.<br>Проверьте интернет и обновите страницу.';
+                    return;
+                }
+                var s = document.createElement('script');
+                s.src = cdns[i++];
+                s.onload = function () {
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    initGame();
+                };
+                s.onerror = tryLoad; // CDN не ответил — пробуем следующий
+                document.head.appendChild(s);
+            }
+            tryLoad();
+        })();
+    </script>
 
     <script>
-        function waitForThree() {
-            if (typeof THREE !== 'undefined') {
-                document.getElementById('loadingScreen').classList.add('hidden');
-                initGame();
-            } else {
-                setTimeout(waitForThree, 100);
-            }
-        }
-
         function initGame() {
             const GAME_CONFIG = { playerHP: 100, deagleDamage: 50, deagleMagSize: 7, deagleReloadTime: 1000, deagleFireRate: 250, botCount: 3, botSightRange: 50, mapSize: 100 };
             const TEAMS = { CT: 'ct', T: 't' };
@@ -576,8 +605,6 @@
             initThreeJS();
             gameLoop();
         }
-
-        waitForThree();
     </script>
 </body>
 </html>
