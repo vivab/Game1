@@ -165,7 +165,7 @@
             background: rgba(220, 38, 38, 0.75);
         }
 
-        /* Панель ПРЫЖОК, ПРИСЕД и ПАТРОНЫ */
+        /* Панель управления справа */
         #controls-right-panel {
             position: absolute;
             bottom: 25px;
@@ -191,6 +191,7 @@
         }
 
         .btn-action:active { background: rgba(255, 255, 255, 0.4); }
+        .btn-active { background: rgba(34, 197, 94, 0.5) !important; border-color: rgba(34, 197, 94, 0.8) !important; }
 
         #ammo-panel {
             background: rgba(15, 23, 42, 0.75);
@@ -303,11 +304,12 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
 
     <script>
         /* =========================================================================
-           1. НАСТРОЙКА СЦЕНЫ
+           1. СЦЕНА И ПЕРЕМЕННЫЕ
            ========================================================================= */
         let scene, camera, renderer;
         let weaponContainer = new THREE.Group();
@@ -359,7 +361,7 @@
             renderer.shadowMap.enabled = true;
             container.appendChild(renderer.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambient);
 
             const sun = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -368,7 +370,8 @@
             scene.add(sun);
 
             buildMap();
-            buildAK47();
+            setupFallbackWeapon(); // Заглушка до загрузки моделей
+            loadGLTFModels();      // Загрузка твоих файлов АК-47 и Рук
 
             for (let i = 0; i < 4; i++) spawnBotCS();
 
@@ -391,7 +394,7 @@
         }
 
         /* =========================================================================
-           2. КАРТА И АНАТОМИЧЕСКИЕ БОТЫ С АНИМАЦИЕЙ (CS 1.6 СТИЛЬ)
+           2. КАРТА И АНАТОМИЧЕСКИЕ БОТЫ
            ========================================================================= */
         function buildMap() {
             const floorGeo = new THREE.PlaneGeometry(80, 80);
@@ -436,28 +439,21 @@
 
         function spawnBotCS() {
             const botGroup = new THREE.Group();
-            const shirtColor = 0xd97706; // Оранжевый
-            const skinColor = 0xfca5a5;  // Светлый
-            const pantsColor = 0x334155; // Темно-серый
+            const shirtColor = 0xd97706; 
+            const skinColor = 0xfca5a5;  
+            const pantsColor = 0x334155; 
 
-            // Торс
-            const torsoGeo = new THREE.BoxGeometry(0.5, 0.6, 0.3);
-            const torsoMat = new THREE.MeshStandardMaterial({ color: shirtColor });
-            const torso = new THREE.Mesh(torsoGeo, torsoMat);
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.3), new THREE.MeshStandardMaterial({ color: shirtColor }));
             torso.position.y = 1.05;
             torso.castShadow = true;
             botGroup.add(torso);
 
-            // Шея & Голова
-            const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
-            const headMat = new THREE.MeshStandardMaterial({ color: skinColor });
-            const head = new THREE.Mesh(headGeo, headMat);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), new THREE.MeshStandardMaterial({ color: skinColor }));
             head.position.y = 1.55;
             head.castShadow = true;
             head.userData = { isHead: true };
             botGroup.add(head);
 
-            // Руки
             const leftArm = createLimb(0.15, 0.5, 0.15, shirtColor);
             leftArm.group.position.set(0.35, 1.35, 0);
             botGroup.add(leftArm.group);
@@ -466,7 +462,6 @@
             rightArm.group.position.set(-0.35, 1.35, 0);
             botGroup.add(rightArm.group);
 
-            // Ноги
             const leftLeg = createLimb(0.18, 0.6, 0.18, pantsColor);
             leftLeg.group.position.set(0.15, 0.75, 0);
             botGroup.add(leftLeg.group);
@@ -494,55 +489,45 @@
         }
 
         /* =========================================================================
-           3. ПОДГОНКА ПРОЦЕДУРНОЙ МОДЕЛИ АК-47
+           3. ЗАГРУЗКА 3D-МОДЕЛЕЙ (АК-47 И РУКИ)
            ========================================================================= */
-        function buildAK47() {
-            const akGroup = new THREE.Group();
+        function setupFallbackWeapon() {
+            const fallbackGroup = new THREE.Group();
+            fallbackGroup.name = "fallbackGun";
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            box.position.set(0.2, -0.2, -0.4);
+            fallbackGroup.add(box);
+            weaponContainer.add(fallbackGroup);
+        }
 
-            const darkMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4 });
-            const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 });
+        function loadGLTFModels() {
+            const loader = new THREE.GLTFLoader();
 
-            // Ствольная коробка
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.35), darkMat);
-            body.position.set(0, 0, 0);
-            akGroup.add(body);
+            // Загрузка АК-47
+            loader.load('ak-47_low_poly.glb', (gltf) => {
+                const ak = gltf.scene;
+                
+                // Удаляем заглушку при успешной загрузке
+                const fb = weaponContainer.getObjectByName("fallbackGun");
+                if (fb) weaponContainer.remove(fb);
 
-            // Ствол
-            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4), darkMat);
-            barrel.rotation.x = Math.PI / 2;
-            barrel.position.set(0, 0.01, -0.35);
-            akGroup.add(barrel);
+                ak.scale.set(0.0055, 0.0055, 0.0055);
+                ak.position.set(0.22, -0.22, -0.45);
+                ak.rotation.set(0, Math.PI, 0);
+                weaponContainer.add(ak);
+            }, undefined, (err) => console.log('Ожидание/ошибка ak-47_low_poly.glb:', err));
 
-            // Деревянное цевье
-            const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.2), woodMat);
-            handguard.position.set(0, -0.01, -0.22);
-            akGroup.add(handguard);
-
-            // Приклад
-            const stock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.25), woodMat);
-            stock.position.set(0, -0.02, 0.28);
-            stock.rotation.x = -0.1;
-            akGroup.add(stock);
-
-            // Магазин (Рожок)
-            const mag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.08), darkMat);
-            mag.position.set(0, -0.12, -0.08);
-            mag.rotation.x = 0.3;
-            akGroup.add(mag);
-
-            // Рукоятка
-            const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.05), woodMat);
-            grip.position.set(0, -0.1, 0.08);
-            grip.rotation.x = -0.3;
-            akGroup.add(grip);
-
-            // Позиционирование калаша в руках
-            akGroup.position.set(0.22, -0.2, -0.45);
-            weaponContainer.add(akGroup);
+            // Загрузка Модели Рук
+            loader.load('default_counter-strike_hands_rigged.glb', (gltf) => {
+                const hands = gltf.scene;
+                hands.scale.set(0.009, 0.009, 0.009);
+                hands.position.set(0.18, -0.28, -0.38);
+                weaponContainer.add(hands);
+            }, undefined, (err) => console.log('Ожидание/ошибка hands.glb:', err));
         }
 
         /* =========================================================================
-           4. УПРАВЛЕНИЕ, МУЛЬТИТАЧ СТРЕЛЬБА И ОБЗОР
+           4. УПРАВЛЕНИЕ, ПРИСЕД И МУЛЬТИТАЧ СТРЕЛЬБА
            ========================================================================= */
         function setupControls() {
             document.getElementById('start-btn').addEventListener('click', () => {
@@ -565,7 +550,7 @@
             });
             joystick.on('end', () => { moveJoystick.x = 0; moveJoystick.y = 0; });
 
-            // Касания и поддержка одновременного вращения экрана во время стрельбы
+            // Сенсорное управление
             let lookTouchId = null;
             let fireTouchId = null;
             let lastLookX = 0, lastLookY = 0;
@@ -576,7 +561,6 @@
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     const touch = e.changedTouches[i];
                     
-                    // Проверка нажатия на кнопку стрельбы
                     const rect = fireBtn.getBoundingClientRect();
                     if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
                         touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
@@ -601,7 +585,6 @@
                 for (let i = 0; i < e.changedTouches.length; i++) {
                     const touch = e.changedTouches[i];
 
-                    // Управление экраном как через правую часть, так и при зажатой кнопке огня
                     if (touch.identifier === lookTouchId || touch.identifier === fireTouchId) {
                         const dx = touch.clientX - lastLookX;
                         const dy = touch.clientY - lastLookY;
@@ -629,20 +612,25 @@
             window.addEventListener('touchend', endTouch);
             window.addEventListener('touchcancel', endTouch);
 
-            // Кнопка Присед
-            document.getElementById('btn-crouch').addEventListener('click', () => {
-                player.isCrouching = true;
-                player.targetHeight = 0.9;
-                player.speed = 3.5;
-            });
+            // КНОПКА ПРИСЕД: Переключение (Toggle) при повторном нажатии
+            const crouchBtn = document.getElementById('btn-crouch');
+            crouchBtn.addEventListener('click', () => {
+                player.isCrouching = !player.isCrouching;
 
-            // Кнопка Прыжок (Встает если сидел, либо прыгает)
-            document.getElementById('btn-jump').addEventListener('click', () => {
                 if (player.isCrouching) {
-                    player.isCrouching = false;
+                    player.targetHeight = 0.9;
+                    player.speed = 3.5;
+                    crouchBtn.classList.add('btn-active');
+                } else {
                     player.targetHeight = 1.6;
                     player.speed = 7.0;
-                } else if (player.onGround) {
+                    crouchBtn.classList.remove('btn-active');
+                }
+            });
+
+            // КНОПКА ПРЫЖОК: Исключительно для прыжков
+            document.getElementById('btn-jump').addEventListener('click', () => {
+                if (player.onGround) {
                     player.vel.y = 7.5;
                     player.onGround = false;
                 }
@@ -652,7 +640,7 @@
         }
 
         /* =========================================================================
-           5. СТРЕЛЬБА И ОПТИМИЗАЦИЯ
+           5. СТРЕЛЬБА
            ========================================================================= */
         function processShoot(now) {
             if (player.isReloading) return;
@@ -725,7 +713,7 @@
         }
 
         /* =========================================================================
-           6. ОБНОВЛЕНИЕ ЛОГИКИ И АНИМАЦИИ
+           6. АНИМАЦИЯ И ОБНОВЛЕНИЕ
            ========================================================================= */
         function updatePlayer(dt) {
             player.vel.y -= 22.0 * dt;
@@ -738,7 +726,6 @@
             player.pos.z += move.z * player.speed * dt;
             player.pos.y += player.vel.y * dt;
 
-            // Плавное изменение высоты (Присед / Вставание)
             player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
 
             if (player.pos.y <= player.currentHeight) {
@@ -767,7 +754,6 @@
                     bot.mesh.position.addScaledVector(dir, bot.speed * dt);
                     bot.mesh.lookAt(player.pos.x, bot.mesh.position.y, player.pos.z);
 
-                    // Анимация ходьбы сгибанием рук и ног
                     bot.animTime += dt * 8;
                     const angle = Math.sin(bot.animTime) * 0.6;
                     bot.leftLeg.rotation.x = angle;
