@@ -46,7 +46,6 @@
             pointer-events: auto !important;
         }
 
-        /* Здоровье (Верхний левый угол) */
         #stats-panel {
             position: absolute;
             top: 20px;
@@ -96,7 +95,6 @@
 
         #score-val { color: #ffffff; }
 
-        /* Радар и кнопка R */
         #minimap-wrapper {
             position: absolute;
             top: 20px;
@@ -133,7 +131,6 @@
 
         #btn-reload:active { background: rgba(255, 255, 255, 0.4); }
 
-        /* Джойстик */
         #joystick-zone {
             position: absolute;
             bottom: 30px;
@@ -142,7 +139,6 @@
             height: 140px;
         }
 
-        /* Кнопка ОГОНЬ */
         #btn-fire {
             position: absolute;
             bottom: 110px;
@@ -165,7 +161,6 @@
             background: rgba(220, 38, 38, 0.75);
         }
 
-        /* Панель управления справа */
         #controls-right-panel {
             position: absolute;
             bottom: 25px;
@@ -218,7 +213,6 @@
             margin-top: 2px;
         }
 
-        /* Прицел */
         #crosshair {
             position: absolute;
             top: 50%;
@@ -308,13 +302,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
 
     <script>
-        /* =========================================================================
-           1. СЦЕНА И ПЕРЕМЕННЫЕ
-           ========================================================================= */
         let scene, camera, renderer;
         let weaponContainer = new THREE.Group();
         let colliders = [];
         let bots = [];
+        let bulletDecals = [];
         let raycaster = new THREE.Raycaster();
 
         const player = {
@@ -361,17 +353,16 @@
             renderer.shadowMap.enabled = true;
             container.appendChild(renderer.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.8);
             scene.add(ambient);
 
-            const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+            const sun = new THREE.DirectionalLight(0xffffff, 1.0);
             sun.position.set(20, 40, 20);
             sun.castShadow = true;
             scene.add(sun);
 
             buildMap();
-            setupFallbackWeapon(); // Заглушка до загрузки моделей
-            loadGLTFModels();      // Загрузка твоих файлов АК-47 и Рук
+            loadGLTFModels();
 
             for (let i = 0; i < 4; i++) spawnBotCS();
 
@@ -393,9 +384,6 @@
             loop(performance.now());
         }
 
-        /* =========================================================================
-           2. КАРТА И АНАТОМИЧЕСКИЕ БОТЫ
-           ========================================================================= */
         function buildMap() {
             const floorGeo = new THREE.PlaneGeometry(80, 80);
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
@@ -403,6 +391,7 @@
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
+            colliders.push(floor);
 
             const grid = new THREE.GridHelper(80, 40, 0x3b82f6, 0x334155);
             grid.position.y = 0.01;
@@ -489,52 +478,36 @@
         }
 
         /* =========================================================================
-           3. ЗАГРУЗКА 3D-МОДЕЛЕЙ (АК-47 И РУКИ)
+           ЗАГРУЗКА И НАСТРОЙКА КРУПНЫХ МОДЕЛЕЙ (АК-47 + РУКИ)
            ========================================================================= */
-        function setupFallbackWeapon() {
-            const fallbackGroup = new THREE.Group();
-            fallbackGroup.name = "fallbackGun";
-            const box = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-            box.position.set(0.2, -0.2, -0.4);
-            fallbackGroup.add(box);
-            weaponContainer.add(fallbackGroup);
-        }
-
         function loadGLTFModels() {
             const loader = new THREE.GLTFLoader();
 
-            // Загрузка АК-47
+            // АК-47
             loader.load('ak-47_low_poly.glb', (gltf) => {
                 const ak = gltf.scene;
-                
-                // Удаляем заглушку при успешной загрузке
-                const fb = weaponContainer.getObjectByName("fallbackGun");
-                if (fb) weaponContainer.remove(fb);
-
-                ak.scale.set(0.0055, 0.0055, 0.0055);
-                ak.position.set(0.22, -0.22, -0.45);
+                // ИСПРАВЛЕНИЕ: Масштаб увеличен в десятки раз для от первого лица
+                ak.scale.set(0.12, 0.12, 0.12);
+                ak.position.set(0.28, -0.32, -0.52);
                 ak.rotation.set(0, Math.PI, 0);
                 weaponContainer.add(ak);
-            }, undefined, (err) => console.log('Ожидание/ошибка ak-47_low_poly.glb:', err));
+            }, undefined, (err) => console.log('Файл АК-47 не найден или загружается...', err));
 
-            // Загрузка Модели Рук
+            // РУКИ
             loader.load('default_counter-strike_hands_rigged.glb', (gltf) => {
                 const hands = gltf.scene;
-                hands.scale.set(0.009, 0.009, 0.009);
-                hands.position.set(0.18, -0.28, -0.38);
+                // ИСПРАВЛЕНИЕ: Подогнан масштаб и выравнивание с АК-47
+                hands.scale.set(0.18, 0.18, 0.18);
+                hands.position.set(0.0, -0.45, -0.45);
                 weaponContainer.add(hands);
-            }, undefined, (err) => console.log('Ожидание/ошибка hands.glb:', err));
+            }, undefined, (err) => console.log('Файл Рук не найден или загружается...', err));
         }
 
-        /* =========================================================================
-           4. УПРАВЛЕНИЕ, ПРИСЕД И МУЛЬТИТАЧ СТРЕЛЬБА
-           ========================================================================= */
         function setupControls() {
             document.getElementById('start-btn').addEventListener('click', () => {
                 document.getElementById('start-overlay').style.display = 'none';
             });
 
-            // Джойстик
             const joystick = nipplejs.create({
                 zone: document.getElementById('joystick-zone'),
                 mode: 'static',
@@ -550,7 +523,6 @@
             });
             joystick.on('end', () => { moveJoystick.x = 0; moveJoystick.y = 0; });
 
-            // Сенсорное управление
             let lookTouchId = null;
             let fireTouchId = null;
             let lastLookX = 0, lastLookY = 0;
@@ -612,7 +584,6 @@
             window.addEventListener('touchend', endTouch);
             window.addEventListener('touchcancel', endTouch);
 
-            // КНОПКА ПРИСЕД: Переключение (Toggle) при повторном нажатии
             const crouchBtn = document.getElementById('btn-crouch');
             crouchBtn.addEventListener('click', () => {
                 player.isCrouching = !player.isCrouching;
@@ -628,7 +599,6 @@
                 }
             });
 
-            // КНОПКА ПРЫЖОК: Исключительно для прыжков
             document.getElementById('btn-jump').addEventListener('click', () => {
                 if (player.onGround) {
                     player.vel.y = 7.5;
@@ -640,8 +610,31 @@
         }
 
         /* =========================================================================
-           5. СТРЕЛЬБА
+           СТРЕЛЬБА И СОЗДАНИЕ СЛЕДОВ ОТ ПУЛЬ (BULLET DECALS)
            ========================================================================= */
+        function createBulletHole(point, normal) {
+            const decalGeo = new THREE.PlaneGeometry(0.12, 0.12);
+            const decalMat = new THREE.MeshBasicMaterial({
+                color: 0x111111,
+                polygonOffset: true,
+                polygonOffsetFactor: -4, // Предотвращает мерцание поверхностей
+                side: THREE.DoubleSide
+            });
+            const decal = new THREE.Mesh(decalGeo, decalMat);
+
+            decal.position.copy(point).addScaledVector(normal, 0.01);
+            decal.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+
+            scene.add(decal);
+            bulletDecals.push(decal);
+
+            // Ограничение максимального количества следов от пуль на карте
+            if (bulletDecals.length > 40) {
+                const old = bulletDecals.shift();
+                scene.remove(old);
+            }
+        }
+
         function processShoot(now) {
             if (player.isReloading) return;
             if (now - player.lastShootTime < player.shootInterval) return;
@@ -691,6 +684,9 @@
                         updateUI();
                         spawnBotCS();
                     }
+                } else if (hit.face) {
+                    // Создание отверстия от пули на стене/ящике/земле
+                    createBulletHole(hit.point, hit.face.normal);
                 }
             }
         }
@@ -712,9 +708,6 @@
             }, 1500);
         }
 
-        /* =========================================================================
-           6. АНИМАЦИЯ И ОБНОВЛЕНИЕ
-           ========================================================================= */
         function updatePlayer(dt) {
             player.vel.y -= 22.0 * dt;
 
