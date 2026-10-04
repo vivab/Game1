@@ -2,21 +2,32 @@
 (function () {
   const FILES = ['default_counter-strike_hands_rigged.glb', 'counter-strike_source_viewmodel_hands.glb'];
   const NAMES = ['файл 1', 'файл 2', 'блочные'];
-  const KEY = 'hands_v1', DEG = Math.PI / 180;
-  const mk = (x, y, z) => ({ x, y, z, rx: 0, ry: 0, rz: 0, s: 1 });
-  const DEFAULTS = [mk(0.2, -0.3, -0.5), mk(0.2, -0.3, -0.5), mk(0, 0, 0)];
+  const KEY = 'hands_v2', DEG = Math.PI / 180;
+  const mk = (x, y, z, s) => ({ x, y, z, rx: 0, ry: 0, rz: 0, s: s || 1, o: 0 });
+  const DEFAULTS = [mk(0.2, -0.35, -0.55, 0.8), mk(0, 0, 0), mk(0, 0, 0)];
+  // 24 поворота по осям: листаем кнопкой «Поворот», пока предплечья не пойдут от нас вниз
+  const ORI = [];
+  [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]].forEach(p => {
+    for (let s = 0; s < 8; s++) {
+      const e = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+      for (let i = 0; i < 3; i++) e[i * 4 + p[i]] = (s >> i) & 1 ? -1 : 1;
+      const m = new THREE.Matrix4().set(...e);
+      if (m.determinant() > 0) ORI.push(new THREE.Quaternion().setFromRotationMatrix(m));
+    }
+  });
   const tune = DEFAULTS.map(t => Object.assign({}, t));
   let mode = 0, shown = 0;
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
     if (s) { mode = s.mode; s.tune.forEach((t, i) => { tune[i] = t; }); }
   } catch (e) {}
+  if (mode !== 2) mode = 0;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ mode, tune })); } catch (e) {} };
 
   const holder = new THREE.Group();
   const loaded = [null, null], failed = [false, false], loading = [false, false];
   const sliders = {};
-  let akBox = null, blocky = null, loader = null, bMode, bAnim;
+  let akBox = null, blocky = null, loader = null, bMode, bAnim, bOri;
   const clock = new THREE.Clock();
 
   // Габарит объекта в системе его родителя (с учётом скининга)
@@ -66,8 +77,9 @@
     fit.position.copy(c).multiplyScalar(-k);
     const pivot = new THREE.Group();
     pivot.add(fit);
-    const L = loaded[i] = { pivot, model, clips: gltf.animations || [], idx: -1, mixer: null };
-    if (L.clips.length) { L.mixer = new THREE.AnimationMixer(model); setClip(L, 0); }
+    const L = loaded[i] = { pivot, model, fit, c, k, clips: gltf.animations || [], idx: -1, mixer: null };
+    pivot.userData.L = L;
+    if (L.clips.length) { L.mixer = new THREE.AnimationMixer(model); setClip(L, -1); }
   }
 
   // Блочные руки (как в Block Strike), ставятся по габариту АК
@@ -102,6 +114,12 @@
     target.position.set(b.x + t.x, b.y + t.y, b.z + t.z);
     target.rotation.set(t.rx * DEG, t.ry * DEG, t.rz * DEG);
     target.scale.setScalar(t.s);
+    const L = target.userData.L;
+    if (L) {
+      const q = ORI[t.o | 0];
+      L.fit.quaternion.copy(q);
+      L.fit.position.copy(L.c).multiplyScalar(-L.k).applyQuaternion(q);
+    }
   }
 
   function fetchHands(i) {
@@ -136,6 +154,7 @@
     if (!bMode) return;
     const t = tune[shown];
     for (const k in sliders) sliders[k].value = t[k];
+    bOri.textContent = 'Поворот: ' + ((t.o | 0) + 1) + '/24';
     bMode.textContent = 'Руки: ' + NAMES[mode] + (mode !== shown && mode < 2 && failed[mode] ? ' (не загрузились)' : '');
     const L = loaded[shown];
     bAnim.textContent = L && L.mixer ? 'Анимация: ' + (L.idx < 0 ? 'нет' : (L.clips[L.idx].name || L.idx)) : 'Анимаций нет';
@@ -178,7 +197,8 @@
       p.appendChild(b);
       return b;
     };
-    bMode = btn('', () => { mode = (mode + 1) % 3; save(); show(); });
+    bMode = btn('', () => { mode = mode === 0 ? 2 : 0; save(); show(); });
+    bOri = btn('', () => { const t = tune[shown]; t.o = ((t.o | 0) + 1) % 24; apply(); save(); refresh(); });
     bAnim = btn('', () => {
       const L = loaded[shown];
       if (!L || !L.mixer) return;
@@ -200,8 +220,8 @@
     buildPanel();
     loader.load('ak-47_low_poly.glb', gltf => {
       const ak = gltf.scene;
-      ak.scale.set(0.12, 0.12, 0.12);
-      ak.position.set(0.28, -0.32, -0.52);
+      ak.scale.set(0.144, 0.144, 0.144);
+      ak.position.set(0.28, -0.38, -0.52);
       ak.rotation.set(0, Math.PI, 0);
       weaponContainer.add(ak);
       akBox = boxOf(ak);
