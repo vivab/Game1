@@ -1,13 +1,13 @@
 /* hands.js — АК-47 и руки, расставленные по референсу (AKR "Carbon").
    Подключать ПОСЛЕ основного <script> в index.html. Нож и пистолет добавим позже. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v5';
+  const DEG = Math.PI / 180, KEY = 'hands_v6';
   // Точки с референса. Камера смотрит в −z, единицы — метры.
   // ndcX — где на экране мушка (0.207 = 60% ширины), sightY/sightZ — мушка в пространстве камеры,
   // muzzleZ — дульный срез, len — длина АК, axisY — ось ствола, handguardZ/gripZ — где держатся руки.
   // BIG — размер АК и рук: 1 = реальный, больше = крупнее (как в Standoff 2). Мушка остаётся на месте экрана,
   // оружие вырастает от неё вниз-вправо, к камере.
-  const BIG = 1.6;
+  const BIG = 1.35;
   const sc = (v, s) => s + BIG * (v - s);
   const REF = { ndcX: 0.207, sightY: -0.079, sightZ: -0.93, muzzleZ: sc(-1.0, -0.93), len: 0.88 * BIG,
                 axisY: sc(-0.155, -0.079), handguardZ: sc(-0.74, -0.93), gripZ: sc(-0.42, -0.93) };
@@ -24,7 +24,7 @@
   const H = (pose, x, y, z, pitch, yaw, roll) => ({ pose, x, y, z, pitch, yaw, roll, k: 1 });
   const DEF = {
     R: H('pistol', 0.5, -1.2, 0, 15, 10, -85),
-    L: H('cup', -0.55, -1.0, 0.5, 4, -18, 150)
+    L: H('cup', 0.55, -1, 0.5, 4, -18, 150)
   };
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
@@ -119,7 +119,7 @@
   function buildPanel() {
     const css = document.createElement('style');
     css.textContent =
-      '#hn-b{position:absolute;top:8px;left:50%;margin-left:-20px;z-index:60;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(15,23,42,.8);color:#fff;font-size:18px}' +
+      '#hn-b{position:absolute;top:8px;left:50%;margin-left:110px;z-index:60;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(15,23,42,.8);color:#fff;font-size:18px}' +
       '#hn-p{position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:60;width:min(520px,94vw);background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 10px;color:#fff;font:12px sans-serif;display:none}' +
       '#hn-g{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}' +
       '#hn-p label{display:flex;align-items:center;gap:6px;height:24px}#hn-p label span{width:64px}#hn-p input{flex:1;min-width:0}' +
