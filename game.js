@@ -328,14 +328,16 @@
     const end = e => { for (const t of e.changedTouches) { if (t.identifier === lookId) lookId = null; if (t.identifier === fireId) { fireId = null; isFiring = false; } } };
     window.addEventListener('touchend', end); window.addEventListener('touchcancel', end);
 
+    // кнопки реагируют на касание, а не на click: click не приходит, пока другой палец держит джойстик
+    const tap = (el, fn) => { el.addEventListener('touchstart', e => { e.preventDefault(); fn(); }, { passive: false }); el.addEventListener('click', fn); };
     const crouchBtn = document.getElementById('btn-crouch');
     const setCrouch = on => { player.isCrouching = on; player.targetHeight = on ? 0.9 : 1.6; player.speed = on ? 3.5 : 7; crouchBtn.classList.toggle('btn-active', on); };
-    crouchBtn.addEventListener('click', () => { if (player.onGround && !player.dead) setCrouch(!player.isCrouching); });   // в воздухе присесть нельзя
-    document.getElementById('btn-jump').addEventListener('click', () => {
+    tap(crouchBtn, () => { if (player.onGround && !player.dead) setCrouch(!player.isCrouching); });   // в воздухе присесть нельзя
+    tap(document.getElementById('btn-jump'), () => {
       if (!player.onGround || player.dead) return;
       if (player.isCrouching) setCrouch(false);                                                                       // прыжок встаёт из приседа
       player.vel.y = 7.5; player.onGround = false;
     });
-    document.getElementById('btn-reload').addEventListener('click', () => { if (player.onGround && !player.dead) reloadAmmo(); });   // в прыжке не перезарядиться
+    tap(document.getElementById('btn-reload'), () => { if (player.onGround && !player.dead) reloadAmmo(); });   // в прыжке не перезарядиться
   };
 })();
