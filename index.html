@@ -341,6 +341,7 @@
     //  Работает на телефоне и ПК
     // ============================================================
 
+    // ---------- Глобальные переменные ----------
     let THREE;
     let scene, camera, renderer, clock;
     let velocity, direction;
@@ -366,7 +367,9 @@
     let kills = 0;
     let muzzleFlash = null;
     let flashTimer = 0;
+    let colliders = []; // стены и укрытия для коллизий
 
+    // Константы
     const GRAVITY = 32;
     const WALK_SPEED = 8.0;
     const CROUCH_SPEED = 3.6;
@@ -378,6 +381,7 @@
     const FIRE_RATE = 95;
     const MAG_SIZE = 30;
 
+    // ---------- Загрузка Three.js ----------
     function loadScript(src) {
       return new Promise((resolve, reject) => {
         const s = document.createElement('script');
@@ -425,6 +429,7 @@
       }
     }
 
+    // ---------- Старт игры ----------
     function startGame() {
       if (gameStarted) return;
       gameStarted = true;
@@ -447,6 +452,7 @@
       }
     }
 
+    // ---------- Инициализация сцены ----------
     function initScene() {
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x87b8d8);
@@ -494,8 +500,10 @@
 
       window.addEventListener('resize', onWindowResize);
     }
-
+        // ---------- Мир ----------
     function createWorld() {
+      colliders = [];
+
       const floorMat = new THREE.MeshStandardMaterial({
         color: 0x4a4a4a,
         roughness: 0.92,
@@ -522,6 +530,14 @@
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         scene.add(mesh);
+        colliders.push({
+          minX: x - w / 2,
+          maxX: x + w / 2,
+          minY: y - h / 2,
+          maxY: y + h / 2,
+          minZ: z - d / 2,
+          maxZ: z + d / 2
+        });
         return mesh;
       }
 
@@ -539,17 +555,24 @@
       makeWall(8, 1.1, 1.3, -5, 0.55, -22);
 
       for (let i = 0; i < 4; i++) {
+        const cx = -25 + i * 16;
         const col = new THREE.Mesh(
           new THREE.CylinderGeometry(0.55, 0.65, 4.5, 10),
           new THREE.MeshStandardMaterial({ color: 0x6b5b4b, roughness: 0.85 })
         );
-        col.position.set(-25 + i * 16, 2.25, -30);
+        col.position.set(cx, 2.25, -30);
         col.castShadow = true;
         col.receiveShadow = true;
         scene.add(col);
+        colliders.push({
+          minX: cx - 0.7, maxX: cx + 0.7,
+          minY: 0, maxY: 4.5,
+          minZ: -30.7, maxZ: -29.3
+        });
       }
     }
 
+    // ---------- Оружие ----------
     function createWeapon() {
       weaponGroup = new THREE.Group();
 
@@ -595,6 +618,7 @@
       scene.add(camera);
     }
 
+    // ---------- Боты ----------
     function createBotMesh() {
       const group = new THREE.Group();
 
@@ -604,6 +628,7 @@
       );
       body.position.y = 0.95;
       body.castShadow = true;
+      body.name = 'body';
       group.add(body);
 
       const head = new THREE.Mesh(
@@ -612,22 +637,27 @@
       );
       head.position.y = 1.55;
       head.castShadow = true;
+      head.name = 'head';
       group.add(head);
 
       const legMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.8 });
       const legL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.2), legMat);
       legL.position.set(-0.14, 0.28, 0);
+      legL.name = 'leg';
       group.add(legL);
       const legR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.2), legMat);
       legR.position.set(0.14, 0.28, 0);
+      legR.name = 'leg';
       group.add(legR);
 
       const armMat = new THREE.MeshStandardMaterial({ color: 0xb03a2e, roughness: 0.7 });
       const armL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.5, 0.14), armMat);
       armL.position.set(-0.38, 1.0, 0);
+      armL.name = 'arm';
       group.add(armL);
       const armR = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.5, 0.14), armMat);
       armR.position.set(0.38, 1.0, 0);
+      armR.name = 'arm';
       group.add(armR);
 
       return group;
@@ -649,6 +679,7 @@
       }
     }
 
+    // ---------- Ввод ----------
     function setupInput() {
       window.addEventListener('keydown', onKeyDown);
       window.addEventListener('keyup', onKeyUp);
@@ -686,7 +717,21 @@
           canJump = false;
         }
       });
-      bindTouch(crouchBtn, () => { isCrouching = true; }, () => { isCrouching = false; });
+
+      // Присед — только пока держишь кнопку
+      crouchBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isCrouching = true;
+      }, { passive: false });
+      crouchBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        isCrouching = false;
+      }, { passive: false });
+      crouchBtn.addEventListener('touchcancel', (e) => {
+        isCrouching = false;
+      }, { passive: false });
+
       bindTouch(shootBtn, () => { tryShoot(); });
       bindTouch(reloadBtn, () => { startReload(); });
 
@@ -713,20 +758,30 @@
       let lastTX = 0, lastTY = 0;
       let looking = false;
 
+      // Взгляд работает по ВСЕМУ экрану
       renderer.domElement.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) {
-          const t = e.touches[0];
-          if (t.clientX < 180 && t.clientY > window.innerHeight - 180) return;
-          if (t.clientX > window.innerWidth - 200 && t.clientY > window.innerHeight - 220) return;
-          looking = true;
-          lastTX = t.clientX;
-          lastTY = t.clientY;
+        if (e.touches.length >= 1) {
+          for (let i = 0; i < e.touches.length; i++) {
+            const t = e.touches[i];
+            if (t.clientX < 160 && t.clientY > window.innerHeight - 170) continue;
+            looking = true;
+            lastTX = t.clientX;
+            lastTY = t.clientY;
+            break;
+          }
         }
       }, { passive: true });
 
       renderer.domElement.addEventListener('touchmove', (e) => {
-        if (!looking || e.touches.length !== 1) return;
-        const t = e.touches[0];
+        if (!looking) return;
+        let t = null;
+        for (let i = 0; i < e.touches.length; i++) {
+          const touch = e.touches[i];
+          if (touch.clientX < 160 && touch.clientY > window.innerHeight - 170) continue;
+          t = touch;
+          break;
+        }
+        if (!t) return;
         const dx = t.clientX - lastTX;
         const dy = t.clientY - lastTY;
         camera.rotation.y -= dx * TOUCH_SENS;
@@ -736,7 +791,10 @@
         lastTY = t.clientY;
       }, { passive: true });
 
-      renderer.domElement.addEventListener('touchend', () => { looking = false; });
+      renderer.domElement.addEventListener('touchend', (e) => {
+        if (e.touches.length === 0) looking = false;
+      });
+      renderer.domElement.addEventListener('touchcancel', () => { looking = false; });
     }
 
     function onKeyDown(e) {
@@ -770,6 +828,7 @@
       camera.rotation.x = Math.max(-1.35, Math.min(1.35, camera.rotation.x));
     }
 
+    // ---------- Стрельба ----------
     function tryShoot() {
       if (isReloading) return;
       const now = performance.now();
@@ -808,13 +867,26 @@
         let bot = hit.object;
         while (bot.parent && !bots.includes(bot)) bot = bot.parent;
         if (bots.includes(bot)) {
-          bot.userData.hp -= 28 + Math.floor(Math.random() * 12);
+          // Урон по частям тела
+          let dmg = 35;
+          const part = hit.object.name || '';
+          if (part === 'head') {
+            dmg = 100; // хедшот
+          } else if (part === 'body') {
+            const localY = hit.point.y - bot.position.y;
+            dmg = 30 + Math.floor(Math.min(20, Math.max(0, (localY - 0.6) * 40)));
+          } else if (part === 'arm' || part === 'leg') {
+            dmg = 20 + Math.floor(Math.random() * 11); // 20–30
+          }
+
+          bot.userData.hp -= dmg;
           createDecal(hit.point, hit.face ? hit.face.normal : new THREE.Vector3(0, 1, 0));
+
           if (bot.userData.hp <= 0) {
             scene.remove(bot);
             bots = bots.filter(b => b !== bot);
             kills++;
-            addKillFeed('Ты убил бота');
+            addKillFeed(part === 'head' ? 'Хедшот!' : 'Ты убил бота');
           }
         }
         return;
@@ -875,6 +947,7 @@
       }, 3200);
     }
 
+    // ---------- Обновление ----------
     function update(dt) {
       direction.set(0, 0, 0);
       if (moveForward)  direction.z -= 1;
@@ -903,6 +976,29 @@
       camera.position.x += velocity.x * dt;
       camera.position.y += velocity.y * dt;
       camera.position.z += velocity.z * dt;
+
+      // === Коллизии со стенами и укрытиями ===
+      const playerRadius = 0.35;
+      const playerH = isCrouching ? CROUCH_HEIGHT : STAND_HEIGHT;
+      for (let i = 0; i < colliders.length; i++) {
+        const c = colliders[i];
+        if (camera.position.y + 0.2 < c.minY || camera.position.y - playerH > c.maxY) continue;
+
+        const closestX = Math.max(c.minX, Math.min(camera.position.x, c.maxX));
+        const closestZ = Math.max(c.minZ, Math.min(camera.position.z, c.maxZ));
+        const dx = camera.position.x - closestX;
+        const dz = camera.position.z - closestZ;
+        const distSq = dx * dx + dz * dz;
+
+        if (distSq < playerRadius * playerRadius) {
+          const dist = Math.sqrt(distSq) || 0.0001;
+          const push = (playerRadius - dist) / dist;
+          camera.position.x += dx * push;
+          camera.position.z += dz * push;
+          velocity.x *= 0.3;
+          velocity.z *= 0.3;
+        }
+      }
 
       const targetH = isCrouching ? CROUCH_HEIGHT : STAND_HEIGHT;
       if (camera.position.y < targetH) {
@@ -1006,6 +1102,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
+    // ---------- Запуск ----------
     boot();
   </script>
 </body>
