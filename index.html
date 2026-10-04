@@ -2,10 +2,9 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
-    <title>3D Tactical Shooter - Full Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>3D CS-Style Shooter</title>
     <style>
-        /* --- СБРОС СТИЛЕЙ И ОСНОВНАЯ РАЗМЕТКА --- */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -19,22 +18,20 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #050505;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #050508;
+            font-family: 'Segoe UI', Arial, sans-serif;
             touch-action: none;
         }
 
         #canvas-container {
             width: 100vw;
             height: 100vh;
-            display: block;
             position: absolute;
             top: 0;
             left: 0;
             z-index: 1;
         }
 
-        /* --- ИГРОВОЙ ИНТЕРФЕЙС (HUD) --- */
         #hud {
             position: absolute;
             top: 0;
@@ -45,651 +42,378 @@
             pointer-events: none;
         }
 
-        /* Статистика игрока (Здоровье, Патроны, Счет) */
-        .hud-panel {
-            position: absolute;
-            background: rgba(15, 23, 42, 0.75);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(8px);
-            border-radius: 10px;
-            color: #ffffff;
-            padding: 12px 20px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        .interactive-ui {
+            pointer-events: auto !important;
         }
 
+        /* Здоровье (Верхний левый угол) */
         #stats-panel {
+            position: absolute;
             top: 20px;
             left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            min-width: 180px;
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 14px 18px;
+            color: #ffffff;
+            width: 210px;
+            backdrop-filter: blur(6px);
         }
 
-        .stat-row {
+        .hp-header {
             display: flex;
-            align-items: center;
             justify-content: space-between;
+            align-items: center;
             font-size: 16px;
-            font-weight: 600;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
         }
 
-        .bar-container {
+        .hp-bar-track {
             width: 100%;
             height: 8px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 4px;
+            margin-bottom: 12px;
         }
 
         #hp-bar-fill {
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, #ef4444, #22c55e);
-            transition: width 0.2s ease-out;
+            background: #22c55e;
+            transition: width 0.15s ease-out;
         }
 
-        #ammo-panel {
-            bottom: 30px;
-            right: 30px;
-            text-align: right;
-        }
-
-        #ammo-text {
-            font-size: 32px;
-            font-weight: 800;
-            letter-spacing: 1px;
-            color: #f59e0b;
-        }
-
-        #ammo-subtext {
+        .kills-row {
+            display: flex;
+            justify-content: space-between;
             font-size: 13px;
+            font-weight: 700;
             color: #9ca3af;
-            text-transform: uppercase;
         }
 
-        /* Миникарта */
-        #minimap-container {
+        #score-val { color: #ffffff; }
+
+        /* Радар и кнопка R */
+        #minimap-wrapper {
+            position: absolute;
             top: 20px;
             right: 20px;
-            padding: 5px;
-            border-radius: 50%;
-            overflow: hidden;
-            width: 130px;
-            height: 130px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            width: 110px;
+            height: 110px;
         }
 
         #minimap-canvas {
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(15, 23, 42, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
 
-        /* Прицел и Хитмаркер */
-        #crosshair-container {
+        #btn-reload {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        #btn-reload:active { background: rgba(255, 255, 255, 0.4); }
+
+        /* Джойстик */
+        #joystick-zone {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 140px;
+            height: 140px;
+        }
+
+        /* Кнопка ОГОНЬ */
+        #btn-fire {
+            position: absolute;
+            bottom: 110px;
+            right: 35px;
+            width: 95px;
+            height: 95px;
+            border-radius: 50%;
+            background: rgba(120, 35, 35, 0.65);
+            border: 2px solid rgba(255, 120, 120, 0.4);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        #btn-fire:active {
+            background: rgba(220, 38, 38, 0.75);
+        }
+
+        /* Панель ПРЫЖОК, ПРИСЕД и ПАТРОНЫ */
+        #controls-right-panel {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-action:active { background: rgba(255, 255, 255, 0.4); }
+
+        #ammo-panel {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            backdrop-filter: blur(6px);
+        }
+
+        #ammo-count {
+            font-size: 26px;
+            font-weight: 900;
+            color: #f59e0b;
+            line-height: 1;
+        }
+
+        #weapon-name {
+            font-size: 10px;
+            font-weight: 700;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        /* Прицел */
+        #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .ch-line {
-            position: absolute;
-            background-color: rgba(57, 255, 20, 0.9);
-            box-shadow: 0 0 4px rgba(0,0,0,0.8);
-        }
-
-        #ch-top { top: 2px; width: 2px; height: 10px; }
-        #ch-bottom { bottom: 2px; width: 2px; height: 10px; }
-        #ch-left { left: 2px; width: 10px; height: 2px; }
-        #ch-right { right: 2px; width: 10px; height: 2px; }
-        #ch-dot { width: 3px; height: 3px; background: #39ff14; border-radius: 50%; }
-
-        #hitmarker {
-            position: absolute;
             width: 24px;
             height: 24px;
-            opacity: 0;
-            transition: opacity 0.05s ease-in-out;
-        }
-
-        #hitmarker::before, #hitmarker::after {
-            content: '';
-            position: absolute;
-            background: #ffffff;
-        }
-        #hitmarker.headshot::before, #hitmarker.headshot::after {
-            background: #ef4444;
-        }
-
-        /* Киллфид */
-        #killfeed {
-            position: absolute;
-            top: 160px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
-        }
-
-        .kill-item {
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 13px;
-            border-left: 3px solid #ef4444;
-            animation: fadeOut 4s forwards;
-        }
-
-        @keyframes fadeOut {
-            0% { opacity: 1; transform: translateX(0); }
-            80% { opacity: 1; }
-            100% { opacity: 0; transform: translateX(20px); }
-        }
-
-        /* Вспышка урона экрана */
-        #damage-vignette {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            box-shadow: inset 0 0 100px rgba(239, 68, 68, 0);
-            transition: box-shadow 0.1s ease-out;
             pointer-events: none;
         }
 
-        /* МОБИЛЬНОЕ УПРАВЛЕНИЕ */
-        #mobile-controls {
+        .ch-bar { position: absolute; background: #39ff14; box-shadow: 0 0 2px rgba(0,0,0,0.8); }
+        .ch-v { width: 2px; height: 8px; left: 11px; }
+        .ch-h { height: 2px; width: 8px; top: 11px; }
+        #ch-top { top: 0; }
+        #ch-bottom { bottom: 0; }
+        #ch-left { left: 0; }
+        #ch-right { right: 0; }
+
+        #start-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        #joystick-zone {
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            width: 150px;
-            height: 150px;
-            pointer-events: auto;
-        }
-
-        .m-btn {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.18);
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            color: #ffffff;
-            border-radius: 50%;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            backdrop-filter: blur(4px);
-            active-bg: rgba(239, 68, 68, 0.6);
-        }
-
-        .m-btn:active {
-            background: rgba(239, 68, 68, 0.5);
-            transform: scale(0.95);
-        }
-
-        #btn-fire { right: 40px; bottom: 100px; width: 85px; height: 85px; font-size: 15px; background: rgba(239, 68, 68, 0.3); }
-        #btn-jump { right: 140px; bottom: 40px; width: 65px; height: 65px; font-size: 12px; }
-        #btn-reload { right: 40px; bottom: 205px; width: 60px; height: 60px; font-size: 11px; }
-
-        /* ИГРОВЫЕ МЕНЮ */
-        .overlay-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(10, 10, 12, 0.88);
-            backdrop-filter: blur(12px);
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 15, 0.9);
             z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white;
         }
 
-        .menu-title {
-            font-size: 48px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .menu-subtitle {
-            font-size: 16px;
-            color: #9ca3af;
-            margin-bottom: 30px;
-            text-align: center;
-            max-width: 400px;
-        }
-
-        .main-btn {
-            padding: 16px 42px;
-            font-size: 20px;
-            font-weight: 700;
-            background: #22c55e;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
-            transition: all 0.2s ease;
-        }
-
-        .main-btn:hover {
-            transform: translateY(-2px);
-            background: #16a34a;
+        #start-btn {
+            padding: 16px 40px; font-size: 20px; font-weight: bold;
+            background: #22c55e; color: white; border: none; border-radius: 8px;
+            cursor: pointer; margin-top: 20px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Канвас 3D сцены -->
     <div id="canvas-container"></div>
 
-    <!-- Виньетка урона -->
-    <div id="damage-vignette"></div>
-
-    <!-- HUD элементы -->
     <div id="hud">
-        <div id="stats-panel" class="hud-panel">
-            <div class="stat-row">
+        <div id="stats-panel">
+            <div class="hp-header">
                 <span>ЗДОРОВЬЕ</span>
-                <span id="hp-value">100</span>
+                <span id="hp-val">100</span>
             </div>
-            <div class="bar-container">
+            <div class="hp-bar-track">
                 <div id="hp-bar-fill"></div>
             </div>
-            <div class="stat-row" style="margin-top: 4px; font-size: 13px; color: #9ca3af;">
+            <div class="kills-row">
                 <span>УБИТО:</span>
-                <span id="score-value" style="color: #fff;">0</span>
+                <span id="score-val">0</span>
             </div>
         </div>
 
-        <div id="minimap-container" class="hud-panel">
-            <canvas id="minimap-canvas" width="120" height="120"></canvas>
+        <div id="minimap-wrapper">
+            <canvas id="minimap-canvas" width="110" height="110"></canvas>
+            <button id="btn-reload" class="interactive-ui">R</button>
         </div>
 
-        <div id="ammo-panel" class="hud-panel">
-            <div id="ammo-text">30 / 90</div>
-            <div id="ammo-subtext">АК-47</div>
+        <div id="joystick-zone" class="interactive-ui"></div>
+
+        <button id="btn-fire" class="interactive-ui">ОГОНЬ</button>
+
+        <div id="controls-right-panel">
+            <button id="btn-crouch" class="btn-action interactive-ui">ПРИСЕД</button>
+            <button id="btn-jump" class="btn-action interactive-ui">ПРЫЖОК</button>
+            <div id="ammo-panel">
+                <div id="ammo-count">30 / 90</div>
+                <div id="weapon-name">AK-47</div>
+            </div>
         </div>
 
-        <div id="crosshair-container">
-            <div id="ch-top" class="ch-line"></div>
-            <div id="ch-bottom" class="ch-line"></div>
-            <div id="ch-left" class="ch-line"></div>
-            <div id="ch-right" class="ch-line"></div>
-            <div id="ch-dot"></div>
-            <div id="hitmarker"></div>
+        <div id="crosshair">
+            <div id="ch-top" class="ch-bar ch-v"></div>
+            <div id="ch-bottom" class="ch-bar ch-v"></div>
+            <div id="ch-left" class="ch-bar ch-h"></div>
+            <div id="ch-right" class="ch-bar ch-h"></div>
         </div>
-
-        <div id="killfeed"></div>
     </div>
 
-    <!-- Мобильное управление -->
-    <div id="mobile-controls">
-        <div id="joystick-zone"></div>
-        <button id="btn-fire" class="m-btn">ОГОНЬ</button>
-        <button id="btn-jump" class="m-btn">ПРОБЕЛ</button>
-        <button id="btn-reload" class="m-btn">R</button>
+    <div id="start-overlay">
+        <h2>3D TACTICAL SHOOTER</h2>
+        <button id="start-btn" class="interactive-ui">В БОЙ</button>
     </div>
 
-    <!-- Экраны меню -->
-    <div id="start-screen" class="overlay-screen">
-        <h1 class="menu-title">TACTICAL 3D</h1>
-        <p class="menu-subtitle">ПК: WASD — ходьба, Мышь — обзор/стрельба, R — перезарядка<br>Мобильные: Левый джойстик + Экран справа</p>
-        <button id="start-btn" class="main-btn">В БОЙ</button>
-    </div>
-
-    <!-- Внешние библиотеки -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
 
     <script>
         /* =========================================================================
-           1. АУДИО ДВИЖОК (WEB AUDIO API SYNTHESIZER)
+           1. НАСТРОЙКА СЦЕНЫ
            ========================================================================= */
-        class AudioEngine {
-            constructor() {
-                this.ctx = null;
-            }
-
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            }
-
-            playShoot() {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                
-                // Осциллятор для импульса выстрела
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.15);
-                
-                gain.gain.setValueAtTime(0.5, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-                
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                
-                osc.start(now);
-                osc.stop(now + 0.15);
-
-                // Генерация шума для имитации пороховых газов
-                const bufferSize = this.ctx.sampleRate * 0.1;
-                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-
-                const noise = this.ctx.createBufferSource();
-                noise.buffer = buffer;
-                const noiseGain = this.ctx.createGain();
-                noiseGain.gain.setValueAtTime(0.3, now);
-                noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-
-                noise.connect(noiseGain);
-                noiseGain.connect(this.ctx.destination);
-
-                noise.start(now);
-            }
-
-            playHit(isHeadshot = false) {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(isHeadshot ? 1200 : 600, now);
-                osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
-
-                gain.gain.setValueAtTime(0.4, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start(now);
-                osc.stop(now + 0.08);
-            }
-
-            playReload() {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.linearRampToValueAtTime(400, now + 0.2);
-
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
-
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-
-                osc.start(now);
-                osc.stop(now + 0.3);
-            }
-        }
-
-        const audio = new AudioEngine();
-
-        /* =========================================================================
-           2. ПРОЦЕДУРНАЯ ГЕНЕРАЦИЯ ТЕКСТУР (CANVAS TO THREE.TEXTURE)
-           ========================================================================= */
-        function createFloorTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 512;
-            const ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#22252a';
-            ctx.fillRect(0, 0, 512, 512);
-
-            // Сетка плит
-            ctx.strokeStyle = '#15171c';
-            ctx.lineWidth = 4;
-            const tileSize = 64;
-            for (let x = 0; x <= 512; x += tileSize) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
-            }
-            for (let y = 0; y <= 512; y += tileSize) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
-            }
-
-            // Добавление шума
-            for (let i = 0; i < 1000; i++) {
-                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)';
-                ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
-            }
-
-            const texture = new THREE.CanvasTexture(canvas);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(10, 10);
-            return texture;
-        }
-
-        function createCrateTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-
-            ctx.fillStyle = '#78350f';
-            ctx.fillRect(0, 0, 256, 256);
-
-            ctx.strokeStyle = '#451a03';
-            ctx.lineWidth = 12;
-            ctx.strokeRect(6, 6, 244, 244);
-
-            // Крестовина коробки
-            ctx.lineWidth = 8;
-            ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(246, 246); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(246, 10); ctx.lineTo(10, 246); ctx.stroke();
-
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        /* =========================================================================
-           3. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И СОСТОЯНИЕ ИГРЫ
-           ========================================================================= */
-        let scene, camera, renderer, raycaster;
-        let weaponGroup = new THREE.Group();
+        let scene, camera, renderer;
+        let weaponContainer = new THREE.Group();
         let colliders = [];
         let bots = [];
-        let particles = [];
-        let pickups = [];
+        let raycaster = new THREE.Raycaster();
 
-        // Игрок
         const player = {
             hp: 100,
-            maxHp: 100,
             score: 0,
-            position: new THREE.Vector3(0, 1.6, 12),
-            velocity: new THREE.Vector3(),
-            onGround: false,
-            speed: 7.5,
-            
-            // Оружие
+            pos: new THREE.Vector3(0, 1.6, 10),
+            vel: new THREE.Vector3(),
+            onGround: true,
+            isCrouching: false,
+            targetHeight: 1.6,
+            currentHeight: 1.6,
+            speed: 7.0,
+
             ammoInMag: 30,
             maxMag: 30,
             reserveAmmo: 90,
             isReloading: false,
             lastShootTime: 0,
-            shootInterval: 110 // Скорострельность в мс
+            shootInterval: 110
         };
 
-        // Ввод
-        const keys = { w: false, a: false, s: false, d: false };
         let moveJoystick = { x: 0, y: 0 };
-        let lookTouchId = null;
-        let lastTX = 0, lastTY = 0;
-        let isShooting = false;
+        let cameraYaw = 0;
+        let cameraPitch = 0;
+        let recoilPitch = 0;
+        let recoilYaw = 0;
+        let isFiring = false;
 
-        // Поворот камеры и покачивание
-        let cameraRotation = { x: 0, y: 0 };
-        let recoilOffset = { x: 0, y: 0, z: 0 };
-        let weaponSwayTimer = 0;
-
-        /* =========================================================================
-           4. ИНИЦИАЛИЗАЦИЯ ИГРЫ
-           ========================================================================= */
-        function initGame() {
+        function initScene() {
             const container = document.getElementById('canvas-container');
 
-            // 1. Сцена
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0f172a);
-            scene.fog = new THREE.FogExp2(0x0f172a, 0.018);
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.02);
 
-            // 2. Камера
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
             camera.rotation.order = 'YXZ';
-            camera.add(weaponGroup);
+            camera.add(weaponContainer);
             scene.add(camera);
 
-            // 3. Рендерер
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
-            raycaster = new THREE.Raycaster();
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambient);
 
-            // 4. Освещение
-            const ambLight = new THREE.HemisphereLight(0xffffff, 0x334155, 0.5);
-            scene.add(ambLight);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+            sun.position.set(20, 40, 20);
+            sun.castShadow = true;
+            scene.add(sun);
 
-            const dirLight = new THREE.DirectionalLight(0xfff7ed, 1.0);
-            dirLight.position.set(25, 40, 15);
-            dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 2048;
-            dirLight.shadow.mapSize.height = 2048;
-            dirLight.shadow.camera.near = 0.5;
-            dirLight.shadow.camera.far = 100;
-            dirLight.shadow.camera.left = -30;
-            dirLight.shadow.camera.right = 30;
-            dirLight.shadow.camera.top = 30;
-            dirLight.shadow.camera.bottom = -30;
-            scene.add(dirLight);
+            buildMap();
+            buildAK47();
 
-            // 5. Построение мира
-            buildLevel();
-            loadWeaponAndHands();
+            for (let i = 0; i < 4; i++) spawnBotCS();
 
-            // 6. Спавн первоначальных ботов
-            for (let i = 0; i < 3; i++) {
-                spawnBot();
-            }
+            setupControls();
 
-            // 7. Настройка управления
-            setupInput();
-
-            // 8. Игровой цикл
             let lastTime = performance.now();
-            function animate(now) {
-                requestAnimationFrame(animate);
+            function loop(now) {
+                requestAnimationFrame(loop);
                 const dt = Math.min((now - lastTime) / 1000, 0.1);
                 lastTime = now;
 
                 updatePlayer(dt);
-                updateWeaponSwayAndRecoil(dt);
                 updateBots(dt);
-                updateParticles(dt);
-                updatePickups(dt);
+                if (isFiring) processShoot(now);
                 renderMinimap();
-
-                if (isShooting) {
-                    processShooting(now);
-                }
 
                 renderer.render(scene, camera);
             }
-            animate(performance.now());
+            loop(performance.now());
         }
 
         /* =========================================================================
-           5. ПОСТРОЕНИЕ АРЕНЫ И ОБЪЕКТОВ
+           2. КАРТА И АНАТОМИЧЕСКИЕ БОТЫ С АНИМАЦИЕЙ (CS 1.6 СТИЛЬ)
            ========================================================================= */
-        function buildLevel() {
-            // Пол
+        function buildMap() {
             const floorGeo = new THREE.PlaneGeometry(80, 80);
-            const floorMat = new THREE.MeshStandardMaterial({ 
-                map: createFloorTexture(),
-                roughness: 0.6,
-                metalness: 0.1
-            });
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // Внешние стены
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
-            const createWall = (w, h, d, x, y, z) => {
-                const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-                wall.position.set(x, y, z);
-                wall.receiveShadow = true;
-                wall.castShadow = true;
-                scene.add(wall);
-                colliders.push(wall);
-            };
+            const grid = new THREE.GridHelper(80, 40, 0x3b82f6, 0x334155);
+            grid.position.y = 0.01;
+            scene.add(grid);
 
-            createWall(80, 6, 2, 0, 3, -40); // Север
-            createWall(80, 6, 2, 0, 3, 40);  // Юг
-            createWall(2, 6, 80, -40, 3, 0); // Запад
-            createWall(2, 6, 80, 40, 3, 0);  // Восток
-
-            // Коробки / Укрытия
-            const crateMat = new THREE.MeshStandardMaterial({ map: createCrateTexture(), roughness: 0.5 });
             const crateGeo = new THREE.BoxGeometry(3, 3, 3);
+            const crateMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 });
 
-            const cratePositions = [
-                [-8, 1.5, -5], [8, 1.5, -8], [-12, 1.5, 8], [12, 1.5, 4],
-                [0, 1.5, -15], [-18, 1.5, -10], [18, 1.5, -10], [0, 1.5, 5]
+            const positions = [
+                [0, 1.5, -5], [-6, 1.5, -8], [6, 1.5, -8],
+                [-10, 1.5, 2], [10, 1.5, 2], [0, 1.5, 6]
             ];
 
-            cratePositions.forEach(pos => {
+            positions.forEach(pos => {
                 const crate = new THREE.Mesh(crateGeo, crateMat);
                 crate.position.set(...pos);
                 crate.castShadow = true;
@@ -697,70 +421,62 @@
                 scene.add(crate);
                 colliders.push(crate);
             });
-
-            // Спавн аптечки
-            spawnPickup(0, 0.5, -8, 'health');
         }
 
-        /* =========================================================================
-           6. ЗАГРУЗКА 3D МОДЕЛЕЙ (ОРУЖИЕ И РУКИ)
-           ========================================================================= */
-        function loadWeaponAndHands() {
-            const loader = new THREE.GLTFLoader();
-
-            // 1. Загрузка АК-47
-            loader.load('ak-47_low_poly.glb', (gltf) => {
-                const ak47 = gltf.scene;
-                ak47.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-                ak47.scale.set(0.003, 0.003, 0.003);
-                ak47.position.set(0.18, -0.22, -0.38);
-                weaponGroup.add(ak47);
-            }, undefined, (e) => console.log('АК-47 загружается...'));
-
-            // 2. Загрузка Рук
-            loader.load('default_counter-strike_hands_rigged.glb', (gltf) => {
-                const hands = gltf.scene;
-                hands.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-                hands.scale.set(0.009, 0.009, 0.009);
-                hands.position.set(0.15, -0.28, -0.32);
-                weaponGroup.add(hands);
-            }, undefined, (e) => console.log('Модель рук загружается...'));
+        function createLimb(w, h, d, color) {
+            const group = new THREE.Group();
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.y = -h / 2;
+            mesh.castShadow = true;
+            group.add(mesh);
+            return { group, mesh };
         }
 
-        /* =========================================================================
-           7. ИИ И ЛОГИКА БОТОВ
-           ========================================================================= */
-        function spawnBot() {
+        function spawnBotCS() {
             const botGroup = new THREE.Group();
+            const shirtColor = 0xd97706; // Оранжевый
+            const skinColor = 0xfca5a5;  // Светлый
+            const pantsColor = 0x334155; // Темно-серый
 
-            // Тело
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.5 });
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.4), bodyMat);
-            body.position.y = 0.7;
-            body.castShadow = true;
-            botGroup.add(body);
+            // Торс
+            const torsoGeo = new THREE.BoxGeometry(0.5, 0.6, 0.3);
+            const torsoMat = new THREE.MeshStandardMaterial({ color: shirtColor });
+            const torso = new THREE.Mesh(torsoGeo, torsoMat);
+            torso.position.y = 1.05;
+            torso.castShadow = true;
+            botGroup.add(torso);
 
-            // УВЕЛИЧЕННЫЙ ХИТБОКС ГОЛОВЫ
-            const headMat = new THREE.MeshStandardMaterial({ color: 0xfca5a5, roughness: 0.4 });
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.45), headMat);
-            head.position.y = 1.6;
+            // Шея & Голова
+            const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+            const headMat = new THREE.MeshStandardMaterial({ color: skinColor });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 1.55;
             head.castShadow = true;
             head.userData = { isHead: true };
             botGroup.add(head);
 
-            // Спавн в произвольном укрытии
-            const rx = (Math.random() - 0.5) * 60;
-            const rz = (Math.random() - 0.5) * 50 - 10;
+            // Руки
+            const leftArm = createLimb(0.15, 0.5, 0.15, shirtColor);
+            leftArm.group.position.set(0.35, 1.35, 0);
+            botGroup.add(leftArm.group);
+
+            const rightArm = createLimb(0.15, 0.5, 0.15, shirtColor);
+            rightArm.group.position.set(-0.35, 1.35, 0);
+            botGroup.add(rightArm.group);
+
+            // Ноги
+            const leftLeg = createLimb(0.18, 0.6, 0.18, pantsColor);
+            leftLeg.group.position.set(0.15, 0.75, 0);
+            botGroup.add(leftLeg.group);
+
+            const rightLeg = createLimb(0.18, 0.6, 0.18, pantsColor);
+            rightLeg.group.position.set(-0.15, 0.75, 0);
+            botGroup.add(rightLeg.group);
+
+            const rx = (Math.random() - 0.5) * 50;
+            const rz = (Math.random() - 0.5) * 40 - 5;
             botGroup.position.set(rx, 0, rz);
 
             scene.add(botGroup);
@@ -768,119 +484,234 @@
             bots.push({
                 mesh: botGroup,
                 hp: 100,
-                speed: 3.2,
-                lastAttack: 0
-            });
-        }
-
-        function updateBots(dt) {
-            const now = performance.now();
-
-            bots.forEach(bot => {
-                if (bot.hp <= 0) return;
-
-                // Вектор к игроку
-                const dir = new THREE.Vector3().subVectors(player.position, bot.mesh.position);
-                dir.y = 0;
-                const dist = dir.length();
-
-                if (dist > 1.5) {
-                    dir.normalize();
-                    bot.mesh.position.addScaledVector(dir, bot.speed * dt);
-                    bot.mesh.lookAt(player.position.x, bot.mesh.position.y, player.position.z);
-                } else {
-                    // Атака игрока
-                    if (now - bot.lastAttack > 800) {
-                        damagePlayer(12);
-                        bot.lastAttack = now;
-                    }
-                }
+                speed: 2.5,
+                leftArm: leftArm.group,
+                rightArm: rightArm.group,
+                leftLeg: leftLeg.group,
+                rightLeg: rightLeg.group,
+                animTime: Math.random() * 10
             });
         }
 
         /* =========================================================================
-           8. СТРЕЛЬБА, ИМПУЛЬС И СИСТЕМА ЧАСТИЦ
+           3. ПОДГОНКА ПРОЦЕДУРНОЙ МОДЕЛИ АК-47
            ========================================================================= */
-        function processShooting(now) {
+        function buildAK47() {
+            const akGroup = new THREE.Group();
+
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4 });
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 });
+
+            // Ствольная коробка
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.35), darkMat);
+            body.position.set(0, 0, 0);
+            akGroup.add(body);
+
+            // Ствол
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4), darkMat);
+            barrel.rotation.x = Math.PI / 2;
+            barrel.position.set(0, 0.01, -0.35);
+            akGroup.add(barrel);
+
+            // Деревянное цевье
+            const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.2), woodMat);
+            handguard.position.set(0, -0.01, -0.22);
+            akGroup.add(handguard);
+
+            // Приклад
+            const stock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.25), woodMat);
+            stock.position.set(0, -0.02, 0.28);
+            stock.rotation.x = -0.1;
+            akGroup.add(stock);
+
+            // Магазин (Рожок)
+            const mag = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.08), darkMat);
+            mag.position.set(0, -0.12, -0.08);
+            mag.rotation.x = 0.3;
+            akGroup.add(mag);
+
+            // Рукоятка
+            const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.05), woodMat);
+            grip.position.set(0, -0.1, 0.08);
+            grip.rotation.x = -0.3;
+            akGroup.add(grip);
+
+            // Позиционирование калаша в руках
+            akGroup.position.set(0.22, -0.2, -0.45);
+            weaponContainer.add(akGroup);
+        }
+
+        /* =========================================================================
+           4. УПРАВЛЕНИЕ, МУЛЬТИТАЧ СТРЕЛЬБА И ОБЗОР
+           ========================================================================= */
+        function setupControls() {
+            document.getElementById('start-btn').addEventListener('click', () => {
+                document.getElementById('start-overlay').style.display = 'none';
+            });
+
+            // Джойстик
+            const joystick = nipplejs.create({
+                zone: document.getElementById('joystick-zone'),
+                mode: 'static',
+                position: { left: '70px', bottom: '70px' },
+                color: 'white'
+            });
+
+            joystick.on('move', (e, data) => {
+                if (data.vector) {
+                    moveJoystick.x = data.vector.x;
+                    moveJoystick.y = data.vector.y;
+                }
+            });
+            joystick.on('end', () => { moveJoystick.x = 0; moveJoystick.y = 0; });
+
+            // Касания и поддержка одновременного вращения экрана во время стрельбы
+            let lookTouchId = null;
+            let fireTouchId = null;
+            let lastLookX = 0, lastLookY = 0;
+
+            const fireBtn = document.getElementById('btn-fire');
+
+            window.addEventListener('touchstart', (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const touch = e.changedTouches[i];
+                    
+                    // Проверка нажатия на кнопку стрельбы
+                    const rect = fireBtn.getBoundingClientRect();
+                    if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                        touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                        fireTouchId = touch.identifier;
+                        isFiring = true;
+                        lastLookX = touch.clientX;
+                        lastLookY = touch.clientY;
+                        continue;
+                    }
+
+                    if (touch.target.closest('.interactive-ui')) continue;
+
+                    if (touch.clientX > window.innerWidth / 3 && lookTouchId === null) {
+                        lookTouchId = touch.identifier;
+                        lastLookX = touch.clientX;
+                        lastLookY = touch.clientY;
+                    }
+                }
+            }, { passive: false });
+
+            window.addEventListener('touchmove', (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const touch = e.changedTouches[i];
+
+                    // Управление экраном как через правую часть, так и при зажатой кнопке огня
+                    if (touch.identifier === lookTouchId || touch.identifier === fireTouchId) {
+                        const dx = touch.clientX - lastLookX;
+                        const dy = touch.clientY - lastLookY;
+
+                        cameraYaw -= dx * 0.0045;
+                        cameraPitch -= dy * 0.0045;
+                        cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch));
+
+                        lastLookX = touch.clientX;
+                        lastLookY = touch.clientY;
+                    }
+                }
+            }, { passive: false });
+
+            const endTouch = (e) => {
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const id = e.changedTouches[i].identifier;
+                    if (id === lookTouchId) lookTouchId = null;
+                    if (id === fireTouchId) {
+                        fireTouchId = null;
+                        isFiring = false;
+                    }
+                }
+            };
+            window.addEventListener('touchend', endTouch);
+            window.addEventListener('touchcancel', endTouch);
+
+            // Кнопка Присед
+            document.getElementById('btn-crouch').addEventListener('click', () => {
+                player.isCrouching = true;
+                player.targetHeight = 0.9;
+                player.speed = 3.5;
+            });
+
+            // Кнопка Прыжок (Встает если сидел, либо прыгает)
+            document.getElementById('btn-jump').addEventListener('click', () => {
+                if (player.isCrouching) {
+                    player.isCrouching = false;
+                    player.targetHeight = 1.6;
+                    player.speed = 7.0;
+                } else if (player.onGround) {
+                    player.vel.y = 7.5;
+                    player.onGround = false;
+                }
+            });
+
+            document.getElementById('btn-reload').addEventListener('click', reloadAmmo);
+        }
+
+        /* =========================================================================
+           5. СТРЕЛЬБА И ОПТИМИЗАЦИЯ
+           ========================================================================= */
+        function processShoot(now) {
             if (player.isReloading) return;
             if (now - player.lastShootTime < player.shootInterval) return;
 
             if (player.ammoInMag <= 0) {
-                reloadWeapon();
+                reloadAmmo();
                 return;
             }
 
             player.ammoInMag--;
             player.lastShootTime = now;
-            updateAmmoUI();
+            updateUI();
 
-            // Воспроизведение звука
-            audio.playShoot();
+            recoilPitch += 0.022;
+            recoilYaw += (Math.random() - 0.5) * 0.012;
+            weaponContainer.position.z = 0.05;
 
-            // Отдача
-            recoilOffset.z = 0.08;
-            recoilOffset.x = (Math.random() - 0.5) * 0.02;
-            cameraRotation.x += 0.018;
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-            // Создание вспышки
-            createMuzzleFlash();
+            let targets = [];
+            bots.forEach(b => {
+                b.mesh.traverse(child => {
+                    if (child.isMesh) targets.push(child);
+                });
+            });
+            colliders.forEach(c => targets.push(c));
 
-            // Рейкаст выстрела с легким разбросом
-            raycaster.setFromCamera(new THREE.Vector2(
-                (Math.random() - 0.5) * 0.015,
-                (Math.random() - 0.5) * 0.015
-            ), camera);
-
-            let shootables = [];
-            bots.forEach(b => shootables.push(...b.mesh.children));
-            colliders.forEach(c => shootables.push(c));
-
-            const hits = raycaster.intersectObjects(shootables);
-
+            const hits = raycaster.intersectObjects(targets);
             if (hits.length > 0) {
                 const hit = hits[0];
-                const hitObj = hit.object;
+                let hitBot = null;
 
-                // Попадание в бота
-                const bot = bots.find(b => b.mesh.children.includes(hitObj));
-                if (bot) {
-                    const isHead = hitObj.userData && hitObj.userData.isHead;
-                    const dmg = isHead ? 100 : 38;
-                    bot.hp -= dmg;
+                bots.forEach(b => {
+                    b.mesh.traverse(child => {
+                        if (child === hit.object) hitBot = b;
+                    });
+                });
 
-                    // Звук и хитмаркер
-                    audio.playHit(isHead);
-                    showHitmarker(isHead);
-                    createBloodSparks(hit.point);
+                if (hitBot) {
+                    const isHead = hit.object.userData && hit.object.userData.isHead;
+                    hitBot.hp -= isHead ? 100 : 35;
 
-                    if (bot.hp <= 0) {
-                        scene.remove(bot.mesh);
-                        bots = bots.filter(b => b !== bot);
+                    if (hitBot.hp <= 0) {
+                        scene.remove(hitBot.mesh);
+                        bots = bots.filter(b => b !== hitBot);
                         player.score++;
-                        document.getElementById('score-value').innerText = player.score;
-                        
-                        addKillfeedItem(isHead ? 'ГЛУБОКИЙ ХЕДШОТ' : 'УБИЙСТВО БОТА');
-                        
-                        // Дроп аптечки с шансом 30%
-                        if (Math.random() < 0.3) {
-                            spawnPickup(hit.point.x, 0.5, hit.point.z, 'health');
-                        }
-
-                        spawnBot(); // Восполняем численность
+                        updateUI();
+                        spawnBotCS();
                     }
-                } else {
-                    // Попадание в стену
-                    createImpactSparks(hit.point, hit.face.normal);
                 }
             }
         }
 
-        function reloadWeapon() {
+        function reloadAmmo() {
             if (player.isReloading || player.reserveAmmo <= 0 || player.ammoInMag === player.maxMag) return;
 
             player.isReloading = true;
-            audio.playReload();
-            document.getElementById('ammo-subtext').innerText = 'ПЕРЕЗАРЯДКА...';
+            document.getElementById('weapon-name').innerText = "ПЕРЕЗАРЯДКА...";
 
             setTimeout(() => {
                 const needed = player.maxMag - player.ammoInMag;
@@ -888,392 +719,99 @@
                 player.ammoInMag += toLoad;
                 player.reserveAmmo -= toLoad;
                 player.isReloading = false;
-                document.getElementById('ammo-subtext').innerText = 'АК-47';
-                updateAmmoUI();
-            }, 1800);
-        }
-
-        function createMuzzleFlash() {
-            const flashGeo = new THREE.SphereGeometry(0.06, 8, 8);
-            const flashMat = new THREE.MeshBasicMaterial({ color: 0xffdb58 });
-            const flash = new THREE.Mesh(flashGeo, flashMat);
-            flash.position.set(0.18, -0.18, -0.7);
-            weaponGroup.add(flash);
-
-            setTimeout(() => weaponGroup.remove(flash), 40);
-        }
-
-        function createImpactSparks(pos, normal) {
-            for (let i = 0; i < 6; i++) {
-                const p = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.04, 0.04, 0.04),
-                    new THREE.MeshBasicMaterial({ color: 0xf59e0b })
-                );
-                p.position.copy(pos);
-                const vel = normal.clone().add(new THREE.Vector3(
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 2,
-                    (Math.random() - 0.5) * 2
-                )).normalize().multiplyScalar(4);
-
-                scene.add(p);
-                particles.push({ mesh: p, vel: vel, life: 0.2 });
-            }
-        }
-
-        function createBloodSparks(pos) {
-            for (let i = 0; i < 8; i++) {
-                const p = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.05, 0.05, 0.05),
-                    new THREE.MeshBasicMaterial({ color: 0xef4444 })
-                );
-                p.position.copy(pos);
-                const vel = new THREE.Vector3(
-                    (Math.random() - 0.5) * 3,
-                    Math.random() * 2,
-                    (Math.random() - 0.5) * 3
-                );
-
-                scene.add(p);
-                particles.push({ mesh: p, vel: vel, life: 0.3 });
-            }
-        }
-
-        function updateParticles(dt) {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.life -= dt;
-                p.mesh.position.addScaledVector(p.vel, dt);
-                if (p.life <= 0) {
-                    scene.remove(p.mesh);
-                    particles.splice(i, 1);
-                }
-            }
+                document.getElementById('weapon-name').innerText = "AK-47";
+                updateUI();
+            }, 1500);
         }
 
         /* =========================================================================
-           9. ПИКAПЫ (АПТЕЧКИ И ПАТРОНЫ)
-           ========================================================================= */
-        function spawnPickup(x, y, z, type) {
-            const geo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-            const mat = new THREE.MeshStandardMaterial({ 
-                color: type === 'health' ? 0x22c55e : 0x3b82f6,
-                emissive: type === 'health' ? 0x14532d : 0x1e3a8a
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(x, y, z);
-            scene.add(mesh);
-
-            pickups.push({ mesh, type });
-        }
-
-        function updatePickups(dt) {
-            pickups.forEach((p, idx) => {
-                p.mesh.rotation.y += 2.0 * dt;
-                const dist = player.position.distanceTo(p.mesh.position);
-
-                if (dist < 1.5) {
-                    if (p.type === 'health' && player.hp < player.maxHp) {
-                        player.hp = Math.min(player.maxHp, player.hp + 40);
-                        updateHealthUI();
-                        scene.remove(p.mesh);
-                        pickups.splice(idx, 1);
-                    }
-                }
-            });
-        }
-
-        /* =========================================================================
-           10. ФИЗИКА, ПЕРЕМЕЩЕНИЕ И ПОКАЧИВАНИЕ ОРУЖИЯ
+           6. ОБНОВЛЕНИЕ ЛОГИКИ И АНИМАЦИИ
            ========================================================================= */
         function updatePlayer(dt) {
-            // Гравитация
-            player.velocity.y -= 26.0 * dt;
+            player.vel.y -= 22.0 * dt;
 
-            // Направление движения
-            const moveDir = new THREE.Vector3();
-            if (keys.w) moveDir.z -= 1;
-            if (keys.s) moveDir.z += 1;
-            if (keys.a) moveDir.x -= 1;
-            if (keys.d) moveDir.x += 1;
+            const move = new THREE.Vector3(moveJoystick.x, 0, -moveJoystick.y);
+            move.normalize();
+            move.applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
 
-            if (moveJoystick.x !== 0 || moveJoystick.y !== 0) {
-                moveDir.x = moveJoystick.x;
-                moveDir.z = -moveJoystick.y;
-            }
+            player.pos.x += move.x * player.speed * dt;
+            player.pos.z += move.z * player.speed * dt;
+            player.pos.y += player.vel.y * dt;
 
-            const isMoving = moveDir.lengthSq() > 0;
-            moveDir.normalize();
+            // Плавное изменение высоты (Присед / Вставание)
+            player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
 
-            // Учет направления взгляда
-            const euler = new THREE.Euler(0, cameraRotation.y, 0, 'YXZ');
-            moveDir.applyEuler(euler);
-
-            // Перемещение с проверкой коллизий
-            const nextX = player.position.x + moveDir.x * player.speed * dt;
-            const nextZ = player.position.z + moveDir.z * player.speed * dt;
-
-            if (!checkCollision(nextX, player.position.z)) player.position.x = nextX;
-            if (!checkCollision(player.position.x, nextZ)) player.position.z = nextZ;
-
-            player.position.y += player.velocity.y * dt;
-
-            // Пол
-            if (player.position.y <= 1.6) {
-                player.position.y = 1.6;
-                player.velocity.y = 0;
+            if (player.pos.y <= player.currentHeight) {
+                player.pos.y = player.currentHeight;
+                player.vel.y = 0;
                 player.onGround = true;
             }
 
-            camera.position.copy(player.position);
+            recoilPitch = THREE.MathUtils.lerp(recoilPitch, 0, 10 * dt);
+            recoilYaw = THREE.MathUtils.lerp(recoilYaw, 0, 10 * dt);
+            weaponContainer.position.z = THREE.MathUtils.lerp(weaponContainer.position.z, 0, 12 * dt);
 
-            // Динамический разброс прицела
-            const crosshair = document.getElementById('crosshair-container');
-            if (isMoving) {
-                crosshair.style.transform = 'translate(-50%, -50%) scale(1.3)';
-            } else {
-                crosshair.style.transform = 'translate(-50%, -50%) scale(1.0)';
-            }
+            camera.rotation.y = cameraYaw + recoilYaw;
+            camera.rotation.x = cameraPitch + recoilPitch;
+            camera.position.copy(player.pos);
         }
 
-        function checkCollision(x, z) {
-            const pRadius = 0.5;
-            for (let i = 0; i < colliders.length; i++) {
-                const box = new THREE.Box3().setFromObject(colliders[i]);
-                if (x + pRadius > box.min.x && x - pRadius < box.max.x &&
-                    z + pRadius > box.min.z && z - pRadius < box.max.z) {
-                    return true;
+        function updateBots(dt) {
+            bots.forEach(bot => {
+                const dir = new THREE.Vector3().subVectors(player.pos, bot.mesh.position);
+                dir.y = 0;
+                const dist = dir.length();
+
+                if (dist > 1.2) {
+                    dir.normalize();
+                    bot.mesh.position.addScaledVector(dir, bot.speed * dt);
+                    bot.mesh.lookAt(player.pos.x, bot.mesh.position.y, player.pos.z);
+
+                    // Анимация ходьбы сгибанием рук и ног
+                    bot.animTime += dt * 8;
+                    const angle = Math.sin(bot.animTime) * 0.6;
+                    bot.leftLeg.rotation.x = angle;
+                    bot.rightLeg.rotation.x = -angle;
+                    bot.leftArm.rotation.x = -angle;
+                    bot.rightArm.rotation.x = angle;
+                } else {
+                    bot.leftLeg.rotation.x = 0;
+                    bot.rightLeg.rotation.x = 0;
+                    player.hp -= 10 * dt;
+                    if (player.hp < 0) player.hp = 0;
+                    updateUI();
                 }
-            }
-            return false;
+            });
         }
 
-        function updateWeaponSwayAndRecoil(dt) {
-            // Восстановление отдачи
-            recoilOffset.z = THREE.MathUtils.lerp(recoilOffset.z, 0, 10 * dt);
-            recoilOffset.x = THREE.MathUtils.lerp(recoilOffset.x, 0, 10 * dt);
-
-            weaponGroup.position.z = -recoilOffset.z;
-            weaponGroup.position.x = recoilOffset.x;
-
-            // Покачивание ствола при ходьбе (Weapon Sway)
-            if (keys.w || keys.s || keys.a || keys.d || moveJoystick.x !== 0) {
-                weaponSwayTimer += dt * 10;
-                weaponGroup.position.y = Math.sin(weaponSwayTimer) * 0.012;
-            } else {
-                weaponGroup.position.y = THREE.MathUtils.lerp(weaponGroup.position.y, 0, 5 * dt);
-            }
-        }
-
-        function damagePlayer(amount) {
-            player.hp -= amount;
-            updateHealthUI();
-
-            // Вспышка урона на экране
-            const vignette = document.getElementById('damage-vignette');
-            vignette.style.boxShadow = 'inset 0 0 100px rgba(239, 68, 68, 0.8)';
-            setTimeout(() => {
-                vignette.style.boxShadow = 'inset 0 0 100px rgba(239, 68, 68, 0)';
-            }, 150);
-
-            if (player.hp <= 0) {
-                alert('ВЫ ПОГИБЛИ! ПЕРЕЗАГРУЗКА...');
-                location.reload();
-            }
-        }
-
-        /* =========================================================================
-           11. РЕНДЕР МИНИКАРТЫ (2D CANVAS OVERLAY)
-           ========================================================================= */
         function renderMinimap() {
             const canvas = document.getElementById('minimap-canvas');
             const ctx = canvas.getContext('2d');
-            const center = 60;
-            const scale = 1.4;
+            const c = 55;
+            const scale = 1.3;
 
-            ctx.clearRect(0, 0, 120, 120);
+            ctx.clearRect(0, 0, 110, 110);
 
-            // Отрисовка укрытий
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-            colliders.forEach(c => {
-                const relX = (c.position.x - player.position.x) * scale;
-                const relZ = (c.position.z - player.position.z) * scale;
-                ctx.fillRect(center + relX - 4, center + relZ - 4, 8, 8);
-            });
-
-            // Отрисовка ботов
             ctx.fillStyle = '#ef4444';
             bots.forEach(b => {
-                const relX = (b.mesh.position.x - player.position.x) * scale;
-                const relZ = (b.mesh.position.z - player.position.z) * scale;
+                const rx = (b.mesh.position.x - player.pos.x) * scale;
+                const rz = (b.mesh.position.z - player.pos.z) * scale;
                 ctx.beginPath();
-                ctx.arc(center + relX, center + relZ, 3, 0, Math.PI * 2);
+                ctx.arc(c + rx, c + rz, 3, 0, Math.PI * 2);
                 ctx.fill();
             });
 
-            // Маркер игрока (Зеленая точка и стрелка)
             ctx.fillStyle = '#22c55e';
             ctx.beginPath();
-            ctx.arc(center, center, 4, 0, Math.PI * 2);
+            ctx.arc(c, c, 4, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        /* =========================================================================
-           12. УПРАВЛЕНИЕ И ВВОД (ПК И МОБИЛЬНЫЕ)
-           ========================================================================= */
-        function setupInput() {
-            const startBtn = document.getElementById('start-btn');
-            const startScreen = document.getElementById('start-screen');
-
-            startBtn.addEventListener('click', () => {
-                audio.init();
-                startScreen.style.display = 'none';
-                document.body.requestPointerLock();
-            });
-
-            // ПК Слушатели
-            window.addEventListener('keydown', (e) => {
-                if (e.code === 'KeyW') keys.w = true;
-                if (e.code === 'KeyS') keys.s = true;
-                if (e.code === 'KeyA') keys.a = true;
-                if (e.code === 'KeyD') keys.d = true;
-                if (e.code === 'KeyR') reloadWeapon();
-                if (e.code === 'Space' && player.onGround) {
-                    player.velocity.y = 8.5;
-                    player.onGround = false;
-                }
-            });
-
-            window.addEventListener('keyup', (e) => {
-                if (e.code === 'KeyW') keys.w = false;
-                if (e.code === 'KeyS') keys.s = false;
-                if (e.code === 'KeyA') keys.a = false;
-                if (e.code === 'KeyD') keys.d = false;
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (document.pointerLockElement === document.body) {
-                    cameraRotation.y -= e.movementX * 0.002;
-                    cameraRotation.x -= e.movementY * 0.002;
-                    cameraRotation.x = Math.max(-1.35, Math.min(1.35, cameraRotation.x));
-
-                    camera.rotation.y = cameraRotation.y;
-                    camera.rotation.x = cameraRotation.x;
-                }
-            });
-
-            window.addEventListener('mousedown', (e) => {
-                if (document.pointerLockElement === document.body && e.button === 0) {
-                    isShooting = true;
-                }
-            });
-
-            window.addEventListener('mouseup', (e) => {
-                if (e.button === 0) isShooting = false;
-            });
-
-            // Мобильный джойстик
-            const joystick = nipplejs.create({
-                zone: document.getElementById('joystick-zone'),
-                mode: 'static',
-                position: { left: '75px', bottom: '75px' },
-                color: 'white'
-            });
-
-            joystick.on('move', (evt, data) => {
-                if (data.vector) {
-                    moveJoystick.x = data.vector.x;
-                    moveJoystick.y = data.vector.y;
-                }
-            });
-
-            joystick.on('end', () => {
-                moveJoystick.x = 0;
-                moveJoystick.y = 0;
-            });
-
-            // Сенсорный обзор (Мультитач)
-            renderer.domElement.addEventListener('touchstart', (e) => {
-                audio.init();
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    const t = e.changedTouches[i];
-                    if (t.clientX < window.innerWidth / 2 || t.clientY > window.innerHeight - 250) continue;
-
-                    if (lookTouchId === null) {
-                        lookTouchId = t.identifier;
-                        lastTX = t.clientX;
-                        lastTY = t.clientY;
-                    }
-                }
-            }, { passive: true });
-
-            renderer.domElement.addEventListener('touchmove', (e) => {
-                if (lookTouchId === null) return;
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    const t = e.changedTouches[i];
-                    if (t.identifier === lookTouchId) {
-                        cameraRotation.y -= (t.clientX - lastTX) * 0.004;
-                        cameraRotation.x -= (t.clientY - lastTY) * 0.004;
-                        cameraRotation.x = Math.max(-1.35, Math.min(1.35, cameraRotation.x));
-
-                        camera.rotation.y = cameraRotation.y;
-                        camera.rotation.x = cameraRotation.x;
-
-                        lastTX = t.clientX;
-                        lastTY = t.clientY;
-                    }
-                }
-            }, { passive: true });
-
-            const endTouch = (e) => {
-                for (let i = 0; i < e.changedTouches.length; i++) {
-                    if (e.changedTouches[i].identifier === lookTouchId) lookTouchId = null;
-                }
-            };
-            renderer.domElement.addEventListener('touchend', endTouch);
-            renderer.domElement.addEventListener('touchcancel', endTouch);
-
-            // Мобильные кнопки
-            const btnFire = document.getElementById('btn-fire');
-            btnFire.addEventListener('touchstart', (e) => { e.preventDefault(); isShooting = true; });
-            btnFire.addEventListener('touchend', (e) => { e.preventDefault(); isShooting = false; });
-
-            document.getElementById('btn-reload').addEventListener('click', reloadWeapon);
-            document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                if (player.onGround) {
-                    player.velocity.y = 8.5;
-                    player.onGround = false;
-                }
-            });
-        }
-
-        /* =========================================================================
-           13. ОБНОВЛЕНИЕ ИНТЕРФЕЙСА (UI UTILS)
-           ========================================================================= */
-        function updateHealthUI() {
-            document.getElementById('hp-value').innerText = Math.round(player.hp);
-            document.getElementById('hp-bar-fill').style.width = `${(player.hp / player.maxHp) * 100}%`;
-        }
-
-        function updateAmmoUI() {
-            document.getElementById('ammo-text').innerText = `${player.ammoInMag} / ${player.reserveAmmo}`;
-        }
-
-        function showHitmarker(isHeadshot) {
-            const hm = document.getElementById('hitmarker');
-            hm.className = isHeadshot ? 'headshot' : '';
-            hm.style.opacity = '1';
-            setTimeout(() => hm.style.opacity = '0', 100);
-        }
-
-        function addKillfeedItem(text) {
-            const feed = document.getElementById('killfeed');
-            const item = document.createElement('div');
-            item.className = 'kill-item';
-            item.innerText = text;
-            feed.appendChild(item);
-            setTimeout(() => item.remove(), 4000);
+        function updateUI() {
+            document.getElementById('hp-val').innerText = Math.round(player.hp);
+            document.getElementById('hp-bar-fill').style.width = `${player.hp}%`;
+            document.getElementById('score-val').innerText = player.score;
+            document.getElementById('ammo-count').innerText = `${player.ammoInMag} / ${player.reserveAmmo}`;
         }
 
         window.addEventListener('resize', () => {
@@ -1282,8 +820,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Точка входа
-        window.onload = initGame;
+        window.onload = initScene;
     </script>
 </body>
 </html>
