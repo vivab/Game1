@@ -7,7 +7,7 @@
   // muzzleZ — дульный срез, len — длина АК, axisY — ось ствола, handguardZ/gripZ — где держатся руки.
   // BIG — размер АК и рук: 1 = реальный, больше = крупнее (как в Standoff 2). Мушка остаётся на месте экрана,
   // оружие вырастает от неё вниз-вправо, к камере.
-  const BIG = 1.5;
+  const BIG = 1.6;
   const sc = (v, s) => s + BIG * (v - s);
   const REF = { ndcX: 0.207, sightY: -0.079, sightZ: -0.93, muzzleZ: sc(-1.0, -0.93), len: 0.88 * BIG,
                 axisY: sc(-0.155, -0.079), handguardZ: sc(-0.74, -0.93), gripZ: sc(-0.42, -0.93) };
