@@ -1,29 +1,30 @@
-/* hands.js — АК-47 + блочные руки в перчатках; позы под калаш, пистолет и нож.
-   Подключать ПОСЛЕ основного <script> в index.html. */
+/* hands.js — АК-47 и руки, расставленные по референсу (AKR "Carbon").
+   Подключать ПОСЛЕ основного <script> в index.html. Нож и пистолет добавим позже. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v4';
+  const DEG = Math.PI / 180, KEY = 'hands_v5';
+  // Точки с референса. Камера смотрит в −z, единицы — метры.
+  // ndcX — где на экране мушка (0.207 = 60% ширины), sightY/sightZ — мушка в пространстве камеры,
+  // muzzleZ — дульный срез, len — длина АК, axisY — ось ствола, handguardZ/gripZ — где держатся руки.
+  const REF = { ndcX: 0.207, sightY: -0.079, sightZ: -0.93, muzzleZ: -1.0, len: 0.88, axisY: -0.155, handguardZ: -0.74, gripZ: -0.42 };
+  const U = 0.105;   // размер ладони (чуть крупнее реальной, как в FPS)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
-  const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63), DARK = mat(0x15171a, 0.4);
+  const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
 
-  // Позы пальцев: загиб фаланг (градусы), sp — разведение пальцев. Новая поза = новая строка.
+  // Позы пальцев: загиб фаланг (градусы). Новая поза = новая строка.
   const POSES = {
-    fist:   { f: [[-75, -85, -60], [-80, -90, -65], [-80, -90, -65], [-75, -85, -60]], th: [-30, -35] },
     pistol: { f: [[-25, -30, -15], [-80, -90, -65], [-80, -90, -65], [-75, -85, -60]], th: [-20, -25] }, // палец у спуска
-    cup:    { f: [[-45, -60, -40], [-55, -65, -45], [-60, -65, -45], [-60, -60, -40]], th: [-10, -15] },
-    open:   { f: [[-15, -20, -10], [-20, -25, -12], [-22, -28, -14], [-25, -30, -15]], th: [-5, -10], sp: [0.15, 0.05, -0.08, -0.2] }
+    cup:    { f: [[-45, -60, -40], [-55, -65, -45], [-60, -65, -45], [-60, -60, -40]], th: [-10, -15] }  // цевьё снизу
   };
-  // Положение рук от «точки хвата» оружия (в ладонях) + повороты. Новое оружие = новая запись.
+  // Положение рук от точки на оси ствола (в ладонях U) + повороты
   const H = (pose, x, y, z, pitch, yaw, roll) => ({ pose, x, y, z, pitch, yaw, roll, k: 1 });
   const DEF = {
-    rifle:  { R: H('pistol', 0.45, 0, 0, 20, 12, -85),  L: H('cup', -0.2, -0.2, -3.8, 15, -15, 155) },
-    pistol: { R: H('pistol', 0.5, 0, 0, 25, 8, -85),    L: H('fist', -0.5, -0.55, -0.1, 25, -8, 85) },
-    knife:  { R: H('fist', 0.5, -0.1, 0.4, 35, 70, -20), L: H('open', -6, -1, 1.5, 25, -20, 0) }
+    R: H('pistol', 0.5, -1.2, 0, 15, 10, -85),
+    L: H('cup', -0.55, -1.0, 0.5, 4, -18, 150)
   };
-  const NAMES = { rifle: 'калаш', pistol: 'пистолет', knife: 'нож' };
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s) for (const w in DEF) ['R', 'L'].forEach(h => Object.assign(tune[w][h], (s[w] || {})[h]));
+    if (s) ['R', 'L'].forEach(h => Object.assign(tune[h], s[h]));
   } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch (e) {} };
 
@@ -58,8 +59,7 @@
     g.add(pad);
     const lens = [[0.5, 0.35, 0.28], [0.55, 0.4, 0.3], [0.5, 0.37, 0.28], [0.4, 0.28, 0.24]];
     for (let i = 0; i < 4; i++) {
-      g.add(chain(sx * (0.33 - i * 0.22) * u, 0, -0.52 * u, lens[i].map(v => v * u), 0.2 * u, P.f[i],
-        P.sp ? -sx * P.sp[i] : 0, k, [GLOVE, GLOVE, SKIN]));
+      g.add(chain(sx * (0.33 - i * 0.22) * u, 0, -0.52 * u, lens[i].map(v => v * u), 0.2 * u, P.f[i], 0, k, [GLOVE, GLOVE, SKIN]));
     }
     g.add(chain(sx * 0.5 * u, -0.02 * u, 0.2 * u, [0.55 * u, 0.42 * u], 0.24 * u, P.th, -sx * 0.5, k, [GLOVE, SKIN]));
     const part = (a, b, w, h, m) => {
@@ -74,31 +74,9 @@
   window.makeHand = makeHand;            // пригодится для ботов
 
   const holder = new THREE.Group();
-  const W = {};                          // оружие: { obj, anchor }
-  let U = 0.08, akBox = null, weapon = 'rifle', sel = 'R';
+  const anchors = { R: new THREE.Vector3(), L: new THREE.Vector3() };
+  let akObj = null, akBox = null, sel = 'R';
   const sliders = {};
-
-  const blk = (w, h, d, m, x, y, z) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w * U, h * U, d * U), m);
-    b.position.set(x * U, y * U, z * U);
-    return b;
-  };
-  // Заглушки пистолета и ножа: потом заменим настоящими моделями, позы останутся
-  function makePistol() {
-    const g = new THREE.Group(), grip = blk(0.45, 1.3, 0.7, DARK, 0, 0, 0);
-    grip.rotation.x = -0.26;
-    g.add(grip, blk(0.5, 0.55, 2.6, DARK, 0, 0.85, -0.9));
-    g.position.set(0.22, -0.25, -0.5);
-    return g;
-  }
-  function makeKnife() {
-    const g = new THREE.Group();
-    g.add(blk(0.28, 0.28, 1.1, DARK, 0, 0, 0), blk(0.1, 0.5, 2.4, PAD, 0, 0, -1.75));
-    g.rotation.order = 'YXZ';
-    g.rotation.set(0.6, 0.45, 0);
-    g.position.set(0.3, -0.35, -0.5);
-    return g;
-  }
 
   function build() {
     while (holder.children.length) {
@@ -106,32 +84,30 @@
       holder.remove(o);
       o.traverse(m => { if (m.geometry) m.geometry.dispose(); });
     }
-    if (!akBox) return;
-    for (const n in W) W[n].obj.visible = n === weapon;
-    const a = W[weapon].anchor;
+    if (!akObj) return;
     ['R', 'L'].forEach(s => {
-      const t = tune[weapon][s], h = makeHand(s, t.pose, U, t.k);
+      const t = tune[s], a = anchors[s], h = makeHand(s, t.pose, U, t.k);
       h.rotation.set(t.pitch * DEG, t.yaw * DEG, t.roll * DEG);
       h.position.set(a.x + t.x * U, a.y + t.y * U, a.z + t.z * U);
       holder.add(h);
     });
   }
 
-  function initWeapons(ak) {
+  // Ставит АК и руки так, чтобы мушка и цевьё попали в те же места экрана, что на референсе (при любом соотношении сторон)
+  function place() {
+    if (!akObj) return;
+    const gx = REF.ndcX * -REF.sightZ * Math.tan(camera.fov * 0.5 * DEG) * camera.aspect;
     const size = akBox.getSize(new THREE.Vector3()), c = akBox.getCenter(new THREE.Vector3());
-    U = size.z * 0.1;
-    W.rifle = { obj: ak, anchor: new THREE.Vector3(c.x, c.y - 0.1 * size.y, c.z + 0.12 * size.z) };
-    const p = makePistol(), k = makeKnife();
-    weaponContainer.add(p, k);
-    W.pistol = { obj: p, anchor: p.position.clone() };
-    W.knife = { obj: k, anchor: k.position.clone() };
+    const s = REF.len / size.z;
+    akObj.scale.setScalar(s);
+    akObj.position.set(gx - s * c.x, REF.sightY - s * akBox.max.y, REF.muzzleZ - s * akBox.min.z);
+    anchors.R.set(gx, REF.axisY, REF.gripZ);
+    anchors.L.set(gx, REF.axisY, REF.handguardZ);
     build();
   }
-  window.setWeapon = n => { if (W[n]) { weapon = n; build(); refresh(); } };   // для игры: setWeapon('knife')
 
   function refresh() {
-    for (const k in sliders) sliders[k].value = tune[weapon][sel][k];
-    document.getElementById('hn-w').textContent = 'Оружие: ' + NAMES[weapon];
+    for (const k in sliders) sliders[k].value = tune[sel][k];
     document.getElementById('hn-sel').textContent = 'Рука: ' + (sel === 'R' ? 'правая' : 'левая');
   }
 
@@ -151,14 +127,14 @@
     gear.addEventListener('click', () => { p.style.display = p.style.display === 'block' ? 'none' : 'block'; });
     const grid = document.createElement('div');
     grid.id = 'hn-g';
-    [['x', -8, 8, 0.05, 'Вбок'], ['y', -8, 8, 0.05, 'Вниз/вверх'], ['z', -8, 8, 0.05, 'Вперёд/назад'], ['k', 0, 1.3, 0.05, 'Пальцы'],
+    [['x', -5, 5, 0.05, 'Вбок'], ['y', -5, 5, 0.05, 'Вниз/вверх'], ['z', -5, 5, 0.05, 'Вперёд/назад'], ['k', 0, 1.3, 0.05, 'Пальцы'],
      ['pitch', -90, 90, 1, 'Наклон'], ['yaw', -90, 90, 1, 'Разворот'], ['roll', -180, 180, 1, 'Кисть']
     ].forEach(([k, lo, hi, st, name]) => {
       const r = document.createElement('label');
       r.innerHTML = '<span>' + name + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '">';
       const inp = r.querySelector('input');
       sliders[k] = inp;
-      inp.addEventListener('input', () => { tune[weapon][sel][k] = +inp.value; build(); save(); });
+      inp.addEventListener('input', () => { tune[sel][k] = +inp.value; build(); save(); });
       grid.appendChild(r);
     });
     p.appendChild(grid);
@@ -169,9 +145,8 @@
       b.addEventListener('click', fn);
       p.appendChild(b);
     };
-    btn('', () => { const ks = Object.keys(NAMES); weapon = ks[(ks.indexOf(weapon) + 1) % ks.length]; build(); refresh(); }, 'hn-w');
     btn('', () => { sel = sel === 'R' ? 'L' : 'R'; refresh(); }, 'hn-sel');
-    btn('Сброс', () => { tune[weapon][sel] = JSON.parse(JSON.stringify(DEF[weapon][sel])); build(); save(); refresh(); });
+    btn('Сброс', () => { tune[sel] = JSON.parse(JSON.stringify(DEF[sel])); build(); save(); refresh(); });
     btn('Копировать', () => prompt('Скопируй и пришли мне:', JSON.stringify(tune)));
     document.body.appendChild(gear);
     document.body.appendChild(p);
@@ -182,22 +157,24 @@
   window.loadGLTFModels = function () {
     weaponContainer.add(holder);
     buildPanel();
+    window.addEventListener('resize', place);
     new THREE.GLTFLoader().load('ak-47_low_poly.glb', gltf => {
       const ak = gltf.scene;
-      ak.scale.set(0.144, 0.144, 0.144);
-      ak.position.set(0.28, -0.38, -0.52);
+      ak.position.set(0, 0, 0);
+      ak.scale.setScalar(1);
       ak.rotation.set(0, Math.PI, 0);
-      weaponContainer.add(ak);
       const tmp = new THREE.Group();     // габарит АК в системе weaponContainer
       tmp.add(ak);
       tmp.updateMatrixWorld(true);
       akBox = new THREE.Box3().setFromObject(ak);
       weaponContainer.add(ak);
-      initWeapons(ak);
+      akObj = ak;
+      place();
     }, undefined, err => {
       console.log('АК-47 не найден', err);
-      akBox = new THREE.Box3(new THREE.Vector3(0.1, -0.45, -0.95), new THREE.Vector3(0.45, -0.15, -0.2));
-      initWeapons(new THREE.Group());
+      akBox = new THREE.Box3(new THREE.Vector3(-0.05, -0.15, -0.44), new THREE.Vector3(0.05, 0.1, 0.44));
+      akObj = new THREE.Group();
+      place();
     });
   };
 })();
