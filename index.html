@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Offline FPS v0.3</title>
+  <title>Offline FPS v0.4</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a; touch-action: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -65,7 +65,7 @@
 <body>
   <div id="loading">
     <div class="spinner"></div>
-    <div>Загрузка движка...</div>
+    <div id="loading-text">Загрузка движка...</div>
   </div>
 
   <div id="game-container" style="display:none;">
@@ -91,7 +91,7 @@
 
     <div id="start-screen">
       <h1>OFFLINE FPS</h1>
-      <p>Каркас v0.3</p>
+      <p>Каркас v0.4 + твоя АК-47</p>
       <p>WASD + мышь / джойстик + кнопки</p>
       <p>Пробел — прыжок · C — присед · R — перезарядка</p>
       <button id="start-btn">НАЧАТЬ ИГРУ</button>
@@ -100,12 +100,11 @@
   </div>
 
   <script>
-    let THREE;
+    let THREE, GLTFLoader;
     let scene, camera, renderer, clock;
     let velocity, direction;
     let canJump = true;
     let isCrouching = false;
-    let crouchTouchId = null;
     let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
     let isPointerLocked = false;
     let weaponGroup = null;
@@ -128,6 +127,8 @@
     let colliders = [];
     let hitmarkerTimer = 0;
     let botIdCounter = 1;
+    let isShooting = false;          // для автоогня
+    let isGrounded = true;
 
     const GRAVITY = 32;
     const WALK_SPEED = 8.0;
@@ -137,7 +138,7 @@
     const CROUCH_HEIGHT = 1.05;
     const MOUSE_SENS = 0.0022;
     const TOUCH_SENS = 0.0045;
-    const FIRE_RATE = 95;
+    const FIRE_RATE = 100;           // мс между выстрелами (АК)
     const MAG_SIZE = 30;
     const PLAYER_NICK = 'You';
 
@@ -153,8 +154,11 @@
 
     async function boot() {
       const loadingEl = document.getElementById('loading');
+      const loadingText = document.getElementById('loading-text');
       const gameEl = document.getElementById('game-container');
+
       try {
+        loadingText.textContent = 'Загрузка Three.js...';
         try {
           await loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js');
         } catch (e1) {
@@ -162,6 +166,11 @@
         }
         THREE = window.THREE;
         if (!THREE) throw new Error('THREE не найден');
+
+        // GLTFLoader
+        loadingText.textContent = 'Загрузка GLTFLoader...';
+        await loadScript('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js');
+        GLTFLoader = THREE.GLTFLoader;
 
         try {
           await loadScript('https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js');
@@ -186,7 +195,7 @@
       try {
         initScene();
         createWorld();
-        createWeapon();
+        createWeapon();          // загрузит твою модельку
         createBots(5);
         setupInput();
         animate();
@@ -286,66 +295,78 @@
       }
     }
 
-    // Оружие в стиле AK
+    // Загрузка твоей модели АК-47 + руки
     function createWeapon() {
       weaponGroup = new THREE.Group();
-      const metal = new THREE.MeshStandardMaterial({ color: 0x2c2c2c, roughness: 0.4, metalness: 0.7 });
-      const dark = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.5 });
-      const wood = new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 0.85, metalness: 0.05 });
 
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.72, 8), metal);
-      barrel.rotation.x = Math.PI / 2;
-      barrel.position.set(0.25, -0.15, -0.55);
-      weaponGroup.add(barrel);
+      // Временное оружие, пока грузится модель
+      const tempMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+      const temp = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.6), tempMat);
+      temp.position.set(0.25, -0.18, -0.4);
+      weaponGroup.add(temp);
 
-      const gas = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.35, 6), dark);
-      gas.rotation.x = Math.PI / 2;
-      gas.position.set(0.25, -0.08, -0.35);
-      weaponGroup.add(gas);
+      // Руки (простые)
+      const skinMat = new THREE.MeshStandardMaterial({ color: 0xc4a070, roughness: 0.7 });
+      const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x2a3a2a, roughness: 0.8 });
 
-      const handguard = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.32), wood);
-      handguard.position.set(0.25, -0.16, -0.28);
-      weaponGroup.add(handguard);
+      // Правая рука
+      const armR = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.32), sleeveMat);
+      armR.position.set(0.18, -0.28, -0.05);
+      armR.rotation.x = 0.4;
+      weaponGroup.add(armR);
 
-      const receiver = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.12, 0.28), metal);
-      receiver.position.set(0.25, -0.14, -0.02);
-      weaponGroup.add(receiver);
+      const handR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.1), skinMat);
+      handR.position.set(0.18, -0.38, -0.22);
+      weaponGroup.add(handR);
 
-      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.1), dark);
-      mag.position.set(0.25, -0.32, -0.08);
-      mag.rotation.x = 0.15;
-      weaponGroup.add(mag);
+      // Левая рука
+      const armL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.28), sleeveMat);
+      armL.position.set(0.05, -0.25, -0.25);
+      armL.rotation.x = 0.6;
+      armL.rotation.y = -0.3;
+      weaponGroup.add(armL);
 
-      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.2, 0.09), wood);
-      grip.position.set(0.25, -0.30, 0.08);
-      grip.rotation.x = 0.35;
-      weaponGroup.add(grip);
+      const handL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.09), skinMat);
+      handL.position.set(0.0, -0.32, -0.42);
+      weaponGroup.add(handL);
 
-      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.28), wood);
-      stock.position.set(0.25, -0.14, 0.28);
-      weaponGroup.add(stock);
-
-      const stockLow = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.08), wood);
-      stockLow.position.set(0.25, -0.22, 0.38);
-      weaponGroup.add(stockLow);
-
-      const frontSight = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.06, 0.02), dark);
-      frontSight.position.set(0.25, -0.05, -0.88);
-      weaponGroup.add(frontSight);
-
+      // Вспышка
       muzzleFlash = new THREE.Mesh(
-        new THREE.SphereGeometry(0.09, 6, 6),
+        new THREE.SphereGeometry(0.08, 6, 6),
         new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0 })
       );
-      muzzleFlash.position.set(0.25, -0.15, -0.95);
+      muzzleFlash.position.set(0.25, -0.15, -0.85);
       weaponGroup.add(muzzleFlash);
 
-      weaponGroup.position.set(0, -0.04, 0);
+      weaponGroup.position.set(0.15, -0.15, -0.2);
       camera.add(weaponGroup);
       scene.add(camera);
+
+      // Загружаем твою модель
+      const loader = new GLTFLoader();
+      loader.load(
+        'ak-47_low_poly.glb',
+        function(gltf) {
+          const model = gltf.scene;
+          // Подгоняем размер и позицию под первое лицо
+          model.scale.set(0.45, 0.45, 0.45);
+          model.rotation.y = Math.PI;          // разворачиваем
+          model.position.set(0.28, -0.22, -0.35);
+
+          // Убираем временный кубик
+          weaponGroup.remove(temp);
+          weaponGroup.add(model);
+
+          console.log('АК-47 загружена!');
+        },
+        undefined,
+        function(err) {
+          console.warn('Не удалось загрузить модель АК:', err);
+          // оставляем временный кубик
+        }
+      );
     }
 
-    // Более человечные боты
     function createBotMesh(name) {
       const group = new THREE.Group();
       group.userData.nick = name;
@@ -354,18 +375,14 @@
         new THREE.BoxGeometry(0.48, 0.7, 0.28),
         new THREE.MeshStandardMaterial({ color: 0x3d5a3d, roughness: 0.75 })
       );
-      torso.position.y = 1.15;
-      torso.castShadow = true;
-      torso.name = 'body';
+      torso.position.y = 1.15; torso.castShadow = true; torso.name = 'body';
       group.add(torso);
 
       const head = new THREE.Mesh(
         new THREE.BoxGeometry(0.28, 0.32, 0.28),
         new THREE.MeshStandardMaterial({ color: 0xc4a070, roughness: 0.7 })
       );
-      head.position.y = 1.68;
-      head.castShadow = true;
-      head.name = 'head';
+      head.position.y = 1.68; head.castShadow = true; head.name = 'head';
       group.add(head);
 
       const neck = new THREE.Mesh(
@@ -377,39 +394,27 @@
 
       const pants = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, roughness: 0.8 });
       const legL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.7, 0.18), pants);
-      legL.position.set(-0.13, 0.4, 0);
-      legL.name = 'leg';
-      group.add(legL);
+      legL.position.set(-0.13, 0.4, 0); legL.name = 'leg'; group.add(legL);
       const legR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.7, 0.18), pants);
-      legR.position.set(0.13, 0.4, 0);
-      legR.name = 'leg';
-      group.add(legR);
+      legR.position.set(0.13, 0.4, 0); legR.name = 'leg'; group.add(legR);
 
       const bootMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
       const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.26), bootMat);
-      bootL.position.set(-0.13, 0.06, 0.03);
-      group.add(bootL);
+      bootL.position.set(-0.13, 0.06, 0.03); group.add(bootL);
       const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.12, 0.26), bootMat);
-      bootR.position.set(0.13, 0.06, 0.03);
-      group.add(bootR);
+      bootR.position.set(0.13, 0.06, 0.03); group.add(bootR);
 
       const armMat = new THREE.MeshStandardMaterial({ color: 0x3d5a3d, roughness: 0.75 });
       const armL = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.13), armMat);
-      armL.position.set(-0.34, 1.1, 0);
-      armL.name = 'arm';
-      group.add(armL);
+      armL.position.set(-0.34, 1.1, 0); armL.name = 'arm'; group.add(armL);
       const armR = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.55, 0.13), armMat);
-      armR.position.set(0.34, 1.1, 0);
-      armR.name = 'arm';
-      group.add(armR);
+      armR.position.set(0.34, 1.1, 0); armR.name = 'arm'; group.add(armR);
 
       const handMat = new THREE.MeshStandardMaterial({ color: 0xc4a070, roughness: 0.7 });
       const handL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.11), handMat);
-      handL.position.set(-0.34, 0.78, 0);
-      group.add(handL);
+      handL.position.set(-0.34, 0.78, 0); group.add(handL);
       const handR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.11), handMat);
-      handR.position.set(0.34, 0.78, 0);
-      group.add(handR);
+      handR.position.set(0.34, 0.78, 0); group.add(handR);
 
       return group;
     }
@@ -421,12 +426,7 @@
         const angle = (i / count) * Math.PI * 2;
         const radius = 12 + Math.random() * 18;
         bot.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-        bot.userData = {
-          hp: 100,
-          speed: 2.3 + Math.random() * 1.3,
-          attackCooldown: 0,
-          nick: nick
-        };
+        bot.userData = { hp: 100, speed: 2.3 + Math.random() * 1.3, attackCooldown: 0, nick: nick };
         scene.add(bot);
         bots.push(bot);
       }
@@ -443,8 +443,13 @@
         isPointerLocked = document.pointerLockElement === renderer.domElement;
       });
       document.addEventListener('mousemove', onMouseMove);
+
+      // Автоогонь на ПК
       window.addEventListener('mousedown', (e) => {
-        if (e.button === 0 && isPointerLocked) tryShoot();
+        if (e.button === 0 && isPointerLocked) isShooting = true;
+      });
+      window.addEventListener('mouseup', (e) => {
+        if (e.button === 0) isShooting = false;
       });
 
       const jumpBtn = document.getElementById('btn-jump');
@@ -454,32 +459,27 @@
 
       jumpBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        if (canJump) { velocity.y = JUMP_SPEED; canJump = false; }
+        if (canJump) { velocity.y = JUMP_SPEED; canJump = false; isGrounded = false; }
       }, { passive: false });
 
-      // ПРИСЕД — строго hold
+      // TOGGLE присед
       crouchBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (e.changedTouches.length > 0) {
-          crouchTouchId = e.changedTouches[0].identifier;
-          isCrouching = true;
-        }
+        isCrouching = !isCrouching;
       }, { passive: false });
 
-      function onGlobalTouchEnd(e) {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === crouchTouchId) {
-            isCrouching = false;
-            crouchTouchId = null;
-            break;
-          }
-        }
-      }
-      document.addEventListener('touchend', onGlobalTouchEnd, { passive: true });
-      document.addEventListener('touchcancel', onGlobalTouchEnd, { passive: true });
+      // Автоогонь на мобиле
+      shootBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isShooting = true;
+      }, { passive: false });
+      shootBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        isShooting = false;
+      }, { passive: false });
+      shootBtn.addEventListener('touchcancel', () => { isShooting = false; });
 
-      shootBtn.addEventListener('touchstart', (e) => { e.preventDefault(); tryShoot(); }, { passive: false });
       reloadBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startReload(); }, { passive: false });
 
       if (window.nipplejs) {
@@ -530,8 +530,8 @@
         case 'KeyS': case 'ArrowDown': moveBackward = true; break;
         case 'KeyA': case 'ArrowLeft': moveLeft = true; break;
         case 'KeyD': case 'ArrowRight': moveRight = true; break;
-        case 'Space': if (canJump) { velocity.y = JUMP_SPEED; canJump = false; } break;
-        case 'KeyC': isCrouching = true; break;
+        case 'Space': if (canJump) { velocity.y = JUMP_SPEED; canJump = false; isGrounded = false; } break;
+        case 'KeyC': isCrouching = !isCrouching; break;   // toggle
         case 'KeyR': startReload(); break;
       }
     }
@@ -541,7 +541,6 @@
         case 'KeyS': case 'ArrowDown': moveBackward = false; break;
         case 'KeyA': case 'ArrowLeft': moveLeft = false; break;
         case 'KeyD': case 'ArrowRight': moveRight = false; break;
-        case 'KeyC': isCrouching = false; break;
       }
     }
     function onMouseMove(e) {
@@ -552,8 +551,7 @@
     }
 
     function showHitmarker() {
-      const el = document.getElementById('hitmarker');
-      el.classList.add('show');
+      document.getElementById('hitmarker').classList.add('show');
       hitmarkerTimer = 0.18;
     }
 
@@ -567,15 +565,28 @@
       ammoInMag--;
       updateAmmoUI();
 
-      camera.rotation.x += 0.018 + Math.random() * 0.01;
+      // Разброс
+      let spread = 0.008;
+      if (!isGrounded) spread = 0.045;                  // сильный разброс в воздухе
+      else if (direction.lengthSq() > 0.1) spread = 0.018; // при беге
+
+      const spreadX = (Math.random() - 0.5) * spread;
+      const spreadY = (Math.random() - 0.5) * spread;
+
+      camera.rotation.x += 0.015 + Math.random() * 0.01 + spreadY;
+      camera.rotation.y += spreadX;
+
       if (weaponGroup) {
-        weaponGroup.position.z += 0.055;
-        weaponGroup.rotation.x += 0.04;
+        weaponGroup.position.z += 0.05;
+        weaponGroup.rotation.x += 0.035;
       }
       if (muzzleFlash) { muzzleFlash.material.opacity = 0.95; flashTimer = 0.06; }
 
       const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      // добавляем разброс в направление луча
+      const dir = new THREE.Vector3(spreadX * 8, spreadY * 8, -1).normalize();
+      dir.applyQuaternion(camera.quaternion);
+      raycaster.set(camera.getWorldPosition(new THREE.Vector3()), dir);
 
       const botMeshes = [];
       bots.forEach(b => b.traverse(c => { if (c.isMesh) botMeshes.push(c); }));
@@ -660,6 +671,9 @@
     }
 
     function update(dt) {
+      // Автоогонь
+      if (isShooting) tryShoot();
+
       direction.set(0, 0, 0);
       if (moveForward) direction.z -= 1;
       if (moveBackward) direction.z += 1;
@@ -710,6 +724,9 @@
         camera.position.y = targetH;
         velocity.y = 0;
         canJump = true;
+        isGrounded = true;
+      } else {
+        isGrounded = false;
       }
       camera.position.x = THREE.MathUtils.clamp(camera.position.x, -42, 42);
       camera.position.z = THREE.MathUtils.clamp(camera.position.z, -42, 42);
@@ -717,10 +734,10 @@
       if (weaponGroup) {
         const moving = direction.lengthSq() > 0.05;
         weaponBobTime += dt * (moving ? 9.5 : 2.5);
-        weaponGroup.position.x = Math.sin(weaponBobTime) * (moving ? 0.014 : 0.004);
-        weaponGroup.position.y = -0.04 + Math.cos(weaponBobTime * 2) * (moving ? 0.011 : 0.003);
-        weaponGroup.position.z *= 0.82;
-        weaponGroup.rotation.x *= 0.82;
+        weaponGroup.position.x = 0.15 + Math.sin(weaponBobTime) * (moving ? 0.012 : 0.003);
+        weaponGroup.position.y = -0.15 + Math.cos(weaponBobTime * 2) * (moving ? 0.01 : 0.002);
+        weaponGroup.position.z *= 0.85;
+        weaponGroup.rotation.x *= 0.85;
       }
 
       if (flashTimer > 0) {
@@ -730,9 +747,7 @@
 
       if (hitmarkerTimer > 0) {
         hitmarkerTimer -= dt;
-        if (hitmarkerTimer <= 0) {
-          document.getElementById('hitmarker').classList.remove('show');
-        }
+        if (hitmarkerTimer <= 0) document.getElementById('hitmarker').classList.remove('show');
       }
 
       for (let i = decals.length - 1; i >= 0; i--) {
