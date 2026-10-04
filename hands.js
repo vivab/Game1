@@ -5,8 +5,13 @@
   // Точки с референса. Камера смотрит в −z, единицы — метры.
   // ndcX — где на экране мушка (0.207 = 60% ширины), sightY/sightZ — мушка в пространстве камеры,
   // muzzleZ — дульный срез, len — длина АК, axisY — ось ствола, handguardZ/gripZ — где держатся руки.
-  const REF = { ndcX: 0.207, sightY: -0.079, sightZ: -0.93, muzzleZ: -1.0, len: 0.88, axisY: -0.155, handguardZ: -0.74, gripZ: -0.42 };
-  const U = 0.105;   // размер ладони (чуть крупнее реальной, как в FPS)
+  // BIG — размер АК и рук: 1 = реальный, больше = крупнее (как в Standoff 2). Мушка остаётся на месте экрана,
+  // оружие вырастает от неё вниз-вправо, к камере.
+  const BIG = 1.6;
+  const sc = (v, s) => s + BIG * (v - s);
+  const REF = { ndcX: 0.207, sightY: -0.079, sightZ: -0.93, muzzleZ: sc(-1.0, -0.93), len: 0.88 * BIG,
+                axisY: sc(-0.155, -0.079), handguardZ: sc(-0.74, -0.93), gripZ: sc(-0.42, -0.93) };
+  const U = 0.105 * BIG;   // размер ладони (чуть крупнее реальной, как в FPS)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
 
