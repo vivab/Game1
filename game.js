@@ -149,6 +149,17 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     aim(up, fo, E.clone().sub(S));
     aim(fo, hd, target.clone().sub(E));
   }
+  // запасной поиск руки по геометрии (если имена костей нестандартные): в Т-позе рука тянется вбок на уровне плеч
+  function geoArm(bones, P, sign, H) {
+    const side = bones.filter(o => { const p = P(o); return sign * p.x > 0.12 && p.y > 0.55 * H && p.y < 0.95 * H; });
+    if (!side.length) return null;
+    const set = new Set(side), ax = o => Math.abs(P(o).x);
+    let cur = side.filter(o => !set.has(o.parent)).sort((a, c) => ax(a) - ax(c))[0];
+    const chain = [];
+    while (cur) { chain.push(cur); cur = cur.children.filter(k => set.has(k)).sort((a, c) => ax(c) - ax(a))[0]; }
+    for (let i = 0; i + 2 < chain.length; i++) if (P(chain[i]).distanceTo(P(chain[i + 1])) > 0.2) return { up: chain[i], fo: chain[i + 1], hd: chain[i + 2] };
+    return null;
+  }
   function dress(b) {
     const t = tpl[b.team];
     if (!t || b.model || !THREE.SkeletonUtils) return;
@@ -157,18 +168,37 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     root.traverse(o => { o.frustumCulled = false; });
     b.inner.add(root); b.model = root; b.vis.visible = false;
     const gun = GUN.obj ? GUN.obj.clone(true) : new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-    gun.position.set(-0.08, 1.2, 0.3);
+    gun.position.set(-0.1, 1.36, 0.3);          // приклад у правого плеча, ствол вперёд
     b.inner.add(gun); b.mesh.updateMatrixWorld(true);
     const bones = []; root.traverse(o => { if (o.isBone) bones.push(o); });
-    const q = b.mesh.getWorldQuaternion(new THREE.Quaternion());
-    [['r', new V(0, -0.06, -0.14), new V(-0.6, -1, -0.3)], ['l', new V(0, -0.05, 0.16), new V(0.6, -1, -0.3)]].forEach(([sd, grip, hint]) => {
-      const up = pick(bones, sd, /upperarm|uparm/), fo = pick(bones, sd, /forearm|lowerarm/), hd = pick(bones, sd, /hand/);
-      if (up && fo && hd) ik(up, fo, hd, gun.localToWorld(grip.clone()), hint.applyQuaternion(q));
+    const H = 1.8, P = o => b.mesh.worldToLocal(o.getWorldPosition(new V()));
+    const bq = b.mesh.getWorldQuaternion(new THREE.Quaternion()), right = new V(1, 0, 0).applyQuaternion(bq);
+    const tilt = (o, ang) => {                    // наклон вперёд вокруг оси «вбок», не зная локальных осей кости
+      const wq = o.getWorldQuaternion(new THREE.Quaternion()), pq = o.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+      o.quaternion.copy(pq.multiply(new THREE.Quaternion().setFromAxisAngle(right, ang)).multiply(wq));
+      o.updateMatrixWorld(true);
+    };
+    const spine = bones.filter(o => /spine|waist|torso/.test(o.name.toLowerCase())).sort((a, c) => P(a).y - P(c).y)[0]
+      || bones.filter(o => Math.abs(P(o).x) < 0.1 && P(o).y > 0.58 * H && P(o).y < 0.75 * H).sort((a, c) => P(a).y - P(c).y)[0];
+    if (spine) tilt(spine, 0.2);                  // чуть согнулся, как в боевой стойке
+    const head = bones.find(o => /head/.test(o.name.toLowerCase()));
+    if (head) tilt(head, -0.15);                  // голову поднял, смотрит вперёд
+    let ok = 0;
+    [['r', -1, new V(0, -0.06, -0.14), new V(-0.6, -1, -0.3)], ['l', 1, new V(0, -0.05, 0.16), new V(0.6, -1, -0.3)]].forEach(([sd, sg, grip, hint]) => {
+      let up = pick(bones, sd, /upperarm|uparm/), fo = pick(bones, sd, /forearm|lowerarm/), hd = pick(bones, sd, /hand/);
+      if (!(up && fo && hd)) { const g = geoArm(bones, P, sg, H); if (g) { up = g.up; fo = g.fo; hd = g.hd; } }
+      if (up && fo && hd) { ik(up, fo, hd, gun.localToWorld(grip.clone()), hint.applyQuaternion(bq)); ok++; }
     });
-    const rq = root.getWorldQuaternion(new THREE.Quaternion());
-    b.legs = ['l', 'r'].map(sd => {
-      const o = pick(bones, sd, /thigh|upleg|upperleg/);
-      return o && { o, base: o.quaternion.clone(), axis: new V(1, 0, 0).applyQuaternion(rq).applyQuaternion(o.parent.getWorldQuaternion(new THREE.Quaternion()).invert()) };
+    if (ok < 2 && !window.__dbg) {                // не нашли руки — покажем имена костей, чтобы поправить
+      window.__dbg = 1;
+      const d = document.createElement('div');
+      d.style.cssText = 'position:absolute;left:4px;bottom:4px;z-index:300;color:#fff;font:10px monospace;background:rgba(0,0,0,.6);max-width:60%;pointer-events:none';
+      d.textContent = 'кости рук не найдены (' + b.team + '): ' + bones.slice(0, 40).map(o => o.name).join(', ');
+      document.body.appendChild(d);
+    }
+    b.legs = [['l', 1], ['r', -1]].map(([sd, sg]) => {
+      const o = pick(bones, sd, /thigh|upleg|upperleg/) || bones.filter(k => sg * P(k).x > 0.03 && P(k).y > 0.35 * H && P(k).y < 0.62 * H).sort((a, c) => P(c).y - P(a).y)[0];
+      return o && { o, base: o.quaternion.clone(), axis: right.clone().applyQuaternion(o.parent.getWorldQuaternion(new THREE.Quaternion()).invert()) };
     });
   }
   function loadModels() {
