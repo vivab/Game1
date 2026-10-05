@@ -6,7 +6,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const solids = [], walls = [], score = { A: 0, B: 0 };
   const squads = { A: [], B: [] }, intel = { A: null, B: null };
   const stats = [], mine = new Set();      // таблица матча; кто бил игрока
-  const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0 }; stats.push(me);
+  const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86) }; stats.push(me);
+  let tabOn = false;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
   const SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
@@ -104,14 +105,16 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const LANES = { A: LA.map(l => l.map(p => new V(p[0], 0, p[1]))), B: LA.map(l => l.map(p => new V(-p[0], 0, -p[1]))) };
 
   // ---------- модели ботов (GLB): спецназ — команда A (твоя), террористы — B ----------
-  const MODEL = { A: 'counter_strike_1.6_gsg9.glb', B: 'counter-_strike_1.6_arctic_avengers.glb' };
+  const PACK = 'cs_1.6_models.glb';       // один файл с несколькими персонажами и готовыми анимациями
+  const SIDE_RE = { A: /gsg9|gsg-9/i, B: /arctic/i };   // A — синий спецназ (CT), B — белый террорист (T)
+  const CLIPS = {};
   const FACE = 0;                 // если боты идут задом наперёд — поставь Math.PI
   const tpl = {}, GUN = {};
   function bounds(root) {         // точный габарит с учётом скелета
     root.updateMatrixWorld(true);
     const box = new THREE.Box3(), v = new V();
     root.traverse(o => {
-      if (!o.isMesh) return;
+      if (!o.isMesh || !o.visible) return;
       const p = o.geometry.attributes.position, sk = o.isSkinnedMesh && o.boneTransform;
       for (let i = 0; i < p.count; i++) { if (sk) o.boneTransform(i, v); else v.fromBufferAttribute(p, i); box.expandByPoint(v.applyMatrix4(o.matrixWorld)); }
     });
@@ -170,6 +173,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const gun = GUN.obj ? GUN.obj.clone(true) : new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
     gun.position.set(-0.1, 1.36, 0.3);          // приклад у правого плеча, ствол вперёд
     b.inner.add(gun); b.mesh.updateMatrixWorld(true);
+    if (CLIPS[b.team]) { setupAnim(b, root, gun); return; }   // есть готовые анимации — IK не нужен
     const bones = []; root.traverse(o => { if (o.isBone) bones.push(o); });
     const H = 1.8, P = o => b.mesh.worldToLocal(o.getWorldPosition(new V()));
     const bq = b.mesh.getWorldQuaternion(new THREE.Quaternion()), right = new V(1, 0, 0).applyQuaternion(bq);
@@ -201,13 +205,90 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       return o && { o, base: o.quaternion.clone(), axis: right.clone().applyQuaternion(o.parent.getWorldQuaternion(new THREE.Quaternion()).invert()) };
     });
   }
+  function dbg(txt) {                          // подсказка на экране, если что-то не нашлось
+    const d = document.createElement('div');
+    d.style.cssText = 'position:absolute;left:4px;bottom:4px;z-index:300;color:#fff;font:10px monospace;background:rgba(0,0,0,.65);max-width:70%;pointer-events:none';
+    d.textContent = txt; document.body.appendChild(d);
+  }
+  function avgColor(m) {                       // средний цвет текстуры меша
+    try {
+      const mat = Array.isArray(m.material) ? m.material[0] : m.material, img = mat.map && mat.map.image;
+      if (img && img.width) {
+        const c = document.createElement('canvas'); c.width = c.height = 16;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0, 16, 16);
+        const d = x.getImageData(0, 0, 16, 16).data; let r = 0, g = 0, b = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+        if (n) return [r / n, g / n, b / n];
+      }
+      return [mat.color.r * 255, mat.color.g * 255, mat.color.b * 255];
+    } catch (e) { return [0, 0, 0]; }
+  }
+  function findChars(scene) {                  // какие меши — синий и белый персонаж (по имени, иначе по цвету)
+    const meshes = []; scene.traverse(o => { if (o.isMesh) meshes.push(o); });
+    const info = meshes.map(m => {
+      let n = '', p = m; while (p) { n += ' ' + p.name; p = p.parent; }
+      (Array.isArray(m.material) ? m.material : [m.material]).forEach(t => { n += ' ' + t.name; });
+      return { m, n, c: avgColor(m) };
+    });
+    const sat = c => Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+    const score = { A: i => (SIDE_RE.A.test(i.n) ? 1000 : 0) + i.c[2] - (i.c[0] + i.c[1]) / 2, B: i => (SIDE_RE.B.test(i.n) ? 1000 : 0) + (i.c[0] + i.c[1] + i.c[2]) / 3 - 2 * sat(i.c) };
+    const out = {};
+    ['A', 'B'].forEach(t => {
+      const best = info.slice().sort((x, y) => score[t](y) - score[t](x))[0], sk = best.m.skeleton;
+      out[t] = info.filter(i => (sk ? i.m.skeleton === sk : i.m === best.m)).map(i => meshes.indexOf(i.m));   // все меши этого скелета
+    });
+    return out;
+  }
+  const pickClip = (list, res) => { for (const re of res) { const c = list.find(x => re.test(x.name.toLowerCase())); if (c) return c; } return null; };
+  function buildTeam(g, idx, t) {              // вырезаем одного персонажа из общей сцены
+    const root = THREE.SkeletonUtils.clone(g.scene), ms = [];
+    root.traverse(o => { if (o.isMesh) ms.push(o); });
+    const keep = new Set(), mark = o => { for (; o; o = o.parent) keep.add(o); };
+    idx.forEach(i => { mark(ms[i]); (ms[i].skeleton ? ms[i].skeleton.bones : []).forEach(mark); });
+    const kill = []; root.traverse(o => { if (!keep.has(o)) kill.push(o); });
+    kill.forEach(o => { if (o.parent) o.parent.remove(o); });
+    // клипы: сначала с оружием АК, потом любые; берём только если они реально привязываются к костям
+    const all = g.animations || [], mine = all.filter(c => SIDE_RE[t].test(c.name)), A = mine.length ? mine : all;
+    const C = {
+      idle: pickClip(A, [/aim.*ak|ak.*aim|idle.*ak|ak.*idle|stand.*ak/, /idle|stand|aim/]),
+      run: pickClip(A, [/run.*ak|ak.*run/, /run/, /walk.*ak|ak.*walk/, /walk/]),
+      crouch: pickClip(A, [/crouch.*(idle|aim).*ak|ak.*crouch.*(idle|aim)/, /crouch.*(idle|aim)/, /crouch/])
+    };
+    const names = new Set(); root.traverse(o => names.add(o.name));
+    const usable = c => c && c.tracks.length && c.tracks.filter(tr => names.has(tr.name.split('.')[0])).length / c.tracks.length > 0.5;
+    ['idle', 'run', 'crouch'].forEach(k => { if (!usable(C[k])) C[k] = null; });
+    const live = C.idle || C.run;
+    if (live) { const mx = new THREE.AnimationMixer(root); mx.clipAction(live).play(); mx.update(0); }   // замерим рост в позе анимации
+    else dbg('анимации не подошли (' + t + '). клипы: ' + all.slice(0, 30).map(c => c.name).join(', '));
+    CLIPS[t] = live ? C : null;
+    tpl[t] = fitTo(root, 1.8, true);
+  }
+  function setupAnim(b, root, gun) {
+    const C = CLIPS[b.team], bones = []; root.traverse(o => { if (o.isBone) bones.push(o); });
+    b.mixer = new THREE.AnimationMixer(root); b.act = {}; b.wt = {};
+    ['idle', 'run', 'crouch'].forEach(k => { if (C[k]) { b.act[k] = b.mixer.clipAction(C[k]); b.act[k].setEffectiveWeight(0); b.act[k].play(); } });
+    b.hr = pick(bones, 'r', /hand/); b.hl = pick(bones, 'l', /hand/); b.gun = gun;
+  }
+  function animate(b, dt) {
+    const want = b.crouch ? 'crouch' : b.walk ? 'run' : 'idle';
+    const k = b.act[want] ? want : (b.act.idle ? 'idle' : Object.keys(b.act)[0]);
+    for (const n in b.act) { b.wt[n] = (b.wt[n] || 0) + ((n === k ? 1 : 0) - (b.wt[n] || 0)) * Math.min(1, 10 * dt); b.act[n].setEffectiveWeight(b.wt[n]); }
+    b.mixer.update(dt);
+    if (b.hr && b.hl) {                          // автомат держится в руках анимации
+      b.mesh.updateMatrixWorld(true);
+      const r = b.mesh.worldToLocal(b.hr.getWorldPosition(new V())), l = b.mesh.worldToLocal(b.hl.getWorldPosition(new V()));
+      b.gun.quaternion.setFromUnitVectors(new V(0, 0, 1), l.sub(r).normalize());
+      b.gun.position.copy(r).sub(new V(0, -0.06, -0.14).applyQuaternion(b.gun.quaternion));
+    }
+  }
   function loadModels() {
     const L = new THREE.GLTFLoader();
-    const models = () => ['A', 'B'].forEach(t => L.load(MODEL[t], g => {
-      tpl[t] = fitTo(g.scene, 1.8, true);
-      bots.forEach(b => { if (b.team === t) dress(b); });
-    }, undefined, e => console.log('модель не загрузилась', t, e)));
-    L.load('ak-47_low_poly.glb', g => { GUN.obj = fitTo(g.scene, 0.88, false); models(); }, undefined, () => models());
+    const pack = () => L.load(PACK, g => {
+      const idx = findChars(g.scene);
+      ['A', 'B'].forEach(t => { try { buildTeam(g, idx[t], t); } catch (e) { console.log('модель', t, e); dbg('ошибка модели ' + t + ': ' + e.message); } });
+      bots.forEach(b => dress(b));
+    }, undefined, e => { console.log('пак не загрузился', e); dbg('не загрузился ' + PACK); });
+    L.load('ak-47_low_poly.glb', g => { GUN.obj = fitTo(g.scene, 0.88, false); pack(); }, undefined, () => pack());
   }
 
   function makeBot(team, idx) {
@@ -234,7 +315,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     hb(0.5, 1.5, 0.4, 0.8); hb(0.3, 0.3, 0.3, 1.62, true);
     const lane = idx % 3;
     if (!squads[team][lane]) squads[team][lane] = { bots: [], turn: 0, wp: 0, arr: 0 };
-    const stat = { name: NICKS[stats.length % NICKS.length], team, kills: 0, assists: 0, deaths: 0 }; stats.push(stat);
+    const stat = { name: NICKS[stats.length % NICKS.length], team, kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86) }; stats.push(stat);
     const b = { mesh: g, inner, vis, model: null, legs: null, stat, dmg: new Set(), team, idx, lane, sq: squads[team][lane], hp: 100, dead: false, respawn: 0,
       lL: leg(0.15), rL: leg(-0.15), path: [], goal: null, nextPath: 0, think: Math.random() * 0.2, react: 0, last: 0, target: null, anim: 0, walk: false, chk: -1,
       mt: 0, sdir: 1, jt: 2 + Math.random() * 5, jy: 0, vy: 0, cs: 1, crouch: false };
@@ -244,7 +325,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function spawnAt(b) {
     const s = SPAWN[b.team][Math.floor(Math.random() * 5)];
     b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = b.team === 'A' ? Math.PI : 0;
-    b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false;
+    b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false;
   }
   const eye = b => new V(b.mesh.position.x, 1.5 * b.cs + b.jy, b.mesh.position.z);
   function turnTo(b, yaw, dt, rate) {
@@ -282,7 +363,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     o.hp -= dmg; if (who) o.dmg.add(who);
     intel[o.team] = { pos: new V(from.x, 0, from.z), t: T };
     if (o.hp <= 0) {
-      o.dead = true; o.mesh.visible = false; o.respawn = 3; score[team]++; o.stat.deaths++;
+      o.dead = true; o.mesh.visible = false; o.respawn = 3; score[team]++; o.stat.deaths++; o.ls = null; if (who) feed(who, o.stat);
       if (who) { who.kills++; o.dmg.forEach(a => { if (a !== who && a.team === who.team) a.assists++; }); }   // П: бил, а добил сокомандник
       if (byPlayer) { player.score++; updateUI(); }
     }
@@ -291,7 +372,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (player.dead || over) return;
     player.hp = Math.max(0, player.hp - d); updateUI(); if (who) mine.add(who);
     const h = document.getElementById('hurt'); h.style.opacity = 1; setTimeout(() => { h.style.opacity = 0; }, 80);
-    if (player.hp <= 0) { player.dead = true; respawnIn = 3; score.B++; me.deaths++; if (who) { who.kills++; mine.forEach(a => { if (a !== who) a.assists++; }); } document.getElementById('msg').textContent = 'ВЫ УБИТЫ'; }
+    if (player.hp <= 0) { player.dead = true; respawnIn = 3; score.B++; me.deaths++; if (who) feed(who, me); if (who) { who.kills++; mine.forEach(a => { if (a !== who) a.assists++; }); } document.getElementById('msg').textContent = 'ВЫ УБИТЫ'; }
   }
   function respawnPlayer() {
     const s = SPAWN.A[Math.floor(Math.random() * 5)];
@@ -342,12 +423,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       b.jt -= dt;                                       // прыжки на бегу + физика
       if (b.walk && b.jt <= 0) { b.jt = 3 + Math.random() * 6; if (!b.crouch && b.jy === 0 && Math.random() < 0.35) b.vy = 5.5; }
       if (b.jy > 0 || b.vy > 0) { b.vy -= 18 * dt; b.jy = Math.max(0, b.jy + b.vy * dt); if (b.jy === 0) b.vy = 0; }
-      b.cs += ((b.crouch ? 0.78 : 1) - b.cs) * Math.min(1, 10 * dt);
+      b.cs += (((b.crouch && !(b.act && b.act.crouch)) ? 0.78 : 1) - b.cs) * Math.min(1, 10 * dt);
       b.inner.position.y = b.jy; b.inner.scale.y = b.cs;
       b.anim += (b.walk ? dt * 9 : 0);
       const sw = b.walk ? Math.sin(b.anim) * 0.6 : 0;
       b.lL.rotation.x = sw; b.rL.rotation.x = -sw;
       if (b.legs) b.legs.forEach((l, i) => { if (l) l.o.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(l.axis, i ? -sw : sw).multiply(l.base)); });
+      if (b.mixer) animate(b, dt);
     });
     const t = Math.max(0, Math.ceil(timeLeft));
     document.getElementById('sa').textContent = score.A; document.getElementById('sb').textContent = score.B;
@@ -366,13 +448,15 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     d.innerHTML = '<div id="tabw"><div id="tabA"></div><div id="tabB"></div></div><div id="tabf">Командный бой 5х5 | «название карты пока не придумали» | Россия</div>';
     document.body.appendChild(d);
   }
-  function endMatch() {
-    over = true;
+  function fillTab() {                            // таблица: в конце матча и по кнопке статистики
     const rows = t => stats.filter(x => x.team === t).sort((a, b) => b.kills - a.kills).map((x, i) =>
-      '<div class="r' + (x === me ? ' me' : '') + '"><i>' + (i + 1) + '</i><span>' + x.name + '</span><b>' + x.kills + '</b><b>' + x.assists + '</b><b>' + x.deaths + '</b><b>' + (40 + Math.floor(Math.random() * 86)) + '</b></div>').join('');
+      '<div class="r' + (x === me ? ' me' : '') + '"><i>' + (i + 1) + '</i><span>' + x.name + '</span><b>' + x.kills + '</b><b>' + x.assists + '</b><b>' + x.deaths + '</b><b>' + x.ping + '</b></div>').join('');
     const head = '<div class="r h"><i>#</i><span>Имя</span><b>У</b><b>П</b><b>С</b><b>Пинг</b></div>';
     document.getElementById('tabA').innerHTML = '<div class="t" style="color:#7aa7ff"><span>ОБОРОНА (СТ)</span><b>' + score.A + '</b></div>' + head + rows('A');
     document.getElementById('tabB').innerHTML = '<div class="t" style="color:#f59e0b"><span>АТАКА (Т)</span><b>' + score.B + '</b></div>' + head + rows('B');
+  }
+  function endMatch() {
+    over = true; tabOn = false; fillTab();
     document.getElementById('res').textContent = score.A > score.B ? 'ПОБЕДА' : score.A < score.B ? 'ПОРАЖЕНИЕ' : 'НИЧЬЯ';
     document.getElementById('resd').textContent = 'Счёт ' + score.A + ' : ' + score.B + ' · Ваши убийства: ' + me.kills;
     const tab = document.getElementById('tab');
@@ -380,15 +464,64 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { tab.style.display = 'none'; document.getElementById('end').style.display = 'flex'; }, 7000);   // таб висит 7 секунд
   }
 
+  // киллчат: ник убийцы, череп, ник убитого
+  const tc = t => t === 'A' ? '#60a5fa' : '#f59e0b';
+  function feed(k, v) {
+    const kf = document.getElementById('kf'), d = document.createElement('div');
+    d.className = 'k' + (k === me || v === me ? ' me' : '');
+    d.innerHTML = '<span style="color:' + tc(k.team) + '">' + k.name + '</span> 💀 <span style="color:' + tc(v.team) + '">' + v.name + '</span>';
+    kf.appendChild(d);
+    while (kf.children.length > 5) kf.removeChild(kf.firstChild);
+    setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
+  }
+  function uiExtra() {
+    const css = document.createElement('style');
+    css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
+      '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
+      '#sbtn{position:absolute;right:138px;top:20px;z-index:160;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(15,23,42,.78);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;padding:0 0 0 10px}' +
+      '#sbtn i{display:block;height:2.5px;background:#fff;border-radius:2px}#sbtn i:nth-child(1){width:10px}#sbtn i:nth-child(2){width:14px}#sbtn i:nth-child(3){width:18px}';
+    document.head.appendChild(css);
+    const kf = document.createElement('div'); kf.id = 'kf'; document.body.appendChild(kf);
+    const sb = document.createElement('button');
+    sb.id = 'sbtn'; sb.className = 'interactive-ui'; sb.innerHTML = '<i></i><i></i><i></i>';
+    const toggle = () => { if (over) return; tabOn = !tabOn; if (tabOn) fillTab(); document.getElementById('tab').style.display = tabOn ? 'flex' : 'none'; };
+    sb.addEventListener('touchstart', e => { e.preventDefault(); toggle(); }, { passive: false });
+    sb.addEventListener('click', toggle);
+    document.body.appendChild(sb);
+    setInterval(() => { if (tabOn && !over) fillTab(); }, 500);
+  }
+
+  // мини-карта: стены, сектор обзора, свои — синие, я — белый.
+  // Враг виден на экране → красная точка; пропал из виду → пустое кольцо на последнем месте, тает 3 секунды.
   window.renderMinimap = function () {
-    const ctx = document.getElementById('minimap-canvas').getContext('2d'), c = 55, k = 1.3;
+    const ctx = document.getElementById('minimap-canvas').getContext('2d'), c = 55, k = 1.4;
+    camera.updateMatrixWorld();
     ctx.clearRect(0, 0, 110, 110);
+    ctx.save(); ctx.beginPath(); ctx.arc(c, c, 54, 0, 6.283); ctx.clip();
+    const px = player.pos.x, pz = player.pos.z;
+    ctx.fillStyle = 'rgba(148,163,184,.4)';
+    solids.forEach(s => ctx.fillRect(c + (s.x0 - px) * k, c + (s.z0 - pz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k));
+    const ang = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw)), hf = Math.atan(Math.tan(camera.fov * 0.5 * Math.PI / 180) * camera.aspect);
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, 42, ang - hf, ang + hf); ctx.closePath(); ctx.fill();
+    const dot = (x, y, col, r) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); };
+    const ring = (x, y, a) => { ctx.strokeStyle = 'rgba(239,68,68,' + a + ')'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 6.283); ctx.stroke(); };
     bots.forEach(b => {
       if (b.dead) return;
-      ctx.fillStyle = b.team === 'A' ? '#3b82f6' : '#ef4444'; ctx.beginPath();
-      ctx.arc(c + (b.mesh.position.x - player.pos.x) * k, c + (b.mesh.position.z - player.pos.z) * k, 3, 0, 6.3); ctx.fill();
+      const bx = b.mesh.position.x, bz = b.mesh.position.z;
+      if (b.team === 'A') { dot(c + (bx - px) * k, c + (bz - pz) * k, '#3b82f6', 3.2); return; }
+      const v = new V(bx, 1.2, bz), q = v.clone().project(camera);
+      if (!player.dead && q.z < 1 && Math.abs(q.x) < 1 && Math.abs(q.y) < 1 && los(camera.position, v)) b.ls = { x: bx, z: bz, t: T };
+      const l = b.ls;
+      if (!l) return;
+      if (T - l.t < 0.1) dot(c + (bx - px) * k, c + (bz - pz) * k, '#ef4444', 3.4);
+      else if (T - l.t < 3) ring(c + (l.x - px) * k, c + (l.z - pz) * k, 1 - (T - l.t) / 3);
     });
-    ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(c, c, 4, 0, 6.3); ctx.fill();
+    ctx.restore();
+    dot(c, c, '#fff', 4);
+    ctx.fillStyle = '#fff'; ctx.beginPath();                                    // стрелка: куда смотрю
+    ctx.moveTo(c + Math.cos(ang) * 14, c + Math.sin(ang) * 14);
+    ctx.lineTo(c + Math.cos(ang + 2.6) * 7, c + Math.sin(ang + 2.6) * 7); ctx.lineTo(c + Math.cos(ang - 2.6) * 7, c + Math.sin(ang - 2.6) * 7);
+    ctx.closePath(); ctx.fill();
   };
 
   // ---------- игрок: движение с коллизиями ----------
@@ -444,7 +577,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const d = document.createElement('div');
     d.innerHTML = '<div id="sc"><b id="sa" style="background:#2563eb">0</b><span id="st">2:00</span><b id="sb" style="background:#d97706">0</b></div><div id="msg"></div><div id="hurt"></div>' +
       '<div id="end" class="interactive-ui"><div id="res" style="font-size:44px;font-weight:900"></div><div id="resd" style="margin-top:8px;font-size:18px"></div><button onclick="location.reload()">ИГРАТЬ СНОВА</button></div>';
-    document.body.appendChild(d); tabUI();
+    document.body.appendChild(d); tabUI(); uiExtra();
   }
   function initMatch() {
     buildNav(); hud();
