@@ -105,8 +105,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const LANES = { A: LA.map(l => l.map(p => new V(p[0], 0, p[1]))), B: LA.map(l => l.map(p => new V(-p[0], 0, -p[1]))) };
 
   // ---------- модели ботов (GLB): спецназ — команда A (твоя), террористы — B ----------
-  const PACK = 'cs_1.6_models.glb';       // один файл с несколькими персонажами и готовыми анимациями
-  const SIDE_RE = { A: /gsg9|gsg-9/i, B: /arctic/i };   // A — синий спецназ (CT), B — белый террорист (T)
+  const FILES = { A: 'counter_strike_urban.glb', B: 'counter_strike_leet.glb' };   // A — спецназ (синий), B — террорист
   const CLIPS = {};
   const FACE = 0;                 // если боты идут задом наперёд — поставь Math.PI
   const tpl = {}, GUN = {};
@@ -210,69 +209,45 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     d.style.cssText = 'position:absolute;left:4px;bottom:4px;z-index:300;color:#fff;font:10px monospace;background:rgba(0,0,0,.65);max-width:70%;pointer-events:none';
     d.textContent = txt; document.body.appendChild(d);
   }
-  function avgColor(m) {                       // средний цвет текстуры меша
-    try {
-      const mat = Array.isArray(m.material) ? m.material[0] : m.material, img = mat.map && mat.map.image;
-      if (img && img.width) {
-        const c = document.createElement('canvas'); c.width = c.height = 16;
-        const x = c.getContext('2d'); x.drawImage(img, 0, 0, 16, 16);
-        const d = x.getImageData(0, 0, 16, 16).data; let r = 0, g = 0, b = 0, n = 0;
-        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
-        if (n) return [r / n, g / n, b / n];
-      }
-      return [mat.color.r * 255, mat.color.g * 255, mat.color.b * 255];
-    } catch (e) { return [0, 0, 0]; }
-  }
-  function findChars(scene) {                  // какие меши — синий и белый персонаж (по имени, иначе по цвету)
-    const meshes = []; scene.traverse(o => { if (o.isMesh) meshes.push(o); });
-    const info = meshes.map(m => {
-      let n = '', p = m; while (p) { n += ' ' + p.name; p = p.parent; }
-      (Array.isArray(m.material) ? m.material : [m.material]).forEach(t => { n += ' ' + t.name; });
-      return { m, n, c: avgColor(m) };
-    });
-    const sat = c => Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
-    const score = { A: i => (SIDE_RE.A.test(i.n) ? 1000 : 0) + i.c[2] - (i.c[0] + i.c[1]) / 2, B: i => (SIDE_RE.B.test(i.n) ? 1000 : 0) + (i.c[0] + i.c[1] + i.c[2]) / 3 - 2 * sat(i.c) };
-    const out = {};
-    ['A', 'B'].forEach(t => {
-      const best = info.slice().sort((x, y) => score[t](y) - score[t](x))[0], sk = best.m.skeleton;
-      out[t] = info.filter(i => (sk ? i.m.skeleton === sk : i.m === best.m)).map(i => meshes.indexOf(i.m));   // все меши этого скелета
-    });
-    return out;
-  }
   const pickClip = (list, res) => { for (const re of res) { const c = list.find(x => re.test(x.name.toLowerCase())); if (c) return c; } return null; };
-  function buildTeam(g, idx, t) {              // вырезаем одного персонажа из общей сцены
-    const root = THREE.SkeletonUtils.clone(g.scene), ms = [];
-    root.traverse(o => { if (o.isMesh) ms.push(o); });
-    const keep = new Set(), mark = o => { for (; o; o = o.parent) keep.add(o); };
-    idx.forEach(i => { mark(ms[i]); (ms[i].skeleton ? ms[i].skeleton.bones : []).forEach(mark); });
-    const kill = []; root.traverse(o => { if (!keep.has(o)) kill.push(o); });
-    kill.forEach(o => { if (o.parent) o.parent.remove(o); });
-    // клипы: сначала с оружием АК, потом любые; берём только если они реально привязываются к костям
-    const all = g.animations || [], mine = all.filter(c => SIDE_RE[t].test(c.name)), A = mine.length ? mine : all;
-    const C = {
-      idle: pickClip(A, [/aim.*ak|ak.*aim|idle.*ak|ak.*idle|stand.*ak/, /idle|stand|aim/]),
-      run: pickClip(A, [/run.*ak|ak.*run/, /run/, /walk.*ak|ak.*walk/, /walk/]),
-      crouch: pickClip(A, [/crouch.*(idle|aim).*ak|ak.*crouch.*(idle|aim)/, /crouch.*(idle|aim)/, /crouch/])
-    };
-    const names = new Set(); root.traverse(o => names.add(o.name));
-    const usable = c => c && c.tracks.length && c.tracks.filter(tr => names.has(tr.name.split('.')[0])).length / c.tracks.length > 0.5;
-    ['idle', 'run', 'crouch'].forEach(k => { if (!usable(C[k])) C[k] = null; });
-    const live = C.idle || C.run;
-    if (live) { const mx = new THREE.AnimationMixer(root); mx.clipAction(live).play(); mx.update(0); }   // замерим рост в позе анимации
-    else dbg('анимации не подошли (' + t + '). клипы: ' + all.slice(0, 30).map(c => c.name).join(', '));
-    CLIPS[t] = live ? C : null;
+  const LOWER = /pelvis|thigh|calf|foot|toe|hip|knee|leg/i, ROOT = /^(bip\d*|root|armature|scene)$/i;
+  const trackNode = tr => tr.name.split('.')[0];
+  const cut = (clip, keep) => { const c = clip.clone(); c.tracks = c.tracks.filter(tr => keep(trackNode(tr), tr)); return c; };   // клип только с нужными костями
+  function buildTeam(g, t) {
+    const root = g.scene, all = g.animations || [], names = new Set();
+    root.traverse(o => names.add(o.name));
+    const usable = c => c && c.tracks.length && c.tracks.filter(tr => names.has(trackNode(tr))).length / c.tracks.length > 0.5;
+    const ok = c => !/shoot|fire|reload|die|death|jump|swim|flinch|tread|pistol|knife|grenade|shotgun|sniper|para|mp5|awp|c4|deploy|draw/i.test(c.name);
+    const std = all.filter(c => ok(c) && !/crouch/i.test(c.name)), cr = all.filter(c => ok(c) && /crouch/i.test(c.name));
+    let aim = pickClip(std, [/ak47/, /rifle|m4a1|aug|sg552|galil|famas/, /aim/, /idle|stand/]);
+    let run = pickClip(std, [/^run$/, /run/, /^walk$/, /walk/]);
+    let crouch = pickClip(cr, [/ak47/, /rifle|m4a1|aug|sg552|galil|famas/, /aim|idle/]);
+    aim = usable(aim) ? aim : null; run = usable(run) ? run : null; crouch = usable(crouch) ? crouch : null;
+    if (aim || run) { const mx = new THREE.AnimationMixer(root); mx.clipAction(aim || run).play(); mx.update(0); }   // замерить рост в позе анимации
+    else dbg('анимации не подошли (' + t + '). клипы: ' + all.slice(0, 40).map(c => c.name).join(', '));
+    CLIPS[t] = (aim || run) ? {
+      aim, run, crouch,
+      upper: aim ? cut(aim, n => !LOWER.test(n)) : null,                                                   // руки и корпус держат автомат
+      lower: run ? cut(run, (n, tr) => LOWER.test(n) && !(ROOT.test(n) && /position/.test(tr.name))) : null   // ноги бегут
+    } : null;
     tpl[t] = fitTo(root, 1.8, true);
   }
   function setupAnim(b, root, gun) {
     const C = CLIPS[b.team], bones = []; root.traverse(o => { if (o.isBone) bones.push(o); });
     b.mixer = new THREE.AnimationMixer(root); b.act = {}; b.wt = {};
-    ['idle', 'run', 'crouch'].forEach(k => { if (C[k]) { b.act[k] = b.mixer.clipAction(C[k]); b.act[k].setEffectiveWeight(0); b.act[k].play(); } });
+    [['aim', C.aim], ['up', C.upper], ['low', C.lower], ['run', C.run], ['cr', C.crouch]].forEach(([k, c]) => {
+      if (c) { const a = b.mixer.clipAction(c); a.setEffectiveWeight(0); a.play(); b.act[k] = a; }
+    });
     b.hr = pick(bones, 'r', /hand/); b.hl = pick(bones, 'l', /hand/); b.gun = gun;
   }
   function animate(b, dt) {
-    const want = b.crouch ? 'crouch' : b.walk ? 'run' : 'idle';
-    const k = b.act[want] ? want : (b.act.idle ? 'idle' : Object.keys(b.act)[0]);
-    for (const n in b.act) { b.wt[n] = (b.wt[n] || 0) + ((n === k ? 1 : 0) - (b.wt[n] || 0)) * Math.min(1, 10 * dt); b.act[n].setEffectiveWeight(b.wt[n]); }
+    const A = b.act, w = {};
+    if (b.crouch && A.cr) w.cr = 1;
+    else if (b.walk && A.up && A.low) { w.up = 1; w.low = 1; }
+    else if (b.walk && A.run) w.run = 1;
+    else w[A.aim ? 'aim' : 'run'] = 1;
+    for (const n in A) { b.wt[n] = (b.wt[n] || 0) + ((w[n] || 0) - (b.wt[n] || 0)) * Math.min(1, 10 * dt); A[n].setEffectiveWeight(b.wt[n]); }
+    if (A.run && !A.aim) A.run.timeScale = b.walk ? 1 : 0;
     b.mixer.update(dt);
     if (b.hr && b.hl) {                          // автомат держится в руках анимации
       b.mesh.updateMatrixWorld(true);
@@ -283,12 +258,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function loadModels() {
     const L = new THREE.GLTFLoader();
-    const pack = () => L.load(PACK, g => {
-      const idx = findChars(g.scene);
-      ['A', 'B'].forEach(t => { try { buildTeam(g, idx[t], t); } catch (e) { console.log('модель', t, e); dbg('ошибка модели ' + t + ': ' + e.message); } });
-      bots.forEach(b => dress(b));
-    }, undefined, e => { console.log('пак не загрузился', e); dbg('не загрузился ' + PACK); });
-    L.load('ak-47_low_poly.glb', g => { GUN.obj = fitTo(g.scene, 0.88, false); pack(); }, undefined, () => pack());
+    const load = t => L.load(FILES[t], g => {
+      try { buildTeam(g, t); } catch (e) { console.log('модель', t, e); dbg('ошибка модели ' + t + ': ' + e.message); }
+      bots.forEach(b => { if (b.team === t) dress(b); });
+    }, undefined, () => dbg('не загрузился ' + FILES[t]));
+    const both = () => { load('A'); load('B'); };
+    L.load('ak-47_low_poly.glb', g => { GUN.obj = fitTo(g.scene, 0.88, false); both(); }, undefined, both);
   }
 
   function makeBot(team, idx) {
@@ -504,7 +479,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const ang = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw)), hf = Math.atan(Math.tan(camera.fov * 0.5 * Math.PI / 180) * camera.aspect);
     ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, 42, ang - hf, ang + hf); ctx.closePath(); ctx.fill();
     const dot = (x, y, col, r) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); };
-    const ring = (x, y, a) => { ctx.strokeStyle = 'rgba(239,68,68,' + a + ')'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 6.283); ctx.stroke(); };
+    const ring = (x, y, a) => { ctx.strokeStyle = 'rgba(239,68,68,' + a + ')'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(x, y, 2.7, 0, 6.283); ctx.stroke(); };
     bots.forEach(b => {
       if (b.dead) return;
       const bx = b.mesh.position.x, bz = b.mesh.position.z;
