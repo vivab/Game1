@@ -1,7 +1,7 @@
 /* hands.js — оружие (АК, 3 пистолета, нож) и свои руки в перчатках.
    Подключать ПОСЛЕ основного <script> в index.html. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v9', V = THREE.Vector3;
+  const DEG = Math.PI / 180, KEY = 'hands_v10', V = THREE.Vector3;
   const BIG = 1.35, U = 0.105 * BIG;      // BIG — размер оружия и рук (1 = реальный)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
@@ -26,15 +26,15 @@
   const PIS = { ndcX: 0.272, sY: -0.077, sZ: -0.56, muz: -0.02, R: [-0.118, 0.2], L: [-0.118, 0.2] };
   const W = {
     rifle:   { file: 'ak-47_low_poly.glb', len: 0.88, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
-    usp:     Object.assign({ file: 'low-poly_usp-s.glb', len: 0.3 }, PIS),
+    usp:     Object.assign({ file: 'low-poly_usp-s.glb', len: 0.34 }, PIS),
     deagle:  Object.assign({ file: 'low-poly_desert_eagle.glb', len: 0.27 }, PIS, { ndcX: 0.245 }),
-    beretta: Object.assign({ file: 'low-poly_beretta_92fs.glb', len: 0.28 }, PIS),
+    beretta: Object.assign({ file: 'low-poly_beretta_92fs.glb', len: 0.32 }, PIS),
     knife:   { file: 'knife_default_t__cs2.glb', len: 0.46, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] }
   };
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s) for (const n in DEF) if (s[n]) { ['R', 'L'].forEach(h => { if (tune[n][h]) Object.assign(tune[n][h], s[n][h]); }); tune[n].f = s[n].f | 0; }
+    if (s) for (const n in DEF) if (s[n]) { ['R', 'L'].forEach(h => { if (tune[n][h]) Object.assign(tune[n][h], s[n][h]); }); tune[n].f = s[n].f | 0; ['sz', 'ox', 'oy'].forEach(k => { if (s[n][k] !== undefined) tune[n][k] = s[n][k]; }); }
   } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch (e) {} };
 
@@ -68,7 +68,7 @@
   }
   window.makeHand = makeHand;
 
-  const holder = new THREE.Group(), anch = {}, sliders = {};
+  const holder = new THREE.Group(), anch = {}, sliders = {}, wsl = {};
   let cur = 'rifle', sel = 'R';
 
   // габарит облака вершин после поворота вокруг Y
@@ -100,7 +100,8 @@
       s.updateMatrixWorld(true);
       s.traverse(o => {
         if (!o.isMesh) return;
-        (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.4) m.metalness = 0.3; m.side = THREE.DoubleSide; });
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.4) m.metalness = 0.3; m.side = THREE.DoubleSide;
+        if (name !== 'rifle') { m.metalness = 0; m.roughness = 0.7; if (m.emissive) { m.emissive.set(0x555555); if (m.map) m.emissiveMap = m.map; } else if (m.color) m.color.setRGB(1.6, 1.6, 1.6); m.needsUpdate = true; } });
         const p = o.geometry.attributes.position;
         for (let i = 0; i < p.count; i += 2) P.push(new V().fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld));
       });
@@ -126,16 +127,16 @@
     for (const n in W) if (W[n].pivot) W[n].pivot.visible = n === cur;
     const w = W[cur];
     if (!w || !w.ready) { build(); return; }
-    const gx = w.ndcX * -w.sZ * Math.tan(camera.fov * 0.5 * DEG) * camera.aspect;
+    const gx = w.ndcX * -w.sZ * Math.tan(camera.fov * 0.5 * DEG) * camera.aspect + (tune[cur].ox || 0), sY = w.sY + (tune[cur].oy || 0);
     const th = w.yaw0 + (tune[cur].f ? Math.PI : 0), b = bboxYaw(w.P, th), size = b.getSize(new V()), c = b.getCenter(new V());
-    const s = w.len * BIG / size.z;
+    const s = w.len * BIG / size.z * (tune[cur].sz || 1);
     w.inner.rotation.y = th; w.wrap.scale.setScalar(s);
     if (w.knife) {
       w.wrap.position.set(-s * c.x, -s * c.y, -s * (b.max.z - 0.15 * size.z));
-      w.pivot.position.set(gx, w.sY, w.sZ); w.pivot.rotation.order = 'YXZ'; w.pivot.rotation.set(0.5, 0.8, 0);   // клинок вверх-влево
-    } else w.wrap.position.set(gx - s * c.x, w.sY - s * b.max.y, w.sZ + w.muz * BIG - s * b.min.z);
-    anch.R = new V(gx, w.sY + w.R[0] * BIG, w.sZ + w.R[1] * BIG);
-    anch.L = w.L ? new V(gx, w.sY + w.L[0] * BIG, w.sZ + w.L[1] * BIG) : null;
+      w.pivot.position.set(gx, sY, w.sZ); w.pivot.rotation.order = 'YXZ'; w.pivot.rotation.set(0.5, 0.8, 0);   // клинок вверх-влево
+    } else w.wrap.position.set(gx - s * c.x, sY - s * b.max.y, w.sZ + w.muz * BIG - s * b.min.z);
+    anch.R = new V(gx, sY + w.R[0] * BIG, w.sZ + w.R[1] * BIG);
+    anch.L = w.L ? new V(gx, sY + w.L[0] * BIG, w.sZ + w.L[1] * BIG) : null;
     build();
   }
   window.HW_set = name => { if (!W[name]) return; cur = name; if (sel === 'L' && !W[name].L) sel = 'R'; loadW(name); place(); refresh(); };
@@ -143,6 +144,7 @@
   function refresh() {
     const t = tune[cur][sel] || tune[cur].R;
     for (const k in sliders) sliders[k].value = t[k];
+    for (const k in wsl) wsl[k].value = tune[cur][k] !== undefined ? tune[cur][k] : ({ sz: 1, ox: 0, oy: 0 })[k];
     const el = id => document.getElementById(id);
     if (el('hn-wp')) { el('hn-wp').textContent = 'Оружие: ' + cur; el('hn-sel').textContent = 'Рука: ' + (sel === 'R' ? 'правая' : 'левая'); }
   }
@@ -166,6 +168,15 @@
       grid.appendChild(r);
     });
     p.appendChild(grid);
+    const g2 = document.createElement('div'); g2.id = 'hn-g';
+    [['sz', 0.5, 2.2, 0.02, 'Размер оружия'], ['ox', -0.3, 0.3, 0.005, 'Оружие влево/вправо'], ['oy', -0.3, 0.3, 0.005, 'Оружие вниз/вверх']].forEach(([k, lo, hi, st, name]) => {
+      const r = document.createElement('label');
+      r.innerHTML = '<span>' + name + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '">';
+      const inp = r.querySelector('input'); wsl[k] = inp;
+      inp.addEventListener('input', () => { tune[cur][k] = +inp.value; save(); place(); });
+      g2.appendChild(r);
+    });
+    p.appendChild(g2);
     const btn = (txt, fn, id) => { const b = document.createElement('button'); b.textContent = txt; if (id) b.id = id; b.addEventListener('click', fn); p.appendChild(b); };
     btn('', () => { const ks = Object.keys(W); (window.GAME_SET || window.HW_set)(ks[(ks.indexOf(cur) + 1) % ks.length]); }, 'hn-wp');
     btn('', () => { if (W[cur].L) sel = sel === 'R' ? 'L' : 'R'; refresh(); }, 'hn-sel');
