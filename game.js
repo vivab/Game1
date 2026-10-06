@@ -37,10 +37,20 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   window.spawnBotCS = function () {};   // старые боты не нужны
 
   // ---------- столкновения и линия видимости ----------
-  function resolveGrid(p, r) {
+  function groundAt(x, z, feet) {                 // на чём стоим: самая высокая поверхность не выше ступеньки
+    if (!grid) return 0;
+    const i = Math.floor((x - grid.x0) / grid.cs), j = Math.floor((z - grid.z0) / grid.cs);
+    if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) return 0;
+    const L = grid.layers[i * grid.nz + j];
+    if (!L) return 0;
+    let best = -1;
+    for (let q = 0; q < L.length; q++) if (L[q] <= feet + 0.55 && L[q] > best) best = L[q];
+    return best < 0 ? 0 : best;
+  }
+  function resolveGrid(p, r, feet) {
     const i0 = Math.floor((p.x - grid.x0) / grid.cs), j0 = Math.floor((p.z - grid.z0) / grid.cs);
     for (let it = 0; it < 2; it++) for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) {
-      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz || !grid.low[i * grid.nz + j]) continue;
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz || grid.oH[i * grid.nz + j] <= feet + 0.5) continue;
       const bx = grid.x0 + i * grid.cs, bz = grid.z0 + j * grid.cs, cx = Math.max(bx, Math.min(p.x, bx + grid.cs)), cz = Math.max(bz, Math.min(p.z, bz + grid.cs));
       const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
       if (d >= r) continue;
@@ -67,7 +77,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     return [x, z];
   }
   function resolve(p, r, feet) {
-    if (grid) return resolveGrid(p, r);
+    if (grid) return resolveGrid(p, r, feet);
     for (let it = 0; it < 2; it++) solids.forEach(s => {
       if (feet >= s.h) return;
       const cx = Math.max(s.x0, Math.min(p.x, s.x1)), cz = Math.max(s.z0, Math.min(p.z, s.z1));
@@ -149,7 +159,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function fitTo(scene, size, human) {   // человек: рост = size, ноги на полу; оружие: длина = size, по центру
     scene.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.3) m.metalness = 0.1; m.side = THREE.DoubleSide;
-      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map && m.emissive) { m.emissive.set(0x6a6a6a); m.emissiveMap = m.map; } m.needsUpdate = true; } }); });
+      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map && m.emissive) { m.emissive.set(0xb4b4b4); m.emissiveMap = m.map; } else if (!m.emissive) m.color.setRGB(1.7, 1.7, 1.7); m.needsUpdate = true; } }); });
     const bx = bounds(scene), sz = bx.getSize(new V()), c = bx.getCenter(new V());
     const k = size / (human ? sz.y : Math.max(sz.x, sz.y, sz.z));
     const fit = new THREE.Group();
@@ -326,21 +336,32 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const ctr = box.getCenter(new V()), dx = -ctr.x, dy = -(floorY === null ? box.min.y : floorY), dz = -ctr.z;
     wrap.position.set(dx, dy, dz); wrap.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(wrap), cs = 0.5, x0 = bb.min.x, z0 = bb.min.z, nx = Math.ceil((bb.max.x - x0) / cs), nz = Math.ceil((bb.max.z - z0) / cs);
-    const low = new Uint8Array(nx * nz), tall = new Uint8Array(nx * nz);
-    const mark = (x, z, t) => { const i = Math.floor((x - x0) / cs), j = Math.floor((z - z0) / cs); if (i >= 0 && j >= 0 && i < nx && j < nz) { low[i * nz + j] = 1; if (t) tall[i * nz + j] = 1; } };
-    for (let t = 0; t < tris.length; t += 9) {                      // растеризуем всё, что стоит на полу, в сетку
-      const ay = tris[t + 1] + dy, by = tris[t + 4] + dy, cy = tris[t + 7] + dy, lo = Math.min(ay, by, cy), hi = Math.max(ay, by, cy);
-      if (hi < 0.35 || lo > 1.9) continue;
-      const ax = tris[t] + dx, az = tris[t + 2] + dz, bx = tris[t + 3] + dx, bz = tris[t + 5] + dz, cx = tris[t + 6] + dx, cz = tris[t + 8] + dz;
+    const low = new Uint8Array(nx * nz), tall = new Uint8Array(nx * nz), oH = new Float32Array(nx * nz), layers = new Array(nx * nz);
+    const cellK = (x, zz) => { const i = Math.floor((x - x0) / cs), j = Math.floor((zz - z0) / cs); return (i >= 0 && j >= 0 && i < nx && j < nz) ? i * nz + j : -1; };
+    for (let t = 0; t < tris.length; t += 9) {
+      const ax = tris[t] + dx, ay = tris[t + 1] + dy, az = tris[t + 2] + dz, bx = tris[t + 3] + dx, by = tris[t + 4] + dy, bz = tris[t + 5] + dz, cx = tris[t + 6] + dx, cy = tris[t + 7] + dy, cz = tris[t + 8] + dz;
+      const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
+      const nxv = uy * vz - uz * vy, nyv = uz * vx - ux * vz, nzv = ux * vy - uy * vx, nl = Math.hypot(nxv, nyv, nzv) || 1;
+      const lo = Math.min(ay, by, cy), hi = Math.max(ay, by, cy), walk = nyv / nl > 0.6;   // смотрит вверх — по нему можно ходить
+      if (walk ? (hi > 4.5 || hi < -0.1) : (hi < 0.35 || lo > 1.9)) continue;
       const L = Math.max(Math.hypot(ax - bx, az - bz), Math.hypot(bx - cx, bz - cz), Math.hypot(cx - ax, cz - az)), st = Math.max(1, Math.ceil(L / 0.25));
-      for (let u = 0; u <= st; u++) for (let v = 0; v <= st - u; v++) { const p = u / st, q = v / st, w = 1 - p - q; mark(ax * w + bx * p + cx * q, az * w + bz * p + cz * q, hi > 1.4); }
+      for (let u = 0; u <= st; u++) for (let v = 0; v <= st - u; v++) {
+        const p = u / st, q = v / st, w = 1 - p - q, k = cellK(ax * w + bx * p + cx * q, az * w + bz * p + cz * q);
+        if (k < 0) continue;
+        if (walk) { const h = Math.round((ay * w + by * p + cy * q) * 10) / 10, Ls = layers[k] || (layers[k] = []); if (Ls.indexOf(h) < 0) Ls.push(h); }
+        else { if (hi > oH[k]) oH[k] = hi; if (hi > 1.4) tall[k] = 1; }
+      }
     }
+    for (let k = 0; k < nx * nz; k++) low[k] = oH[k] > 0.5 ? 1 : 0;
     const rects = [];
     for (let i = 0; i < nx; i++) { let j = 0; while (j < nz) { if (!low[i * nz + j]) { j++; continue; } let k = j; while (k < nz && low[i * nz + k]) k++; rects.push({ x0: x0 + i * cs, x1: x0 + (i + 1) * cs, z0: z0 + j * cs, z1: z0 + k * cs, h: 3 }); j = k; } }
     colliders.forEach(o => scene.remove(o)); scene.children.filter(o => o.type === 'GridHelper').forEach(o => scene.remove(o));
     colliders.length = 0; walls.length = 0; solids.length = 0;
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(bb.max.x - bb.min.x, bb.max.z - bb.min.z), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    fl.rotation.x = -Math.PI / 2; fl.position.set((bb.min.x + bb.max.x) / 2, 0.01, (bb.min.z + bb.max.z) / 2); fl.receiveShadow = true;
+    scene.add(fl); colliders.push(fl);                                  // белый пол
     scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; } });
-    grid = { x0, z0, cs, nx, nz, low, tall, rects };
+    grid = { x0, z0, cs, nx, nz, low, tall, oH, layers, rects };
     buildNav();
     const xs = [-6, -3, 0, 3, 6];
     SPAWN.A = xs.map(x => freeNear(x, 32)); SPAWN.B = xs.map(x => freeNear(x, -32));
@@ -385,7 +406,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = b.team === 'A' ? Math.PI : 0;
     b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false;
   }
-  const eye = b => new V(b.mesh.position.x, 1.5 * b.cs + b.jy, b.mesh.position.z);
+  const eye = b => new V(b.mesh.position.x, b.mesh.position.y + 1.5 * b.cs + b.jy, b.mesh.position.z);
   function turnTo(b, yaw, dt, rate) {
     const d = Math.atan2(Math.sin(yaw - b.mesh.rotation.y), Math.cos(yaw - b.mesh.rotation.y)), st = (rate || 6) * dt;
     b.mesh.rotation.y += Math.max(-st, Math.min(st, d));
@@ -398,7 +419,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const dx = w.x - pos.x, dz = w.z - pos.z, d = Math.hypot(dx, dz);
     if (d < 0.8) { b.path.shift(); return; }
     pos.x += dx / d * speed * dt; pos.z += dz / d * speed * dt;
-    resolve(pos, 0.4, 0);
+    resolve(pos, 0.4, pos.y);
     turnTo(b, Math.atan2(dx, dz), dt); b.walk = true;
   }
   function perceive(b) {
@@ -453,7 +474,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
         turnTo(b, Math.atan2(dx, dz), dt, 9);
         b.mt -= dt;                                   // каждые ~1 с: присесть / стрейфить / иногда подпрыгнуть
         if (b.mt <= 0) { b.mt = 0.6 + Math.random() * 1.2; b.sdir = Math.random() < 0.5 ? -1 : 1; b.crouch = d > 14 && Math.random() < 0.5; if (!b.crouch && b.jy === 0 && Math.random() < 0.12) b.vy = 5.5; }
-        if (!b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, 0); b.walk = true; }
+        if (!b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, pos.y); b.walk = true; }
         if (b.react <= 0 && T - b.last > 0.16) {
           b.last = T;
           const pr = Math.max(0.08, 0.55 - d * 0.012) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
@@ -478,6 +499,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
           } else { b.crouch = Math.sin(T * 0.3 + b.idx * 3) > 0.4; turnTo(b, (b.team === 'A' ? Math.PI : 0) + Math.sin(T * 0.9 + b.idx * 2) * 1.1, dt, 3); }
         }
       }
+      if (grid) pos.y = groundAt(pos.x, pos.z, pos.y);
       b.jt -= dt;                                       // прыжки на бегу + физика
       if (b.walk && b.jt <= 0) { b.jt = 3 + Math.random() * 6; if (!b.crouch && b.jy === 0 && Math.random() < 0.35) b.vy = 5.5; }
       if (b.jy > 0 || b.vy > 0) { b.vy -= 18 * dt; b.jy = Math.max(0, b.jy + b.vy * dt); if (b.jy === 0) b.vy = 0; }
@@ -704,8 +726,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const move = new V(mv.x, 0, -mv.y).normalize().applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
     player.pos.x += move.x * player.speed * dt; player.pos.z += move.z * player.speed * dt; player.pos.y += player.vel.y * dt;
     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
-    if (player.pos.y <= player.currentHeight) { player.pos.y = player.currentHeight; player.vel.y = 0; player.onGround = true; }
     resolve(player.pos, 0.4, player.pos.y - player.currentHeight);
+    const gy = groundAt(player.pos.x, player.pos.z, player.pos.y - player.currentHeight);
+    if (player.pos.y - player.currentHeight <= gy) { player.pos.y = gy + player.currentHeight; player.vel.y = 0; player.onGround = true; }
+    else if (Math.abs(player.vel.y) > 0.5) player.onGround = false;
     recoilPitch = THREE.MathUtils.lerp(recoilPitch, 0, 10 * dt);
     recoilYaw = THREE.MathUtils.lerp(recoilYaw, 0, 10 * dt);
     weaponContainer.position.z = THREE.MathUtils.lerp(weaponContainer.position.z, 0, 12 * dt);
