@@ -1,7 +1,7 @@
 /* hands.js — оружие (АК, 3 пистолета, нож) и свои руки в перчатках.
    Подключать ПОСЛЕ основного <script> в index.html. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v7', V = THREE.Vector3;
+  const DEG = Math.PI / 180, KEY = 'hands_v9', V = THREE.Vector3;
   const BIG = 1.35, U = 0.105 * BIG;      // BIG — размер оружия и рук (1 = реальный)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
@@ -15,21 +15,21 @@
   };
   // Положение рук от точки хвата (в ладонях U) + повороты. f — развернуть модель оружия на 180°.
   const H = (pose, x, y, z, pitch, yaw, roll) => ({ pose, x, y, z, pitch, yaw, roll, k: 1 });
-  const P2 = () => ({ R: H('pistol', 0.3, 0, 0, 20, 8, -85), f: 0 });
+  const PR = () => { const r = H('pistol', 0.65, 0.1, 0.55, 20, -18, -85); r.k = 1.3; return { R: r, L: H('fist', -0.7, -0.3, 0.6, 20, -30, 85), f: 0 }; };   // R — твои настройки дигла, L — поддерживающая рука
   const DEF = {
     rifle:  { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: H('cup', 0.55, -1, 0.5, 4, -18, 150), f: 0 },
-    usp: P2(), deagle: P2(), beretta: P2(),
-    knife:  { R: H('fist', 0, 0, 0, 35, 70, -20), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 0 }
+    usp: PR(), deagle: PR(), beretta: PR(),
+    knife:  { R: H('fist', 0, 0, 0, 35, 70, -20), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 1 }
   };
   // Оружие: файл, длина (м), где на экране мушка (ndcX; sY/sZ — в камере, метры), muz — дульный срез от мушки,
   // R/L — точки рук как смещение от мушки [вниз, назад]. У ножа sY/sZ — точка рукояти. Пример: референсы Standoff 2.
-  const PIS = { ndcX: 0.272, sY: -0.077, sZ: -0.56, muz: -0.02, R: [-0.118, 0.2] };
+  const PIS = { ndcX: 0.272, sY: -0.077, sZ: -0.56, muz: -0.02, R: [-0.118, 0.2], L: [-0.118, 0.2] };
   const W = {
     rifle:   { file: 'ak-47_low_poly.glb', len: 0.88, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
-    usp:     Object.assign({ file: 'low-poly_usp-s.glb', len: 0.22 }, PIS),
-    deagle:  Object.assign({ file: 'low-poly_desert_eagle.glb', len: 0.27 }, PIS),
-    beretta: Object.assign({ file: 'low-poly_beretta_92fs.glb', len: 0.217 }, PIS),
-    knife:   { file: 'knife_default_t__cs2.glb', len: 0.3, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] }
+    usp:     Object.assign({ file: 'low-poly_usp-s.glb', len: 0.3 }, PIS),
+    deagle:  Object.assign({ file: 'low-poly_desert_eagle.glb', len: 0.27 }, PIS, { ndcX: 0.245 }),
+    beretta: Object.assign({ file: 'low-poly_beretta_92fs.glb', len: 0.28 }, PIS),
+    knife:   { file: 'knife_default_t__cs2.glb', len: 0.46, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] }
   };
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
@@ -167,7 +167,7 @@
     });
     p.appendChild(grid);
     const btn = (txt, fn, id) => { const b = document.createElement('button'); b.textContent = txt; if (id) b.id = id; b.addEventListener('click', fn); p.appendChild(b); };
-    btn('', () => { const ks = Object.keys(W); window.HW_set(ks[(ks.indexOf(cur) + 1) % ks.length]); }, 'hn-wp');
+    btn('', () => { const ks = Object.keys(W); (window.GAME_SET || window.HW_set)(ks[(ks.indexOf(cur) + 1) % ks.length]); }, 'hn-wp');
     btn('', () => { if (W[cur].L) sel = sel === 'R' ? 'L' : 'R'; refresh(); }, 'hn-sel');
     btn('Развернуть оружие', () => { tune[cur].f = tune[cur].f ? 0 : 1; save(); place(); });
     btn('Сброс', () => { tune[cur] = JSON.parse(JSON.stringify(DEF[cur])); save(); place(); refresh(); });
