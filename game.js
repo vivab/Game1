@@ -149,7 +149,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function fitTo(scene, size, human) {   // человек: рост = size, ноги на полу; оружие: длина = size, по центру
     scene.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.3) m.metalness = 0.1; m.side = THREE.DoubleSide;
-      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map) { m.emissive.set(0x6a6a6a); m.emissiveMap = m.map; } m.needsUpdate = true; } }); });
+      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map && m.emissive) { m.emissive.set(0x6a6a6a); m.emissiveMap = m.map; } m.needsUpdate = true; } }); });
     const bx = bounds(scene), sz = bx.getSize(new V()), c = bx.getCenter(new V());
     const k = size / (human ? sz.y : Math.max(sz.x, sz.y, sz.z));
     const fit = new THREE.Group();
@@ -595,8 +595,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const w = WS[slot], st = store[slot] || { mag: 0, res: 0 };
     player.maxMag = w.mag; player.ammoInMag = st.mag; player.reserveAmmo = st.res; player.shootInterval = w.int; player.isReloading = false;
     document.getElementById('weapon-name').innerText = wname(); updateUI();
+    const sw = document.getElementById('wsw'); if (sw) sw.textContent = { rifle: 'AK', pistol: '🔫', knife: '🔪' }[slot];
     if (window.HW_set) window.HW_set(slot === 'pistol' ? loadout.pistol : slot);
   }
+  window.GAME_SET = n => {                          // переключение из ⚙ тоже меняет оружие в игре (нож бьёт, а не стреляет)
+    if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
+    else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
+  };
   function resetLoadout() { store.rifle = { mag: 30, res: 90 }; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('rifle'); }
   window.updateUI = function () {
     document.getElementById('hp-val').innerText = Math.round(player.hp);
@@ -651,6 +656,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       '#hm i:nth-child(1){transform:translate(-13px,-13px) rotate(45deg)}#hm i:nth-child(2){transform:translate(13px,-13px) rotate(-45deg)}#hm i:nth-child(3){transform:translate(-13px,13px) rotate(-45deg)}#hm i:nth-child(4){transform:translate(13px,13px) rotate(45deg)}' +
       '#wheel{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:rgba(15,23,42,.72);z-index:40;display:none;pointer-events:none;color:#fff;font:700 13px sans-serif}' +
       '#wheel div{position:absolute;left:50%;top:50%;width:70px;height:46px;margin:-23px 0 0 -35px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.6;font-size:18px}#wheel div span{font-size:10px}#wheel div.on{opacity:1;background:rgba(255,255,255,.25)}' +
+      '#wsw{position:absolute;right:240px;bottom:100px;z-index:30;width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 15px sans-serif}' +
       '#cart{position:absolute;left:18px;bottom:20px;z-index:30;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.75);font-size:22px;display:none;align-items:center;justify-content:center}' +
       '#shop{position:absolute;top:0;left:0;width:100%;height:100%;z-index:120;background:rgba(10,12,18,.9);color:#fff;font-family:sans-serif;display:none}' +
       '#shT{position:absolute;left:14px;top:8px;font-size:14px}#shB{position:absolute;left:14px;right:60px;top:30px;height:4px;background:#333}#shB i{display:block;height:100%;background:#fff}' +
@@ -660,13 +666,16 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const d = document.createElement('div');
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
       '<div id="wheel"><div id="wk" style="margin-left:-105px">🔪<span>Нож</span></div><div id="wp" style="margin-left:15px;margin-top:-75px">🔫<span>Пистолет</span></div><div id="wr" style="margin-top:47px">AK<span>Винтовка</span></div></div>' +
-      '<button id="cart" class="interactive-ui">🛒</button>' +
+      '<button id="cart" class="interactive-ui">🛒</button><button id="wsw" class="interactive-ui">AK</button>' +
       '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="beretta">Beretta 92FS</div></div><div class="col"><h4>Винтовки</h4><div class="it" data-r="1">AK-47</div></div></div></div>';
     document.body.appendChild(d);
     const $ = id => document.getElementById(id), shop = $('shop'), cart = $('cart');
     const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
     cart.addEventListener('touchstart', e => { e.preventDefault(); toggle(); }, { passive: false });
     cart.addEventListener('click', toggle);
+    const nxt = { rifle: 'pistol', pistol: 'knife', knife: 'rifle' }, swap = () => { if (!player.dead) equip(nxt[curW]); };
+    $('wsw').addEventListener('touchstart', e => { e.preventDefault(); swap(); }, { passive: false });
+    $('wsw').addEventListener('click', swap);
     $('shX').addEventListener('click', () => { shop.style.display = 'none'; });
     shop.addEventListener('click', e => {
       const it = e.target.closest('.it');
