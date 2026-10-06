@@ -7,7 +7,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const squads = { A: [], B: [] }, intel = { A: null, B: null };
   const stats = [], mine = new Set();      // таблица матча; кто бил игрока
   const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86) }; stats.push(me);
-  let tabOn = false;
+  let tabOn = false, grid = null, curW = 'rifle', shopEnd = 0;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
   const SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
@@ -37,7 +37,37 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   window.spawnBotCS = function () {};   // старые боты не нужны
 
   // ---------- столкновения и линия видимости ----------
+  function resolveGrid(p, r) {
+    const i0 = Math.floor((p.x - grid.x0) / grid.cs), j0 = Math.floor((p.z - grid.z0) / grid.cs);
+    for (let it = 0; it < 2; it++) for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) {
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz || !grid.low[i * grid.nz + j]) continue;
+      const bx = grid.x0 + i * grid.cs, bz = grid.z0 + j * grid.cs, cx = Math.max(bx, Math.min(p.x, bx + grid.cs)), cz = Math.max(bz, Math.min(p.z, bz + grid.cs));
+      const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+      if (d >= r) continue;
+      if (d < 1e-6) p.x += (p.x < bx + grid.cs / 2 ? -1 : 1) * r; else { p.x = cx + dx / d * r; p.z = cz + dz / d * r; }
+    }
+    p.x = Math.max(grid.x0 + r, Math.min(grid.x0 + grid.nx * grid.cs - r, p.x)); p.z = Math.max(grid.z0 + r, Math.min(grid.z0 + grid.nz * grid.cs - r, p.z));
+  }
+  function losGrid(a, b) {                       // обзор по сетке: высокие объекты закрывают
+    const dx = b.x - a.x, dz = b.z - a.z, n = Math.ceil(Math.hypot(dx, dz) / 0.3);
+    for (let k = 1; k < n; k++) {
+      const i = Math.floor((a.x + dx * k / n - grid.x0) / grid.cs), j = Math.floor((a.z + dz * k / n - grid.z0) / grid.cs);
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz || grid.tall[i * grid.nz + j]) return false;
+    }
+    return true;
+  }
+  function gridBlocked(x, z, r) {
+    if (!grid) return solids.some(s => x > s.x0 - r && x < s.x1 + r && z > s.z0 - r && z < s.z1 + r);
+    const i0 = Math.floor((x - r - grid.x0) / grid.cs), i1 = Math.floor((x + r - grid.x0) / grid.cs), j0 = Math.floor((z - r - grid.z0) / grid.cs), j1 = Math.floor((z + r - grid.z0) / grid.cs);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz || grid.low[i * grid.nz + j]) return true;
+    return false;
+  }
+  function freeNear(x, z) {
+    for (let r = 0; r < 25; r += 0.5) for (let a = 0; a < 6.28; a += 0.4) { const px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; if (!gridBlocked(px, pz, 0.9)) return [px, pz]; }
+    return [x, z];
+  }
   function resolve(p, r, feet) {
+    if (grid) return resolveGrid(p, r);
     for (let it = 0; it < 2; it++) solids.forEach(s => {
       if (feet >= s.h) return;
       const cx = Math.max(s.x0, Math.min(p.x, s.x1)), cz = Math.max(s.z0, Math.min(p.z, s.z1));
@@ -51,19 +81,17 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   const ray = new THREE.Raycaster();
   function los(a, b) {
+    if (grid) return losGrid(a, b);
     const d = new V().subVectors(b, a), dist = d.length();
     ray.set(a, d.normalize()); ray.far = dist;
     return ray.intersectObjects(walls).length === 0;
   }
 
   // ---------- сетка проходимости и поиск пути (A*) ----------
-  const N = 40, CS = 2, blocked = new Uint8Array(N * N);
+  const N = 80, CS = 1, blocked = new Uint8Array(N * N);
   const cellOf = v => Math.min(N - 1, Math.max(0, Math.floor((v + 40) / CS)));
   function buildNav() {
-    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
-      const x = -40 + i * CS + 1, z = -40 + j * CS + 1;
-      blocked[i * N + j] = solids.some(s => x > s.x0 - 1.1 && x < s.x1 + 1.1 && z > s.z0 - 1.1 && z < s.z1 + 1.1) ? 1 : 0;
-    }
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) blocked[i * N + j] = gridBlocked(-40 + (i + 0.5) * CS, -40 + (j + 0.5) * CS, 0.9) ? 1 : 0;
   }
   function findPath(from, to) {
     const s = cellOf(from.x) * N + cellOf(from.z);
@@ -94,7 +122,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       }
     }
     const path = [];
-    for (let k = g; k !== -1 && k !== s; k = prev[k]) path.push(new V(-40 + (k / N | 0) * CS + 1, 0, -40 + (k % N) * CS + 1));
+    for (let k = g; k !== -1 && k !== s; k = prev[k]) path.push(new V(-40 + ((k / N | 0) + 0.5) * CS, 0, -40 + ((k % N) + 0.5) * CS));
     return path.reverse();
   }
 
@@ -120,7 +148,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     return box;
   }
   function fitTo(scene, size, human) {   // человек: рост = size, ноги на полу; оружие: длина = size, по центру
-    scene.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.3) m.metalness = 0.1; m.side = THREE.DoubleSide; }); });
+    scene.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.3) m.metalness = 0.1; m.side = THREE.DoubleSide;
+      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map) { m.emissive.set(0x6a6a6a); m.emissiveMap = m.map; } m.needsUpdate = true; } }); });
     const bx = bounds(scene), sz = bx.getSize(new V()), c = bx.getCenter(new V());
     const k = size / (human ? sz.y : Math.max(sz.x, sz.y, sz.z));
     const fit = new THREE.Group();
@@ -266,6 +295,60 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     L.load('ak-47_low_poly.glb', g => { GUN.obj = fitTo(g.scene, 0.88, false); both(); }, undefined, both);
   }
 
+  // ---------- карта Crid ----------
+  const MAPFILE = 'lowpoly__fps__tdm__game__map_by_resoforge.glb';
+  function loadMap() {
+    new THREE.GLTFLoader().load(MAPFILE, g => {
+      try { applyMap(g.scene); } catch (e) { console.log('карта', e); dbg('ошибка карты: ' + e.message); }
+    }, undefined, () => dbg('не загрузилась карта ' + MAPFILE));
+  }
+  function applyMap(m) {
+    const wrap = new THREE.Group(); wrap.add(m); m.updateMatrixWorld(true);
+    let box = new THREE.Box3().setFromObject(wrap); const sz = box.getSize(new V());
+    wrap.rotation.y = sz.x > sz.z ? Math.PI / 2 : 0;               // длинная сторона вдоль z (спавны по краям)
+    wrap.scale.setScalar(76 / Math.max(sz.x, sz.z));
+    wrap.updateMatrixWorld(true);
+    const a = new V(), b = new V(), c = new V(), tris = [];
+    let floorY = null, fa = 0;
+    wrap.traverse(o => {                                           // собираем треугольники и ищем уровень пола
+      if (!o.isMesh) return;
+      const pos = o.geometry.attributes.position, idx = o.geometry.index, cnt = idx ? idx.count : pos.count;
+      for (let t = 0; t < cnt; t += 3) {
+        a.fromBufferAttribute(pos, idx ? idx.getX(t) : t).applyMatrix4(o.matrixWorld);
+        b.fromBufferAttribute(pos, idx ? idx.getX(t + 1) : t + 1).applyMatrix4(o.matrixWorld);
+        c.fromBufferAttribute(pos, idx ? idx.getX(t + 2) : t + 2).applyMatrix4(o.matrixWorld);
+        tris.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+        const n = new V().crossVectors(b.clone().sub(a), c.clone().sub(a)), area = n.length() / 2;
+        if (area > fa && Math.abs(n.y) / (n.length() || 1) > 0.95) { fa = area; floorY = a.y; }
+      }
+    });
+    box = new THREE.Box3().setFromObject(wrap);
+    const ctr = box.getCenter(new V()), dx = -ctr.x, dy = -(floorY === null ? box.min.y : floorY), dz = -ctr.z;
+    wrap.position.set(dx, dy, dz); wrap.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(wrap), cs = 0.5, x0 = bb.min.x, z0 = bb.min.z, nx = Math.ceil((bb.max.x - x0) / cs), nz = Math.ceil((bb.max.z - z0) / cs);
+    const low = new Uint8Array(nx * nz), tall = new Uint8Array(nx * nz);
+    const mark = (x, z, t) => { const i = Math.floor((x - x0) / cs), j = Math.floor((z - z0) / cs); if (i >= 0 && j >= 0 && i < nx && j < nz) { low[i * nz + j] = 1; if (t) tall[i * nz + j] = 1; } };
+    for (let t = 0; t < tris.length; t += 9) {                      // растеризуем всё, что стоит на полу, в сетку
+      const ay = tris[t + 1] + dy, by = tris[t + 4] + dy, cy = tris[t + 7] + dy, lo = Math.min(ay, by, cy), hi = Math.max(ay, by, cy);
+      if (hi < 0.35 || lo > 1.9) continue;
+      const ax = tris[t] + dx, az = tris[t + 2] + dz, bx = tris[t + 3] + dx, bz = tris[t + 5] + dz, cx = tris[t + 6] + dx, cz = tris[t + 8] + dz;
+      const L = Math.max(Math.hypot(ax - bx, az - bz), Math.hypot(bx - cx, bz - cz), Math.hypot(cx - ax, cz - az)), st = Math.max(1, Math.ceil(L / 0.25));
+      for (let u = 0; u <= st; u++) for (let v = 0; v <= st - u; v++) { const p = u / st, q = v / st, w = 1 - p - q; mark(ax * w + bx * p + cx * q, az * w + bz * p + cz * q, hi > 1.4); }
+    }
+    const rects = [];
+    for (let i = 0; i < nx; i++) { let j = 0; while (j < nz) { if (!low[i * nz + j]) { j++; continue; } let k = j; while (k < nz && low[i * nz + k]) k++; rects.push({ x0: x0 + i * cs, x1: x0 + (i + 1) * cs, z0: z0 + j * cs, z1: z0 + k * cs, h: 3 }); j = k; } }
+    colliders.forEach(o => scene.remove(o)); scene.children.filter(o => o.type === 'GridHelper').forEach(o => scene.remove(o));
+    colliders.length = 0; walls.length = 0; solids.length = 0;
+    scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; } });
+    grid = { x0, z0, cs, nx, nz, low, tall, rects };
+    buildNav();
+    const xs = [-6, -3, 0, 3, 6];
+    SPAWN.A = xs.map(x => freeNear(x, 32)); SPAWN.B = xs.map(x => freeNear(x, -32));
+    const f = Math.min(1, (bb.max.x - bb.min.x) / 2 * 0.6 / 30);   // маршруты ботов под ширину карты
+    ['A', 'B'].forEach(t => LANES[t].forEach(l => l.forEach(pt => { pt.x *= f; })));
+    if (!started) { bots.forEach(spawnAt); respawnPlayer(); }
+  }
+
   function makeBot(team, idx) {
     const g = new THREE.Group(), inner = new THREE.Group(), vis = new THREE.Group(), shirt = COL[team];   // vis — запасной блочный бот
     g.add(inner); inner.add(vis);
@@ -352,7 +435,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function respawnPlayer() {
     const s = SPAWN.A[Math.floor(Math.random() * 5)];
     player.pos.set(s[0], 1.6, s[1]); player.vel.set(0, 0, 0); player.hp = 100; player.dead = false;
-    player.ammoInMag = player.maxMag; player.reserveAmmo = 90; player.isReloading = false; cameraYaw = 0; cameraPitch = 0;
+    resetLoadout(); openShop(); cameraYaw = 0; cameraPitch = 0;
     mine.clear(); document.getElementById('msg').textContent = ''; updateUI();
   }
 
@@ -420,7 +503,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     document.head.appendChild(css);
     const d = document.createElement('div');
     d.id = 'tab';
-    d.innerHTML = '<div id="tabw"><div id="tabA"></div><div id="tabB"></div></div><div id="tabf">Командный бой 5х5 | «название карты пока не придумали» | Россия</div>';
+    d.innerHTML = '<div id="tabw"><div id="tabA"></div><div id="tabB"></div></div><div id="tabf">Командный бой 5х5 | Crid | Россия</div>';
     document.body.appendChild(d);
   }
   function fillTab() {                            // таблица: в конце матча и по кнопке статистики
@@ -450,6 +533,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
   }
   function uiExtra() {
+    uiWeapons();
     const css = document.createElement('style');
     css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
       '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
@@ -475,7 +559,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     ctx.save(); ctx.beginPath(); ctx.arc(c, c, 54, 0, 6.283); ctx.clip();
     const px = player.pos.x, pz = player.pos.z;
     ctx.fillStyle = 'rgba(148,163,184,.4)';
-    solids.forEach(s => ctx.fillRect(c + (s.x0 - px) * k, c + (s.z0 - pz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k));
+    (grid ? grid.rects : solids).forEach(s => ctx.fillRect(c + (s.x0 - px) * k, c + (s.z0 - pz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k));
     const ang = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw)), hf = Math.atan(Math.tan(camera.fov * 0.5 * Math.PI / 180) * camera.aspect);
     ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, 42, ang - hf, ang + hf); ctx.closePath(); ctx.fill();
     const dot = (x, y, col, r) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); };
@@ -485,7 +569,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const bx = b.mesh.position.x, bz = b.mesh.position.z;
       if (b.team === 'A') { dot(c + (bx - px) * k, c + (bz - pz) * k, '#3b82f6', 3.2); return; }
       const v = new V(bx, 1.2, bz), q = v.clone().project(camera);
-      if (!player.dead && q.z < 1 && Math.abs(q.x) < 1 && Math.abs(q.y) < 1 && los(camera.position, v)) b.ls = { x: bx, z: bz, t: T };
+      const mine = !player.dead && q.z < 1 && Math.abs(q.x) < 1 && Math.abs(q.y) < 1 && los(camera.position, v);
+      if (mine || bots.some(a => !a.dead && a.team === 'A' && a.target && a.target.bot === b)) b.ls = { x: bx, z: bz, t: T };   // вижу я или кто-то из своих
       const l = b.ls;
       if (!l) return;
       if (T - l.t < 0.1) dot(c + (bx - px) * k, c + (bz - pz) * k, '#ef4444', 3.4);
@@ -499,8 +584,111 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     ctx.closePath(); ctx.fill();
   };
 
+  // ---------- оружие: колесо выбора, магазин на 10 секунд, хитмаркер ----------
+  const WS = { rifle: { mag: 30, int: 110, name: 'AK-47' }, pistol: { mag: 12, int: 190, name: '' }, knife: { mag: 0, int: 550, name: 'НОЖ' } };
+  const PN = { usp: 'USP-S', deagle: 'Desert Eagle', beretta: 'Beretta 92FS' };
+  const loadout = { pistol: 'usp' }, store = { rifle: { mag: 30, res: 90 }, pistol: { mag: 12, res: 36 } };
+  const wname = () => curW === 'pistol' ? PN[loadout.pistol] : WS[curW].name;
+  function equip(slot) {
+    if (store[curW]) { store[curW].mag = player.ammoInMag; store[curW].res = player.reserveAmmo; }
+    curW = slot;
+    const w = WS[slot], st = store[slot] || { mag: 0, res: 0 };
+    player.maxMag = w.mag; player.ammoInMag = st.mag; player.reserveAmmo = st.res; player.shootInterval = w.int; player.isReloading = false;
+    document.getElementById('weapon-name').innerText = wname(); updateUI();
+    if (window.HW_set) window.HW_set(slot === 'pistol' ? loadout.pistol : slot);
+  }
+  function resetLoadout() { store.rifle = { mag: 30, res: 90 }; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('rifle'); }
+  window.updateUI = function () {
+    document.getElementById('hp-val').innerText = Math.round(player.hp);
+    document.getElementById('hp-bar-fill').style.width = player.hp + '%';
+    document.getElementById('score-val').innerText = player.score;
+    document.getElementById('ammo-count').innerText = curW === 'knife' ? '—' : player.ammoInMag + ' / ' + player.reserveAmmo;
+  };
+  window.reloadAmmo = function () {
+    if (curW === 'knife' || player.isReloading || player.reserveAmmo <= 0 || player.ammoInMag === player.maxMag) return;
+    player.isReloading = true; document.getElementById('weapon-name').innerText = 'ПЕРЕЗАРЯДКА...';
+    const w = curW;
+    setTimeout(() => {
+      if (curW !== w) return;
+      const take = Math.min(player.maxMag - player.ammoInMag, player.reserveAmmo);
+      player.ammoInMag += take; player.reserveAmmo -= take; player.isReloading = false;
+      document.getElementById('weapon-name').innerText = wname(); updateUI();
+    }, w === 'pistol' ? 1200 : 1500);
+  };
+  function knifeHit(now) {
+    player.lastShootTime = now; weaponContainer.position.z = 0.08;
+    const fx = -Math.sin(cameraYaw), fz = -Math.cos(cameraYaw);
+    let best = null, bd = 1e9;
+    bots.forEach(b => {
+      if (b.dead || b.team === 'A') return;
+      const dx = b.mesh.position.x - player.pos.x, dz = b.mesh.position.z - player.pos.z, d = Math.hypot(dx, dz);
+      if (d < 1.9 && (dx * fx + dz * fz) / (d || 1) > 0.5 && d < bd) { bd = d; best = b; }
+    });
+    if (best) { damageBot(best, 55, 'A', player.pos, true, me); hm(best.dead); }
+  }
+  let hmT = null;
+  function hm(kill) {                              // белый хитмаркер — попал, красный — убил
+    const el = document.getElementById('hm'); if (!el) return;
+    el.style.color = kill ? '#ef4444' : '#fff'; el.style.opacity = 1;
+    clearTimeout(hmT); hmT = setTimeout(() => { el.style.opacity = 0; }, kill ? 320 : 150);
+  }
+  function openShop() { shopEnd = performance.now() + 10000; }
+  function shopTick() {
+    const cart = document.getElementById('cart'), shop = document.getElementById('shop');
+    if (!cart) return;
+    const left = Math.max(0, (shopEnd - performance.now()) / 1000), on = left > 0 && started && !over && !player.dead;
+    cart.style.display = on ? 'flex' : 'none';
+    if (!on) { shop.style.display = 'none'; return; }
+    if (shop.style.display === 'block') {
+      document.getElementById('shT').textContent = 'Покупка оружия 00:' + String(Math.ceil(left)).padStart(2, '0');
+      document.getElementById('shB').firstChild.style.width = (left / 10 * 100) + '%';
+    }
+  }
+  function uiWeapons() {
+    const css = document.createElement('style');
+    css.textContent = '#hm{position:absolute;left:50%;top:50%;width:0;height:0;z-index:25;pointer-events:none;opacity:0;color:#fff}' +
+      '#hm i{position:absolute;left:-6px;top:-1px;width:12px;height:2.5px;background:currentColor;box-shadow:0 0 2px #000}' +
+      '#hm i:nth-child(1){transform:translate(-13px,-13px) rotate(45deg)}#hm i:nth-child(2){transform:translate(13px,-13px) rotate(-45deg)}#hm i:nth-child(3){transform:translate(-13px,13px) rotate(-45deg)}#hm i:nth-child(4){transform:translate(13px,13px) rotate(45deg)}' +
+      '#wheel{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:rgba(15,23,42,.72);z-index:40;display:none;pointer-events:none;color:#fff;font:700 13px sans-serif}' +
+      '#wheel div{position:absolute;left:50%;top:50%;width:70px;height:46px;margin:-23px 0 0 -35px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.6;font-size:18px}#wheel div span{font-size:10px}#wheel div.on{opacity:1;background:rgba(255,255,255,.25)}' +
+      '#cart{position:absolute;left:18px;bottom:20px;z-index:30;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.75);font-size:22px;display:none;align-items:center;justify-content:center}' +
+      '#shop{position:absolute;top:0;left:0;width:100%;height:100%;z-index:120;background:rgba(10,12,18,.9);color:#fff;font-family:sans-serif;display:none}' +
+      '#shT{position:absolute;left:14px;top:8px;font-size:14px}#shB{position:absolute;left:14px;right:60px;top:30px;height:4px;background:#333}#shB i{display:block;height:100%;background:#fff}' +
+      '#shX{position:absolute;right:14px;top:6px;font-size:26px}#shC{position:absolute;left:14px;right:14px;top:48px;display:flex;gap:10px}' +
+      '#shC .col{flex:1}#shC h4{margin:0 0 4px;font-size:12px;color:#94a3b8}#shC .it{padding:10px 8px;margin-bottom:4px;background:rgba(255,255,255,.1);border-radius:6px;font-size:13px}';
+    document.head.appendChild(css);
+    const d = document.createElement('div');
+    d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
+      '<div id="wheel"><div id="wk" style="margin-left:-105px">🔪<span>Нож</span></div><div id="wp" style="margin-left:15px;margin-top:-75px">🔫<span>Пистолет</span></div><div id="wr" style="margin-top:47px">AK<span>Винтовка</span></div></div>' +
+      '<button id="cart" class="interactive-ui">🛒</button>' +
+      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="beretta">Beretta 92FS</div></div><div class="col"><h4>Винтовки</h4><div class="it" data-r="1">AK-47</div></div></div></div>';
+    document.body.appendChild(d);
+    const $ = id => document.getElementById(id), shop = $('shop'), cart = $('cart');
+    const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
+    cart.addEventListener('touchstart', e => { e.preventDefault(); toggle(); }, { passive: false });
+    cart.addEventListener('click', toggle);
+    $('shX').addEventListener('click', () => { shop.style.display = 'none'; });
+    shop.addEventListener('click', e => {
+      const it = e.target.closest('.it');
+      if (!it || player.dead) return;
+      if (it.dataset.p) { loadout.pistol = it.dataset.p; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('pistol'); } else equip('rifle');
+      shop.style.display = 'none';
+    });
+    // колесо оружия: зажми панель патронов и потяни — влево нож, вверх или вправо пистолет, вниз винтовка
+    const ap = $('ammo-panel'), wheel = $('wheel'), ids = { knife: 'wk', pistol: 'wp', rifle: 'wr' };
+    ap.classList.add('interactive-ui');
+    let sx = 0, sy = 0, pk = null;
+    const choose = (dx, dy) => Math.hypot(dx, dy) < 22 ? null : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'knife' : 'pistol') : (dy < 0 ? 'pistol' : 'rifle');
+    const mark = k => { for (const n in ids) $(ids[n]).classList.toggle('on', n === k); };
+    ap.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; pk = null; mark(null); wheel.style.display = 'block'; e.preventDefault(); }, { passive: false });
+    ap.addEventListener('touchmove', e => { const t = e.changedTouches[0]; pk = choose(t.clientX - sx, t.clientY - sy); mark(pk); e.preventDefault(); }, { passive: false });
+    const done = () => { wheel.style.display = 'none'; if (pk && pk !== curW && !player.dead) equip(pk); pk = null; };
+    ap.addEventListener('touchend', done); ap.addEventListener('touchcancel', done);
+  }
+
   // ---------- игрок: движение с коллизиями ----------
   window.updatePlayer = function (dt) {
+    shopTick();
     if (player.dead && (respawnIn -= dt) <= 0 && !over) respawnPlayer();
     player.vel.y -= 22 * dt;
     const mv = player.dead ? { x: 0, y: 0 } : moveJoystick;
@@ -519,6 +707,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   window.processShoot = function (now) {
     if (!started || over || player.dead || player.isReloading) return;
     if (now - player.lastShootTime < player.shootInterval) return;
+    if (curW === 'knife') { knifeHit(now); return; }
     if (player.ammoInMag <= 0) { reloadAmmo(); return; }
     player.ammoInMag--; player.lastShootTime = now; updateUI();
     recoilPitch += 0.022; recoilYaw += (Math.random() - 0.5) * 0.012; weaponContainer.position.z = 0.05;
@@ -536,8 +725,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const hit = raycaster.intersectObjects(targets)[0];
     if (!hit) return;
     const b = hit.object.userData.bot;
-    if (b) { if (b.team !== 'A') damageBot(b, hit.object.userData.isHead ? 100 : 35, 'A', player.pos, true, me); }
-    else if (hit.face) createBulletHole(hit.point, hit.face.normal);
+    if (b) { if (b.team !== 'A' && !b.dead) { damageBot(b, hit.object.userData.isHead ? 100 : 35, 'A', player.pos, true, me); hm(b.dead); } }
+    else if (hit.face) createBulletHole(hit.point, hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
   };
 
   // ---------- интерфейс и управление ----------
@@ -561,8 +750,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
 
   window.setupControls = function () {
-    document.getElementById('start-btn').addEventListener('click', () => { document.getElementById('start-overlay').style.display = 'none'; started = true; });
-    initMatch(); loadModels();
+    document.getElementById('start-btn').addEventListener('click', () => { document.getElementById('start-overlay').style.display = 'none'; started = true; openShop(); });
+    initMatch(); loadModels(); loadMap();
     // плавающий джойстик: появляется там, куда ткнул в левой нижней части экрана
     const zone = document.getElementById('joystick-zone');
     Object.assign(zone.style, { left: '0', bottom: '0', width: '45%', height: '65%' });
