@@ -1,7 +1,7 @@
 /* hands.js — оружие (АК, 3 пистолета, нож) и свои руки в перчатках.
    Подключать ПОСЛЕ основного <script> в index.html. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v10', V = THREE.Vector3;
+  const DEG = Math.PI / 180, KEY = 'hands_v11', V = THREE.Vector3;
   const BIG = 1.35, U = 0.105 * BIG;      // BIG — размер оружия и рук (1 = реальный)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
@@ -15,11 +15,14 @@
   };
   // Положение рук от точки хвата (в ладонях U) + повороты. f — развернуть модель оружия на 180°.
   const H = (pose, x, y, z, pitch, yaw, roll) => ({ pose, x, y, z, pitch, yaw, roll, k: 1 });
-  const PR = () => { const r = H('pistol', 0.65, 0.1, 0.55, 20, -18, -85); r.k = 1.3; return { R: r, L: H('fist', -0.7, -0.3, 0.6, 20, -30, 85), f: 0 }; };   // R — твои настройки дигла, L — поддерживающая рука
+  const Hk = (k, ...a) => { const h = H(...a); h.k = k; return h; };
+  // Твои настройки из ⚙ (ox/oy/oz — сдвиг оружия вместе с руками, wz — только оружие, sz — размер, kp/ky/kr — поворот ножа)
   const DEF = {
-    rifle:  { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: H('cup', 0.55, -1, 0.5, 4, -18, 150), f: 0 },
-    usp: PR(), deagle: PR(), beretta: PR(),
-    knife:  { R: H('fist', 0, 0, 0, 35, 70, -20), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 1 }
+    rifle:   { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: H('cup', 0.55, -1, 0.5, 4, -18, 150), f: 0, ox: -0.12, oy: 0.01 },
+    usp:     { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -66), L: H('fist', -0.7, -0.3, 0.6, 20, -30, 85), f: 0, ox: -0.13 },
+    deagle:  { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -85), L: Hk(0.25, 'fist', -0.65, -0.1, 0.6, 20, -30, 85), f: 0, ox: -0.075, oy: -0.02 },
+    beretta: { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -85), L: Hk(0.4, 'fist', -0.95, -0.45, 0.55, 20, -30, 75), f: 0, sz: 1.06, ox: -0.095, oy: 0.04 },
+    knife:   { R: H('fist', 0.2, 0, 0, 19, -17, -20), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 1, ox: -0.06 }
   };
   // Оружие: файл, длина (м), где на экране мушка (ndcX; sY/sZ — в камере, метры), muz — дульный срез от мушки,
   // R/L — точки рук как смещение от мушки [вниз, назад]. У ножа sY/sZ — точка рукояти. Пример: референсы Standoff 2.
@@ -34,7 +37,7 @@
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s) for (const n in DEF) if (s[n]) { ['R', 'L'].forEach(h => { if (tune[n][h]) Object.assign(tune[n][h], s[n][h]); }); tune[n].f = s[n].f | 0; ['sz', 'ox', 'oy'].forEach(k => { if (s[n][k] !== undefined) tune[n][k] = s[n][k]; }); }
+    if (s) for (const n in DEF) if (s[n]) { ['R', 'L'].forEach(h => { if (tune[n][h]) Object.assign(tune[n][h], s[n][h]); }); tune[n].f = s[n].f | 0; ['sz', 'ox', 'oy', 'oz', 'wz', 'kp', 'ky', 'kr'].forEach(k => { if (s[n][k] !== undefined) tune[n][k] = s[n][k]; }); }
   } catch (e) {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(tune)); } catch (e) {} };
 
@@ -127,16 +130,17 @@
     for (const n in W) if (W[n].pivot) W[n].pivot.visible = n === cur;
     const w = W[cur];
     if (!w || !w.ready) { build(); return; }
-    const gx = w.ndcX * -w.sZ * Math.tan(camera.fov * 0.5 * DEG) * camera.aspect + (tune[cur].ox || 0), sY = w.sY + (tune[cur].oy || 0);
+    const gx = w.ndcX * -w.sZ * Math.tan(camera.fov * 0.5 * DEG) * camera.aspect + (tune[cur].ox || 0), sY = w.sY + (tune[cur].oy || 0), sZ = w.sZ + (tune[cur].oz || 0), wz = tune[cur].wz || 0;
     const th = w.yaw0 + (tune[cur].f ? Math.PI : 0), b = bboxYaw(w.P, th), size = b.getSize(new V()), c = b.getCenter(new V());
     const s = w.len * BIG / size.z * (tune[cur].sz || 1);
     w.inner.rotation.y = th; w.wrap.scale.setScalar(s);
     if (w.knife) {
       w.wrap.position.set(-s * c.x, -s * c.y, -s * (b.max.z - 0.15 * size.z));
-      w.pivot.position.set(gx, sY, w.sZ); w.pivot.rotation.order = 'YXZ'; w.pivot.rotation.set(0.5, 0.8, 0);   // клинок вверх-влево
-    } else w.wrap.position.set(gx - s * c.x, sY - s * b.max.y, w.sZ + w.muz * BIG - s * b.min.z);
-    anch.R = new V(gx, sY + w.R[0] * BIG, w.sZ + w.R[1] * BIG);
-    anch.L = w.L ? new V(gx, sY + w.L[0] * BIG, w.sZ + w.L[1] * BIG) : null;
+      w.pivot.position.set(gx, sY, sZ + wz); w.pivot.rotation.order = 'YXZ';
+      const kv = (k, d) => (tune[cur][k] !== undefined ? tune[cur][k] : d) * DEG; w.pivot.rotation.set(kv('kp', 29), kv('ky', 46), kv('kr', 0));   // клинок вверх-влево
+    } else w.wrap.position.set(gx - s * c.x, sY - s * b.max.y, sZ + wz + w.muz * BIG - s * b.min.z);
+    anch.R = new V(gx, sY + w.R[0] * BIG, sZ + w.R[1] * BIG);
+    anch.L = w.L ? new V(gx, sY + w.L[0] * BIG, sZ + w.L[1] * BIG) : null;
     build();
   }
   window.HW_set = name => { if (!W[name]) return; cur = name; if (sel === 'L' && !W[name].L) sel = 'R'; loadW(name); place(); refresh(); };
@@ -144,7 +148,7 @@
   function refresh() {
     const t = tune[cur][sel] || tune[cur].R;
     for (const k in sliders) sliders[k].value = t[k];
-    for (const k in wsl) wsl[k].value = tune[cur][k] !== undefined ? tune[cur][k] : ({ sz: 1, ox: 0, oy: 0 })[k];
+    for (const k in wsl) wsl[k].value = tune[cur][k] !== undefined ? tune[cur][k] : ({ sz: 1, ox: 0, oy: 0, oz: 0, wz: 0, kp: 29, ky: 46, kr: 0 })[k];
     const el = id => document.getElementById(id);
     if (el('hn-wp')) { el('hn-wp').textContent = 'Оружие: ' + cur; el('hn-sel').textContent = 'Рука: ' + (sel === 'R' ? 'правая' : 'левая'); }
   }
@@ -152,7 +156,7 @@
     const css = document.createElement('style');
     css.textContent =
       '#hn-b{position:absolute;top:8px;left:50%;margin-left:110px;z-index:60;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(15,23,42,.8);color:#fff;font-size:18px}' +
-      '#hn-p{position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:60;width:min(520px,94vw);background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 10px;color:#fff;font:12px sans-serif;display:none}' +
+      '#hn-p{position:absolute;top:54px;left:50%;transform:translateX(-50%);z-index:60;width:min(520px,94vw);background:rgba(15,23,42,.92);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px 10px;color:#fff;font:12px sans-serif;display:none;max-height:calc(100% - 64px);overflow-y:auto;touch-action:pan-y}' +
       '#hn-g{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}#hn-p label{display:flex;align-items:center;gap:6px;height:24px}#hn-p label span{width:64px}#hn-p input{flex:1;min-width:0}' +
       '#hn-p button{margin:6px 6px 0 0;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:#334155;color:#fff;font-size:12px}';
     document.head.appendChild(css);
@@ -169,7 +173,7 @@
     });
     p.appendChild(grid);
     const g2 = document.createElement('div'); g2.id = 'hn-g';
-    [['sz', 0.5, 2.2, 0.02, 'Размер оружия'], ['ox', -0.3, 0.3, 0.005, 'Оружие влево/вправо'], ['oy', -0.3, 0.3, 0.005, 'Оружие вниз/вверх']].forEach(([k, lo, hi, st, name]) => {
+    [['oz', -0.4, 0.4, 0.005, 'Всё вперёд/назад'], ['wz', -0.3, 0.3, 0.005, 'Оружие вперёд/назад'], ['kp', -90, 90, 1, 'Нож наклон'], ['ky', -90, 90, 1, 'Нож разворот'], ['kr', -180, 180, 1, 'Нож проворот'], ['sz', 0.5, 2.2, 0.02, 'Размер оружия'], ['ox', -0.3, 0.3, 0.005, 'Оружие влево/вправо'], ['oy', -0.3, 0.3, 0.005, 'Оружие вниз/вверх']].forEach(([k, lo, hi, st, name]) => {
       const r = document.createElement('label');
       r.innerHTML = '<span>' + name + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '">';
       const inp = r.querySelector('input'); wsl[k] = inp;
