@@ -159,7 +159,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function fitTo(scene, size, human) {   // человек: рост = size, ноги на полу; оружие: длина = size, по центру
     scene.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.3) m.metalness = 0.1; m.side = THREE.DoubleSide;
-      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map && m.emissive) { m.emissive.set(0xb4b4b4); m.emissiveMap = m.map; } else if (!m.emissive) m.color.setRGB(1.7, 1.7, 1.7); m.needsUpdate = true; } }); });
+      if (human) { m.color.set(0xffffff); m.metalness = 0; m.roughness = 1; m.vertexColors = false; if (m.map && m.emissive) { m.emissive.set(0xffffff); m.emissiveIntensity = 1.4; m.emissiveMap = m.map; } else if (!m.emissive) m.color.setRGB(1.7, 1.7, 1.7); m.needsUpdate = true; } }); });
     const bx = bounds(scene), sz = bx.getSize(new V()), c = bx.getCenter(new V());
     const k = size / (human ? sz.y : Math.max(sz.x, sz.y, sz.z));
     const fit = new THREE.Group();
@@ -201,6 +201,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     for (let i = 0; i + 2 < chain.length; i++) if (P(chain[i]).distanceTo(P(chain[i + 1])) > 0.2) return { up: chain[i], fo: chain[i + 1], hd: chain[i + 2] };
     return null;
   }
+  // Осанка ботов (сутулость, автомат) — настраивается в ⚙ → «Боты», сохраняется
+  const BOT = { lean: 0.45, head: 0.3, gx: -0.1, gy: 1.3, gz: 0.3 };
+  try { Object.assign(BOT, JSON.parse(localStorage.getItem('bot_v1'))); } catch (e) {}
+  const saveBot = () => { try { localStorage.setItem('bot_v1', JSON.stringify(BOT)); } catch (e) {} };
   function dress(b) {
     const t = tpl[b.team];
     if (!t || b.model || !THREE.SkeletonUtils) return;
@@ -209,39 +213,53 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     root.traverse(o => { o.frustumCulled = false; });
     b.inner.add(root); b.model = root; b.vis.visible = false;
     const gun = GUN.obj ? GUN.obj.clone(true) : new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-    gun.position.set(-0.1, 1.36, 0.3);          // приклад у правого плеча, ствол вперёд
-    b.inner.add(gun); b.mesh.updateMatrixWorld(true);
-    if (CLIPS[b.team]) { setupAnim(b, root, gun); return; }   // есть готовые анимации — IK не нужен
+    b.inner.add(gun); b.gun = gun;
+    if (CLIPS[b.team]) { gun.position.set(-0.1, 1.36, 0.3); b.mesh.updateMatrixWorld(true); setupAnim(b, root, gun); return; }   // есть готовые анимации
+    repose(b);
+  }
+  function repose(b) {                          // собирает позу заново: сутулость + руки на автомате
+    const root = b.model, gun = b.gun;
+    if (!root || b.mixer) return;
+    root.traverse(o => { if (o.isSkinnedMesh) o.skeleton.pose(); });
+    gun.position.set(BOT.gx, BOT.gy, BOT.gz);
+    b.mesh.updateMatrixWorld(true);
     const bones = []; root.traverse(o => { if (o.isBone) bones.push(o); });
     const H = 1.8, P = o => b.mesh.worldToLocal(o.getWorldPosition(new V()));
     const bq = b.mesh.getWorldQuaternion(new THREE.Quaternion()), right = new V(1, 0, 0).applyQuaternion(bq);
-    const tilt = (o, ang) => {                    // наклон вперёд вокруг оси «вбок», не зная локальных осей кости
+    const tilt = (o, ang) => {                  // наклон вперёд вокруг оси «вбок», не зная локальных осей кости
       const wq = o.getWorldQuaternion(new THREE.Quaternion()), pq = o.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
       o.quaternion.copy(pq.multiply(new THREE.Quaternion().setFromAxisAngle(right, ang)).multiply(wq));
       o.updateMatrixWorld(true);
     };
     const spine = bones.filter(o => /spine|waist|torso/.test(o.name.toLowerCase())).sort((a, c) => P(a).y - P(c).y)[0]
       || bones.filter(o => Math.abs(P(o).x) < 0.1 && P(o).y > 0.58 * H && P(o).y < 0.75 * H).sort((a, c) => P(a).y - P(c).y)[0];
-    if (spine) tilt(spine, 0.2);                  // чуть согнулся, как в боевой стойке
+    if (spine) tilt(spine, BOT.lean);
     const head = bones.find(o => /head/.test(o.name.toLowerCase()));
-    if (head) tilt(head, -0.15);                  // голову поднял, смотрит вперёд
+    if (head) tilt(head, -BOT.head);
     let ok = 0;
     [['r', -1, new V(0, -0.06, -0.14), new V(-0.6, -1, -0.3)], ['l', 1, new V(0, -0.05, 0.16), new V(0.6, -1, -0.3)]].forEach(([sd, sg, grip, hint]) => {
       let up = pick(bones, sd, /upperarm|uparm/), fo = pick(bones, sd, /forearm|lowerarm/), hd = pick(bones, sd, /hand/);
       if (!(up && fo && hd)) { const g = geoArm(bones, P, sg, H); if (g) { up = g.up; fo = g.fo; hd = g.hd; } }
       if (up && fo && hd) { ik(up, fo, hd, gun.localToWorld(grip.clone()), hint.applyQuaternion(bq)); ok++; }
     });
-    if (ok < 2 && !window.__dbg) {                // не нашли руки — покажем имена костей, чтобы поправить
-      window.__dbg = 1;
-      const d = document.createElement('div');
-      d.style.cssText = 'position:absolute;left:4px;bottom:4px;z-index:300;color:#fff;font:10px monospace;background:rgba(0,0,0,.6);max-width:60%;pointer-events:none';
-      d.textContent = 'кости рук не найдены (' + b.team + '): ' + bones.slice(0, 40).map(o => o.name).join(', ');
-      document.body.appendChild(d);
-    }
+    if (ok < 2 && !window.__dbg) { window.__dbg = 1; dbg('кости рук не найдены (' + b.team + '): ' + bones.slice(0, 40).map(o => o.name).join(', ')); }
     b.legs = [['l', 1], ['r', -1]].map(([sd, sg]) => {
       const o = pick(bones, sd, /thigh|upleg|upperleg/) || bones.filter(k => sg * P(k).x > 0.03 && P(k).y > 0.35 * H && P(k).y < 0.62 * H).sort((a, c) => P(c).y - P(a).y)[0];
       return o && { o, base: o.quaternion.clone(), axis: right.clone().applyQuaternion(o.parent.getWorldQuaternion(new THREE.Quaternion()).invert()) };
     });
+  }
+  function botPanel() {                         // ползунки осанки ботов внутри ⚙
+    const panel = document.getElementById('hn-p');
+    if (!panel) return;
+    const title = document.createElement('div'); title.textContent = 'Боты (меняются сразу)'; title.style.cssText = 'margin-top:8px;color:#94a3b8';
+    const g = document.createElement('div'); g.id = 'hn-g';
+    [['lean', 0, 0.9, 0.01, 'Сутулость'], ['head', 0, 0.7, 0.01, 'Голова вверх'], ['gx', -0.4, 0.2, 0.01, 'Автомат ←→'], ['gy', 1.0, 1.6, 0.01, 'Автомат ↕'], ['gz', 0, 0.7, 0.01, 'Автомат вперёд']].forEach(([k, lo, hi, st, name]) => {
+      const r = document.createElement('label');
+      r.innerHTML = '<span>' + name + '</span><input type="range" min="' + lo + '" max="' + hi + '" step="' + st + '" value="' + BOT[k] + '">';
+      r.querySelector('input').addEventListener('input', e => { BOT[k] = +e.target.value; saveBot(); bots.forEach(repose); });
+      g.appendChild(r);
+    });
+    panel.appendChild(title); panel.appendChild(g);
   }
   function dbg(txt) {                          // подсказка на экране, если что-то не нашлось
     const d = document.createElement('div');
@@ -555,7 +573,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
   }
   function uiExtra() {
-    uiWeapons();
+    uiWeapons(); botPanel();
     const css = document.createElement('style');
     css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
       '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
