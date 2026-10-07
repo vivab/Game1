@@ -1,7 +1,7 @@
 /* hands.js — оружие (АК, 3 пистолета, нож) и свои руки в перчатках.
    Подключать ПОСЛЕ основного <script> в index.html. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v11', V = THREE.Vector3;
+  const DEG = Math.PI / 180, KEY = 'hands_v12', V = THREE.Vector3;
   const BIG = 1.35, U = 0.105 * BIG;      // BIG — размер оружия и рук (1 = реальный)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
@@ -19,10 +19,10 @@
   // Твои настройки из ⚙ (ox/oy/oz — сдвиг оружия вместе с руками, wz — только оружие, sz — размер, kp/ky/kr — поворот ножа)
   const DEF = {
     rifle:   { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: H('cup', 0.55, -1, 0.5, 4, -18, 150), f: 0, ox: -0.12, oy: 0.01 },
-    usp:     { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -66), L: H('fist', -0.7, -0.3, 0.6, 20, -30, 85), f: 0, ox: -0.13 },
+    usp:     { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.65, 20, -27, -66), L: Hk(0.35, 'fist', -0.3, -0.3, 0.45, 20, -10, 85), f: 0, ox: -0.185, sz: 1.18, oy: 0.045, wz: -0.12, kp: -1 },
     deagle:  { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -85), L: Hk(0.25, 'fist', -0.65, -0.1, 0.6, 20, -30, 85), f: 0, ox: -0.075, oy: -0.02 },
-    beretta: { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -85), L: Hk(0.4, 'fist', -0.95, -0.45, 0.55, 20, -30, 75), f: 0, sz: 1.06, ox: -0.095, oy: 0.04 },
-    knife:   { R: H('fist', 0.2, 0, 0, 19, -17, -20), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 1, ox: -0.06 }
+    beretta: { R: Hk(1.3, 'pistol', 0.85, -0.65, 0.45, 38, -24, -114), L: Hk(0.4, 'fist', -0.3, -0.45, 0.55, 20, -30, 75), f: 0, sz: 0.98, ox: -0.105, oy: 0.04, oz: -0.095, wz: 0.03, kr: -36 },
+    knife:   { R: H('fist', 0.2, 0, 0, 19, -17, -17), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 1, ox: -0.04, sz: 0.78, oz: -0.075, wz: -0.025, kp: 4, ky: 71, kr: 107 }
   };
   // Оружие: файл, длина (м), где на экране мушка (ndcX; sY/sZ — в камере, метры), muz — дульный срез от мушки,
   // R/L — точки рук как смещение от мушки [вниз, назад]. У ножа sY/sZ — точка рукояти. Пример: референсы Standoff 2.
@@ -72,7 +72,7 @@
   window.makeHand = makeHand;
 
   const holder = new THREE.Group(), anch = {}, sliders = {}, wsl = {};
-  let cur = 'rifle', sel = 'R';
+  let cur = 'rifle', sel = 'R', ins = null;       // ins — идёт осмотр ножа
 
   // габарит облака вершин после поворота вокруг Y
   function bboxYaw(P, th) {
@@ -122,6 +122,7 @@
       const q = t[s], a = anch[s], h = makeHand(s, q.pose, U, q.k);
       h.rotation.set(q.pitch * DEG, q.yaw * DEG, q.roll * DEG);
       h.position.set(a.x + q.x * U, a.y + q.y * U, a.z + q.z * U);
+      h.userData.bp = h.position.clone(); h.userData.br = q.roll * DEG; h.userData.side = s;
       holder.add(h);
     });
   }
@@ -137,13 +138,13 @@
     if (w.knife) {
       w.wrap.position.set(-s * c.x, -s * c.y, -s * (b.max.z - 0.15 * size.z));
       w.pivot.position.set(gx, sY, sZ + wz); w.pivot.rotation.order = 'YXZ';
-      const kv = (k, d) => (tune[cur][k] !== undefined ? tune[cur][k] : d) * DEG; w.pivot.rotation.set(kv('kp', 29), kv('ky', 46), kv('kr', 0));   // клинок вверх-влево
-    } else w.wrap.position.set(gx - s * c.x, sY - s * b.max.y, sZ + wz + w.muz * BIG - s * b.min.z);
+      const kv = (k, d) => (tune[cur][k] !== undefined ? tune[cur][k] : d) * DEG; w.pivot.rotation.set(kv('kp', 29), kv('ky', 46), kv('kr', 0)); w.base = { x: gx, y: sY, z: sZ + wz, rz: kv('kr', 0) };   // клинок вверх-влево
+    } else { w.wrap.position.set(gx - s * c.x, sY - s * b.max.y, sZ + wz + w.muz * BIG - s * b.min.z); w.base = { x: 0, y: 0, z: 0, rz: 0 }; }
     anch.R = new V(gx, sY + w.R[0] * BIG, sZ + w.R[1] * BIG);
     anch.L = w.L ? new V(gx, sY + w.L[0] * BIG, sZ + w.L[1] * BIG) : null;
     build();
   }
-  window.HW_set = name => { if (!W[name]) return; cur = name; if (sel === 'L' && !W[name].L) sel = 'R'; loadW(name); place(); refresh(); };
+  window.HW_set = name => { if (!W[name]) return; ins = null; cur = name; if (sel === 'L' && !W[name].L) sel = 'R'; loadW(name); place(); refresh(); };
 
   function refresh() {
     const t = tune[cur][sel] || tune[cur].R;
@@ -190,9 +191,39 @@
     document.body.appendChild(gear); document.body.appendChild(p); refresh();
   }
 
+  // Дыхание (лёгкое покачивание) и осмотр ножа по кнопке R:
+  // 1) подносим нож ближе к лицу, 2) медленно вращаем вокруг оси, 3) возвращаем в руку. Библиотеки не нужны — анимация считается здесь.
+  window.HW_inspect = () => { if (cur !== 'knife' || ins) return false; ins = { t0: performance.now() }; return true; };
+  window.HW_stop = () => { ins = null; };
+  const ease = t => t * t * (3 - 2 * t);
+  function tick() {
+    requestAnimationFrame(tick);
+    const w = W[cur];
+    if (!w || !w.ready || !w.base) return;
+    const now = performance.now() / 1000, o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, roll: 0 };
+    if (ins) {
+      const t = (performance.now() - ins.t0) / 1000;
+      if (t >= 2.6) ins = null;
+      else {
+        const k = ease(Math.min(t / 0.5, 1)) * (1 - ease(Math.min(Math.max((t - 1.9) / 0.7, 0), 1)));   // 0→1 поднесли → 1→0 вернули
+        o.x -= 0.14 * k; o.y += 0.07 * k; o.z += 0.1 * k;
+        o.roll = 0.5 * k + ease(Math.min(Math.max((t - 0.5) / 1.4, 0), 1)) * Math.PI * 2;                // полный оборот вокруг оси ножа
+      }
+    }
+    const b = w.base;
+    w.pivot.position.set(b.x + o.x, b.y + o.y, b.z + o.z);
+    if (w.knife) w.pivot.rotation.z = b.rz + o.roll;
+    holder.children.forEach(h => {
+      const p = h.userData.bp;
+      if (!p) return;
+      h.position.set(p.x + o.x, p.y + o.y, p.z + o.z);
+      if (w.knife && h.userData.side === 'R') h.rotation.z = h.userData.br + o.roll * 0.3;               // рука чуть поворачивается вместе с ножом
+    });
+  }
+
   window.loadGLTFModels = function () {
     weaponContainer.add(holder);
-    buildPanel();
+    buildPanel(); tick();
     window.addEventListener('resize', place);
     loadW('rifle', place);
     setTimeout(() => { loadW('usp'); loadW('knife'); }, 1500);   // заранее, чтобы не было паузы при смене
