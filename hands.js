@@ -71,8 +71,9 @@
   }
   window.makeHand = makeHand;
 
-  const holder = new THREE.Group(), anch = {}, sliders = {}, wsl = {};
-  let cur = 'rifle', sel = 'R', ins = null;       // ins — идёт осмотр ножа
+  const holder = new THREE.Group(), anch = {}, sliders = {}, wsl = {}, animRoot = new THREE.Group();
+  animRoot.matrixAutoUpdate = false;               // оружие и руки двигаются вместе через animRoot
+  let cur = 'rifle', sel = 'R', ins = null, drw = null;       // ins — идёт осмотр ножа
 
   // габарит облака вершин после поворота вокруг Y
   function bboxYaw(P, th) {
@@ -110,7 +111,7 @@
       });
       w.P = P; w.inner = s; w.yaw0 = w.yaw !== undefined ? w.yaw : autoYaw(P, w.knife);
       w.wrap = new THREE.Group(); w.pivot = new THREE.Group();
-      w.wrap.add(s); w.pivot.add(w.wrap); weaponContainer.add(w.pivot);
+      w.wrap.add(s); w.pivot.add(w.wrap); animRoot.add(w.pivot);
       w.ready = 1; w.cbs.forEach(f => { if (f) f(); }); place();
     }, undefined, () => { w.loading = 0; console.log('оружие не загрузилось', w.file); });
   }
@@ -139,12 +140,15 @@
       w.wrap.position.set(-s * c.x, -s * c.y, -s * (b.max.z - 0.15 * size.z));
       w.pivot.position.set(gx, sY, sZ + wz); w.pivot.rotation.order = 'YXZ';
       const kv = (k, d) => (tune[cur][k] !== undefined ? tune[cur][k] : d) * DEG; w.pivot.rotation.set(kv('kp', 29), kv('ky', 46), kv('kr', 0)); w.base = { x: gx, y: sY, z: sZ + wz, rz: kv('kr', 0) };   // клинок вверх-влево
-    } else { w.wrap.position.set(gx - s * c.x, sY - s * b.max.y, sZ + wz + w.muz * BIG - s * b.min.z); w.base = { x: 0, y: 0, z: 0, rz: 0 }; }
+    } else {
+      const wp = new V(gx - s * c.x, sY - s * b.max.y, sZ + wz + w.muz * BIG - s * b.min.z), ctr = wp.clone().add(c.clone().multiplyScalar(s));   // центр оружия — точка вращения
+      w.wrap.position.copy(wp).sub(ctr); w.pivot.position.copy(ctr); w.base = { x: ctr.x, y: ctr.y, z: ctr.z, rz: 0 };
+    }
     anch.R = new V(gx, sY + w.R[0] * BIG, sZ + w.R[1] * BIG);
     anch.L = w.L ? new V(gx, sY + w.L[0] * BIG, sZ + w.L[1] * BIG) : null;
     build();
   }
-  window.HW_set = name => { if (!W[name]) return; ins = null; cur = name; if (sel === 'L' && !W[name].L) sel = 'R'; loadW(name); place(); refresh(); };
+  window.HW_set = name => { if (!W[name]) return; ins = null; drw = { t0: performance.now() }; cur = name; if (sel === 'L' && !W[name].L) sel = 'R'; loadW(name); place(); refresh(); };
 
   function refresh() {
     const t = tune[cur][sel] || tune[cur].R;
@@ -191,38 +195,53 @@
     document.body.appendChild(gear); document.body.appendChild(p); refresh();
   }
 
-  // Дыхание (лёгкое покачивание) и осмотр ножа по кнопке R:
-  // 1) подносим нож ближе к лицу, 2) медленно вращаем вокруг оси, 3) возвращаем в руку. Библиотеки не нужны — анимация считается здесь.
-  window.HW_inspect = () => { if (cur !== 'knife' || ins) return false; ins = { t0: performance.now() }; return true; };
+  // Анимации (всё считается здесь, библиотеки не нужны):
+  //  — доставание при смене оружия (нож «из кармана», автомат и пистолеты выезжают снизу),
+  //  — осмотр по кнопке R (у ножа всегда, у остального когда магазин полный), — лёгкое дыхание.
+  window.HW_inspect = () => {
+    if (ins || (drw && performance.now() - drw.t0 < 700)) return false;
+    const w = W[cur]; ins = { t0: performance.now(), type: w.knife ? 'knife' : cur === 'rifle' ? 'rifle' : 'pistol' }; return true;
+  };
   window.HW_stop = () => { ins = null; };
   const ease = t => t * t * (3 - 2 * t);
   function tick() {
     requestAnimationFrame(tick);
     const w = W[cur];
     if (!w || !w.ready || !w.base) return;
-    const now = performance.now() / 1000, o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, roll: 0 };
-    if (ins) {
-      const t = (performance.now() - ins.t0) / 1000;
-      if (t >= 2.6) ins = null;
+    const ms = performance.now(), now = ms / 1000;
+    const o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, rx: 0, ry: 0, rz: 0 };
+    let spin = 0;
+    if (drw) {
+      const D = w.knife ? 0.55 : cur === 'rifle' ? 0.75 : 0.6, u = (ms - drw.t0) / 1000 / D;
+      if (u >= 1) drw = null;
       else {
-        const k = ease(Math.min(t / 0.5, 1)) * (1 - ease(Math.min(Math.max((t - 1.9) / 0.7, 0), 1)));   // 0→1 поднесли → 1→0 вернули
-        o.x -= 0.14 * k; o.y += 0.07 * k; o.z += 0.1 * k;
-        o.roll = 0.5 * k + ease(Math.min(Math.max((t - 0.5) / 1.4, 0), 1)) * Math.PI * 2;                // полный оборот вокруг оси ножа
+        const f = Math.pow(1 - u, 3);                                   // быстро выезжает, мягко останавливается
+        o.x += 0.2 * f; o.y -= 0.5 * f; o.z += 0.06 * f; o.rx -= 0.8 * f;
+        o.rz += (w.knife ? 0.7 : 0.3) * f + (w.knife ? Math.sin(u * 9) * 0.12 * (1 - u) : 0);   // у ножа лёгкий «щелчок» в конце
       }
     }
-    const b = w.base;
-    w.pivot.position.set(b.x + o.x, b.y + o.y, b.z + o.z);
-    if (w.knife) w.pivot.rotation.z = b.rz + o.roll;
-    holder.children.forEach(h => {
-      const p = h.userData.bp;
-      if (!p) return;
-      h.position.set(p.x + o.x, p.y + o.y, p.z + o.z);
-      if (w.knife && h.userData.side === 'R') h.rotation.z = h.userData.br + o.roll * 0.3;               // рука чуть поворачивается вместе с ножом
-    });
+    if (ins) {
+      const D = ins.type === 'knife' ? 2.6 : ins.type === 'rifle' ? 2.8 : 2.2, t = (ms - ins.t0) / 1000;
+      if (t >= D) ins = null;
+      else {
+        const k = ease(Math.min(t / 0.5, 1)) * (1 - ease(Math.min(Math.max((t - (D - 0.7)) / 0.7, 0), 1)));   // поднесли → вернули
+        if (ins.type === 'knife') { o.x -= 0.14 * k; o.y += 0.07 * k; o.z += 0.1 * k; spin = 0.5 * k + ease(Math.min(Math.max((t - 0.5) / 1.4, 0), 1)) * Math.PI * 2; }
+        else {
+          const ph = Math.min(Math.max((t - 0.4) / (D - 1.1), 0), 1);
+          o.x -= 0.1 * k; o.y += 0.06 * k; o.z += 0.08 * k; o.rx += 0.25 * k;
+          o.ry += Math.sin(ph * Math.PI * 2) * 0.7 * k; o.rz += Math.sin(ph * Math.PI) * 0.3 * k;      // поворачиваем, показываем бока
+        }
+      }
+    }
+    const b = w.base, E = new THREE.Euler(o.rx, o.ry, o.rz + (w.knife ? spin * 0.3 : 0), 'YXZ');
+    animRoot.matrix.makeTranslation(b.x + o.x, b.y + o.y, b.z + o.z)
+      .multiply(new THREE.Matrix4().makeRotationFromEuler(E)).multiply(new THREE.Matrix4().makeTranslation(-b.x, -b.y, -b.z));
+    animRoot.matrixWorldNeedsUpdate = true;
+    if (w.knife) w.pivot.rotation.z = b.rz + spin * 0.7;                // нож крутится вокруг своей оси, рука слегка с ним
   }
 
   window.loadGLTFModels = function () {
-    weaponContainer.add(holder);
+    weaponContainer.add(animRoot); animRoot.add(holder);
     buildPanel(); tick();
     window.addEventListener('resize', place);
     loadW('rifle', place);
