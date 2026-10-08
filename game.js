@@ -256,13 +256,16 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function poseMC(b) {                              // стойка: корпус вперёд, обе руки вперёд к автомату
     const m = b.mc;
     m.upper.rotation.x = BOT.lean; m.head.rotation.x = -BOT.lean * 0.8 - BOT.head;
-    m.armR.rotation.set(BOT.rp, BOT.ry, 0); m.armL.rotation.set(BOT.lp, BOT.ly, 0);
-    m.armR.userData.elbow.rotation.x = BOT.re; m.armL.userData.elbow.rotation.x = BOT.le;
+    const P = b.wp === 'knife' ? POSE_KNIFE : (b.wp && b.wp !== 'rifle') ? POSE_PISTOL : BOT;   // поза рук зависит от оружия
+    m.armR.rotation.set(P.rp, P.ry, 0); m.armL.rotation.set(P.lp, P.ly, 0);
+    m.armR.userData.elbow.rotation.x = P.re; m.armL.userData.elbow.rotation.x = P.le;
   }
   const GRIP = new V(0, -0.06, -0.14);
   function alignGun(b) {                            // автомат лежит в руках: правая — рукоять, левая — цевьё
     const m = b.mc; b.mesh.updateMatrixWorld(true);
     const r = b.inner.worldToLocal(m.armR.userData.tip.getWorldPosition(new V())), l = b.inner.worldToLocal(m.armL.userData.tip.getWorldPosition(new V()));
+    if (b.wp === 'knife') { b.gun.rotation.set(-0.6, 0, 0); b.gun.position.copy(r); return; }
+    if (b.wp && b.wp !== 'rifle') { b.gun.quaternion.identity(); b.gun.position.copy(r).lerp(l, 0.5); b.gun.position.y -= 0.02; return; }
     b.gun.quaternion.setFromUnitVectors(new V(0, 0, 1), l.sub(r).normalize());
     b.gun.position.copy(r).sub(GRIP.clone().applyQuaternion(b.gun.quaternion));
   }
@@ -274,11 +277,34 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     m.head.rotation.x = -m.upper.rotation.x * 0.8 - BOT.head;
     alignGun(b);
   }
+  const BW = {      // оружие ботов: интервал выстрела, урон по игроку / по боту, меткость, дальность
+    rifle: { int: 0.16, dp: 9, db: 12, acc: 1, range: 45 }, usp: { int: 0.3, dp: 12, db: 15, acc: 0.9, range: 30 },
+    deagle: { int: 0.75, dp: 38, db: 45, acc: 0.8, range: 35 }, beretta: { int: 0.26, dp: 10, db: 13, acc: 0.85, range: 28 },
+    knife: { int: 0.6, dp: 28, db: 35, acc: 1, range: 2, melee: true }
+  };
+  const BWN = { rifle: 'AK-47', usp: 'USP-S', deagle: 'Desert Eagle', beretta: 'Beretta 92FS', knife: 'Нож' };
+  const POSE_PISTOL = { rp: -1.25, ry: 0.42, re: -0.2, lp: -1.25, ly: -0.42, le: -0.2 }, POSE_KNIFE = { rp: -0.7, ry: 0.15, re: -1.1, lp: -0.2, ly: -0.1, le: -0.5 };
+  const rollWeapon = () => { const r = Math.random(); return r < 0.5 ? 'rifle' : r < 0.65 ? 'usp' : r < 0.8 ? 'deagle' : r < 0.9 ? 'beretta' : 'knife'; };
+  function blockGun(type) {                         // пистолеты и нож ботов — из блоков
+    const g = new THREE.Group(), bx = (w, h, d, c, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); g.add(o); };
+    if (type === 'knife') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, 0.2, 0xd0d4da, 0, 0, 0.16); }
+    else {
+      const L = { usp: 0.24, deagle: 0.28, beretta: 0.22 }[type], col = { usp: 0x2b2b2b, deagle: 0xc8ccd2, beretta: 0x3a3a40 }[type];
+      bx(0.04, 0.05, L, col, 0, 0.03, L / 2 - 0.05); bx(0.035, 0.1, 0.05, 0x222222, 0, -0.03, -0.02);
+      if (type === 'usp') bx(0.03, 0.03, 0.12, 0x111111, 0, 0.03, L + 0.04);
+    }
+    return g;
+  }
+  const makeGun = type => type === 'rifle' ? (GUN.obj ? GUN.obj.clone(true) : new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }))) : blockGun(type);
+  function setBotWeapon(b, type) {
+    if (b.gun) b.inner.remove(b.gun);
+    b.wp = type; b.gun = makeGun(type); b.inner.add(b.gun); b.stat.weapon = BWN[type];
+    if (b.mc) { poseMC(b); alignGun(b); }
+  }
   function dress(b) {
     if (b.mc) return;
     b.mc = makeMC(b.team); b.inner.add(b.mc.group); b.vis.visible = false;
-    const gun = GUN.obj ? GUN.obj.clone(true) : new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-    b.inner.add(gun); b.gun = gun; poseMC(b); alignGun(b);
+    setBotWeapon(b, rollWeapon());
   }
   const repose = b => { if (b.mc) { poseMC(b); alignGun(b); } };
   function botPanel() {                             // ползунки позы ботов внутри ⚙
@@ -357,6 +383,15 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       try { applyMap(g.scene); } catch (e) { console.log('карта', e); dbg('ошибка карты: ' + e.message); }
     }, undefined, () => dbg('не загрузилась карта ' + MAPFILE));
   }
+  function asphaltTex(w, d) {                       // асфальт: зерно, пятна и трещины
+    const c = document.createElement('canvas'); c.width = c.height = 256;
+    const x = c.getContext('2d'); x.fillStyle = '#41444a'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 6000; i++) { const v = 45 + Math.random() * 60 | 0; x.fillStyle = 'rgba(' + v + ',' + v + ',' + (v + 5) + ',.6)'; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+    for (let i = 0; i < 5; i++) { x.fillStyle = 'rgba(25,25,28,.12)'; x.beginPath(); x.arc(Math.random() * 256, Math.random() * 256, 12 + Math.random() * 30, 0, 6.3); x.fill(); }
+    x.strokeStyle = 'rgba(15,15,18,.55)'; x.lineWidth = 1;
+    for (let i = 0; i < 4; i++) { let px = Math.random() * 256, py = Math.random() * 256; x.beginPath(); x.moveTo(px, py); for (let k = 0; k < 7; k++) { px += (Math.random() - 0.5) * 30; py += (Math.random() - 0.5) * 30; x.lineTo(px, py); } x.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / 5, d / 5); t.anisotropy = 4; return t;
+  }
   function applyMap(m) {
     const wrap = new THREE.Group(); wrap.add(m); m.updateMatrixWorld(true);
     let box = new THREE.Box3().setFromObject(wrap); const sz = box.getSize(new V());
@@ -402,9 +437,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     for (let i = 0; i < nx; i++) { let j = 0; while (j < nz) { if (!low[i * nz + j]) { j++; continue; } let k = j; while (k < nz && low[i * nz + k]) k++; rects.push({ x0: x0 + i * cs, x1: x0 + (i + 1) * cs, z0: z0 + j * cs, z1: z0 + k * cs, h: 3 }); j = k; } }
     colliders.forEach(o => scene.remove(o)); scene.children.filter(o => o.type === 'GridHelper').forEach(o => scene.remove(o));
     colliders.length = 0; walls.length = 0; solids.length = 0;
-    const fl = new THREE.Mesh(new THREE.PlaneGeometry(bb.max.x - bb.min.x, bb.max.z - bb.min.z), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(bb.max.x - bb.min.x, bb.max.z - bb.min.z), new THREE.MeshStandardMaterial({ map: asphaltTex(bb.max.x - bb.min.x, bb.max.z - bb.min.z), color: 0xdddddd, roughness: 0.95, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     fl.rotation.x = -Math.PI / 2; fl.position.set((bb.min.x + bb.max.x) / 2, 0.01, (bb.min.z + bb.max.z) / 2); fl.receiveShadow = true;
-    scene.add(fl); colliders.push(fl);                                  // белый пол
+    scene.add(fl); colliders.push(fl);
+    scene.background = new THREE.Color(0x9fc9ee); if (scene.fog) { scene.fog.color.set(0xb7d3ee); scene.fog.density = 0.012; }   // дневное небо                                  // белый пол
     scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; } });
     grid = { x0, z0, cs, nx, nz, low, tall, oH, layers, rects };
     buildNav();
@@ -449,7 +485,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function spawnAt(b) {
     const s = SPAWN[b.team][Math.floor(Math.random() * 5)];
     b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = b.team === 'A' ? Math.PI : 0;
-    b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false;
+    b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false; if (b.mc) setBotWeapon(b, rollWeapon());
   }
   const eye = b => new V(b.mesh.position.x, b.mesh.position.y + 1.5 * b.cs + b.jy, b.mesh.position.z);
   function turnTo(b, yaw, dt, rate) {
@@ -519,15 +555,16 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       if (b.target) {
         const e = b.target, dx = e.pos.x - pos.x, dz = e.pos.z - pos.z, d = Math.hypot(dx, dz);
         turnTo(b, Math.atan2(dx, dz), dt, 9);
+        const BX = BW[b.wp] || BW.rifle;
         b.mt -= dt;                                   // каждые ~1 с: присесть / стрейфить / иногда подпрыгнуть
-        if (b.mt <= 0) { b.mt = 0.6 + Math.random() * 1.2; b.sdir = Math.random() < 0.5 ? -1 : 1; b.crouch = d > 14 && Math.random() < 0.5; if (!b.crouch && b.jy === 0 && Math.random() < 0.12) b.vy = 5.5; }
-        if (!b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, pos.y); b.walk = true; }
-        if (b.react <= 0 && T - b.last > 0.16) {
+        if (b.mt <= 0) { b.mt = 0.6 + Math.random() * 1.2; b.sdir = Math.random() < 0.5 ? -1 : 1; b.crouch = !BX.melee && d > 14 && Math.random() < 0.5; if (!b.crouch && b.jy === 0 && Math.random() < 0.12) b.vy = 5.5; }
+        if (!BX.melee && !b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, pos.y); b.walk = true; }
+        if (b.react <= 0 && T - b.last > BX.int && (!BX.melee || d < 1.9)) {
           b.last = T;
-          const pr = Math.max(0.08, 0.55 - d * 0.012) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
-          if (Math.random() < pr) e.ply ? hurt(9, b.stat) : damageBot(e.bot, 12, b.team, pos, false, b.stat);
+          const pr = BX.melee ? 0.9 : Math.max(0.08, 0.55 - d * 0.012) * BX.acc * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
+          if (Math.random() < pr) e.ply ? hurt(BX.dp, b.stat) : damageBot(e.bot, BX.db, b.team, pos, false, b.stat);
         }
-        if (d > 22) follow(b, e.pos, dt, 4.5);
+        if (BX.melee ? d > 1.5 : d > 22) follow(b, e.pos, dt, BX.melee ? 6.5 : 4.5);   // с ножом бегут вплотную
       } else {
         const it = intel[b.team];
         if (it && T - it.t < 10 && b.chk !== it.t && Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < 40) {
@@ -655,7 +692,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   };
 
   // ---------- оружие: колесо выбора, магазин на 10 секунд, хитмаркер ----------
-  const WS = { rifle: { mag: 30, int: 110, name: 'AK-47' }, pistol: { mag: 12, int: 190, name: '' }, knife: { mag: 0, int: 550, name: 'НОЖ' } };
+  const WS = { rifle: { mag: 30, int: 110, name: 'AK-47', spd: 6.2 }, pistol: { mag: 12, int: 190, name: '', spd: 6.8 }, knife: { mag: 0, int: 550, name: 'НОЖ', spd: 7.8 } };   // spd — скорость бега
   const PN = { usp: 'USP-S', deagle: 'Desert Eagle', beretta: 'Beretta 92FS' };
   const loadout = { pistol: 'usp' }, store = { rifle: { mag: 30, res: 90 }, pistol: { mag: 12, res: 36 } };
   const wname = () => curW === 'pistol' ? PN[loadout.pistol] : WS[curW].name;
@@ -681,7 +718,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   };
   window.reloadAmmo = function () {
     if (curW === 'knife' || player.isReloading || player.reserveAmmo <= 0 || player.ammoInMag === player.maxMag) return;
-    player.isReloading = true; document.getElementById('weapon-name').innerText = 'ПЕРЕЗАРЯДКА...';
+    player.isReloading = true; if (window.HW_stop) window.HW_stop(); document.getElementById('weapon-name').innerText = 'ПЕРЕЗАРЯДКА...';
     const w = curW;
     setTimeout(() => {
       if (curW !== w) return;
@@ -723,7 +760,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function showCard(k) {                           // мини-меню: кто убил, чем, сколько урона
     const c = document.getElementById('kcard'); if (!c) return;
     const t = took.get(k) || { dmg: 0, hits: 0 }, g = gave.get(k) || { dmg: 0, hits: 0 };
-    document.getElementById('kcn').textContent = k.name; document.getElementById('kci').textContent = 'ID: ' + k.id; document.getElementById('kcw').textContent = 'AK-47';
+    document.getElementById('kcn').textContent = k.name; document.getElementById('kci').textContent = 'ID: ' + k.id; document.getElementById('kcw').textContent = k.weapon || 'AK-47';
     document.getElementById('kcs').innerHTML = Math.round(t.dmg) + ' урона получено | ' + t.hits + ' попаданий<br>' + Math.round(g.dmg) + ' урона нанесено | ' + g.hits + ' попаданий';
     c.style.display = 'flex';
   }
@@ -748,7 +785,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       '#hm i:nth-child(1){transform:translate(-13px,-13px) rotate(45deg)}#hm i:nth-child(2){transform:translate(13px,-13px) rotate(-45deg)}#hm i:nth-child(3){transform:translate(-13px,13px) rotate(-45deg)}#hm i:nth-child(4){transform:translate(13px,13px) rotate(45deg)}' +
       '#wheel{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:rgba(15,23,42,.72);z-index:40;display:none;pointer-events:none;color:#fff;font:700 13px sans-serif}' +
       '#wheel div{position:absolute;left:50%;top:50%;width:70px;height:46px;margin:-23px 0 0 -35px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:.6;font-size:18px}#wheel div span{font-size:12px}#wheel div.on{opacity:1;background:rgba(255,255,255,.25)}' +
-      '#wsw{position:absolute;right:236px;bottom:96px;z-index:30;width:60px;height:60px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;line-height:1.1;padding:0}#wsw::after{content:"";position:absolute;left:-6px;top:-6px;right:-6px;bottom:-6px;border:2px solid rgba(255,255,255,.6);border-radius:50%;border-top-color:transparent;pointer-events:none}' +
+      '#wsw{position:absolute;right:236px;bottom:96px;z-index:30;width:60px;height:60px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;line-height:1.1;padding:0}' +
       '#cart{position:absolute;left:18px;bottom:20px;z-index:30;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.75);font-size:22px;display:none;align-items:center;justify-content:center}' +
       '#shop{position:absolute;top:0;left:0;width:100%;height:100%;z-index:120;background:rgba(10,12,18,.9);color:#fff;font-family:sans-serif;display:none}' +
       '#shT{position:absolute;left:14px;top:8px;font-size:14px}#shB{position:absolute;left:14px;right:60px;top:30px;height:4px;background:#333}#shB i{display:block;height:100%;background:#fff}' +
@@ -757,7 +794,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     document.head.appendChild(css);
     const d = document.createElement('div');
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
-      '<div id="wheel"><div id="wk" style="margin-left:-105px"><span>Нож</span></div><div id="wp" style="margin-left:15px;margin-top:-75px"><span>Пистолет</span></div><div id="wr" style="margin-top:47px"><span>Винтовка</span></div></div>' +
+      '<div id="wheel"><div id="wk" style="margin-left:-105px"><span>Нож</span></div><div id="wp" style="margin-left:35px"><span>Пистолет</span></div><div id="wr" style="margin-top:47px"><span>Автомат</span></div></div>' +
       '<button id="cart" class="interactive-ui">🛒</button><button id="wsw" class="interactive-ui">AK-47</button>' +
       '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="beretta">Beretta 92FS</div></div><div class="col"><h4>Винтовки</h4><div class="it" data-r="1">AK-47</div></div></div></div>';
     document.body.appendChild(d);
@@ -765,21 +802,6 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
     cart.addEventListener('touchstart', e => { e.preventDefault(); toggle(); }, { passive: false });
     cart.addEventListener('click', toggle);
-    // смена оружия круговым движением пальца по кнопке: по часовой — дальше, против — назад
-    const nxt = { rifle: 'pistol', pistol: 'knife', knife: 'rifle' }, prv = { rifle: 'knife', pistol: 'rifle', knife: 'pistol' }, wsw = $('wsw');
-    let tid = null, wcx = 0, wcy = 0, last = 0, acc = 0;
-    wsw.addEventListener('touchstart', e => {
-      const t = e.changedTouches[0], r = wsw.getBoundingClientRect();
-      tid = t.identifier; wcx = r.left + r.width / 2; wcy = r.top + r.height / 2; last = Math.atan2(t.clientY - wcy, t.clientX - wcx); acc = 0; e.preventDefault();
-    }, { passive: false });
-    wsw.addEventListener('touchmove', e => {
-      for (const t of e.changedTouches) if (t.identifier === tid && Math.hypot(t.clientX - wcx, t.clientY - wcy) > 8) {
-        const a = Math.atan2(t.clientY - wcy, t.clientX - wcx);
-        acc += Math.atan2(Math.sin(a - last), Math.cos(a - last)); last = a;
-        if (!player.dead && Math.abs(acc) > 1) { equip(acc > 0 ? nxt[curW] : prv[curW]); acc = 0; }
-      }
-      e.preventDefault();
-    }, { passive: false });
     $('shX').addEventListener('click', () => { shop.style.display = 'none'; });
     shop.addEventListener('click', e => {
       const it = e.target.closest('.it');
@@ -791,17 +813,18 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const ap = $('ammo-panel'), wheel = $('wheel'), ids = { knife: 'wk', pistol: 'wp', rifle: 'wr' };
     ap.classList.add('interactive-ui');
     let sx = 0, sy = 0, pk = null;
-    const choose = (dx, dy) => Math.hypot(dx, dy) < 22 ? null : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'knife' : 'pistol') : (dy < 0 ? 'pistol' : 'rifle');
+    const choose = (dx, dy) => Math.hypot(dx, dy) < 22 ? null : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'knife' : 'pistol') : (dy > 0 ? 'rifle' : null);
     const mark = k => { for (const n in ids) $(ids[n]).classList.toggle('on', n === k); };
-    ap.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; pk = null; mark(null); wheel.style.display = 'block'; e.preventDefault(); }, { passive: false });
-    ap.addEventListener('touchmove', e => { const t = e.changedTouches[0]; pk = choose(t.clientX - sx, t.clientY - sy); mark(pk); e.preventDefault(); }, { passive: false });
+    for (const el of [ap, $('wsw')]) el.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; pk = null; mark(null); wheel.style.display = 'block'; e.preventDefault(); }, { passive: false });
+    for (const el of [ap, $('wsw')]) el.addEventListener('touchmove', e => { const t = e.changedTouches[0]; pk = choose(t.clientX - sx, t.clientY - sy); mark(pk); e.preventDefault(); }, { passive: false });
     const done = () => { wheel.style.display = 'none'; if (pk && pk !== curW && !player.dead) equip(pk); pk = null; };
-    ap.addEventListener('touchend', done); ap.addEventListener('touchcancel', done);
+    for (const el of [ap, $('wsw')]) el.addEventListener('touchend', done); for (const el of [ap, $('wsw')]) el.addEventListener('touchcancel', done);
   }
 
   // ---------- игрок: движение с коллизиями ----------
   window.updatePlayer = function (dt) {
     shopTick();
+    player.speed = WS[curW].spd * (player.isCrouching ? 0.5 : 1);
     if (player.dead && (respawnIn -= dt) <= 0 && !over) respawnPlayer();
     player.vel.y -= 22 * dt;
     const mv = player.dead ? { x: 0, y: 0 } : moveJoystick;
@@ -824,6 +847,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (now - player.lastShootTime < player.shootInterval) return;
     if (curW === 'knife') { knifeHit(now); return; }
     if (player.ammoInMag <= 0) { reloadAmmo(); return; }
+    if (window.HW_stop) window.HW_stop();
     player.ammoInMag--; player.lastShootTime = now; updateUI();
     recoilPitch += 0.022; recoilYaw += (Math.random() - 0.5) * 0.012; weaponContainer.position.z = 0.05;
     // разброс: стоя — средний, сидя — меньше, бег — больше, прыжок — сильно больше, очередь накапливает
@@ -904,6 +928,6 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       if (player.isCrouching) setCrouch(false);                                                                       // прыжок встаёт из приседа
       player.vel.y = 7.5; player.onGround = false;
     });
-    tap(document.getElementById('btn-reload'), () => { if (player.dead) return; if (curW === 'knife') { if (window.HW_inspect) window.HW_inspect(); return; } if (player.onGround) reloadAmmo(); });   // с ножом R — осмотр   // в прыжке не перезарядиться
+    tap(document.getElementById('btn-reload'), () => { if (player.dead) return; if (curW === 'knife' || (player.ammoInMag === player.maxMag && !player.isReloading)) { if (window.HW_inspect) window.HW_inspect(); return; } if (player.onGround) reloadAmmo(); });   // с ножом R — осмотр   // в прыжке не перезарядиться
   };
 })();
