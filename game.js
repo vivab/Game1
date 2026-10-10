@@ -7,7 +7,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const squads = { A: [], B: [] }, intel = { A: null, B: null };
   const stats = [], mine = new Set(), took = new Map(), gave = new Map();      // таблица матча; кто бил игрока
   const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: 10000000 + Math.floor(Math.random() * 89999999) }; stats.push(me);
-  let tabOn = false, grid = null, curW = 'rifle', shopEnd = 0;
+  let tabOn = false, grid = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
   const SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
@@ -279,12 +279,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   const BW = {      // оружие ботов: интервал выстрела, урон по игроку / по боту, меткость, дальность
     rifle: { int: 0.16, dp: 9, db: 12, acc: 1, range: 45 }, usp: { int: 0.3, dp: 12, db: 15, acc: 0.9, range: 30 },
-    deagle: { int: 0.75, dp: 38, db: 45, acc: 0.8, range: 35 }, beretta: { int: 0.26, dp: 10, db: 13, acc: 0.85, range: 28 },
-    knife: { int: 0.6, dp: 28, db: 35, acc: 1, range: 2, melee: true }
+    deagle: { int: 0.75, dp: 38, db: 45, acc: 0.8, range: 35 }, glock: { int: 0.14, dp: 8, db: 10, acc: 0.75, range: 25 }, awp: { int: 1.5, dp: 100, db: 100, acc: 0.8, range: 80 },
+    knife: { int: 0.6, dp: 100, db: 100, acc: 1, range: 2, melee: true }
   };
-  const BWN = { rifle: 'AK-47', usp: 'USP-S', deagle: 'Desert Eagle', beretta: 'Beretta 92FS', knife: 'Нож' };
+  const BWN = { rifle: 'AK-47', awp: 'AWP', usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', knife: 'Нож' };
   const POSE_PISTOL = { rp: -1.25, ry: 0.42, re: -0.2, lp: -1.25, ly: -0.42, le: -0.2 }, POSE_KNIFE = { rp: -0.7, ry: 0.15, re: -1.1, lp: -0.2, ly: -0.1, le: -0.5 };
-  const rollWeapon = () => { const r = Math.random(); return r < 0.5 ? 'rifle' : r < 0.65 ? 'usp' : r < 0.8 ? 'deagle' : r < 0.9 ? 'beretta' : 'knife'; };
+  const rollWeapon = () => 'rifle';     // реальный набор оружия бот получает в rollLoadout
   function blockGun(type) {                         // пистолеты и нож ботов — из блоков
     const g = new THREE.Group(), bx = (w, h, d, c, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); g.add(o); };
     if (type === 'knife') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, 0.2, 0xd0d4da, 0, 0, 0.16); }
@@ -422,8 +422,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const ax = tris[t] + dx, ay = tris[t + 1] + dy, az = tris[t + 2] + dz, bx = tris[t + 3] + dx, by = tris[t + 4] + dy, bz = tris[t + 5] + dz, cx = tris[t + 6] + dx, cy = tris[t + 7] + dy, cz = tris[t + 8] + dz;
       const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
       const nxv = uy * vz - uz * vy, nyv = uz * vx - ux * vz, nzv = ux * vy - uy * vx, nl = Math.hypot(nxv, nyv, nzv) || 1;
-      const lo = Math.min(ay, by, cy), hi = Math.max(ay, by, cy), walk = nyv / nl > 0.6;   // смотрит вверх — по нему можно ходить
-      if (walk ? (hi > 4.5 || hi < -0.1) : (hi < 0.35 || lo > 1.9)) continue;
+      const lo = Math.min(ay, by, cy), hi = Math.max(ay, by, cy), walk = Math.abs(nyv / nl) > 0.6;   // смотрит вверх — по нему можно ходить
+      if (walk ? (hi > 14 || hi < -0.1) : (hi < 0.35 || lo > 1.9)) continue;
       const L = Math.max(Math.hypot(ax - bx, az - bz), Math.hypot(bx - cx, bz - cz), Math.hypot(cx - ax, cz - az)), st = Math.max(1, Math.ceil(L / 0.25));
       for (let u = 0; u <= st; u++) for (let v = 0; v <= st - u; v++) {
         const p = u / st, q = v / st, w = 1 - p - q, k = cellK(ax * w + bx * p + cx * q, az * w + bz * p + cz * q);
@@ -440,8 +440,9 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const fl = new THREE.Mesh(new THREE.PlaneGeometry(bb.max.x - bb.min.x, bb.max.z - bb.min.z), new THREE.MeshStandardMaterial({ map: asphaltTex(bb.max.x - bb.min.x, bb.max.z - bb.min.z), color: 0xdddddd, roughness: 0.95, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     fl.rotation.x = -Math.PI / 2; fl.position.set((bb.min.x + bb.max.x) / 2, 0.01, (bb.min.z + bb.max.z) / 2); fl.receiveShadow = true;
     scene.add(fl); colliders.push(fl);
-    scene.background = new THREE.Color(0x9fc9ee); if (scene.fog) { scene.fog.color.set(0xb7d3ee); scene.fog.density = 0.012; }   // дневное небо                                  // белый пол
-    scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; } });
+    scene.background = new THREE.Color(0x6f98c2); if (scene.fog) { scene.fog.color.set(0x8aa9c8); scene.fog.density = 0.014; }   // дневное небо                                  // белый пол
+    const dk = new Set();
+    scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.color && !dk.has(m)) { dk.add(m); m.color.multiplyScalar(0.68); } }); } });   // карта темнее
     grid = { x0, z0, cs, nx, nz, low, tall, oH, layers, rects };
     buildNav();
     const xs = [-6, -3, 0, 3, 6];
@@ -468,11 +469,11 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), new THREE.MeshStandardMaterial({ color: 0x334155 }));
       m.position.y = -0.3; p.add(m); vis.add(p); return p;
     };
-    const hb = (w, h, d, y, head) => {      // невидимые хитбоксы: по ним летят пули, поза модели не важна
+    const hb = (w, h, d, x, y, zone) => {      // невидимые хитбоксы по зонам: голова, корпус, ноги, руки
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ visible: false }));
-      m.position.y = y; m.userData.hb = true; if (head) m.userData.isHead = true; inner.add(m);
+      m.position.set(x, y, 0); m.userData.hb = true; m.userData.zone = zone; if (zone === 'head') m.userData.isHead = true; inner.add(m);
     };
-    hb(0.5, 1.5, 0.4, 0.8); hb(0.3, 0.3, 0.3, 1.62, true);
+    hb(0.3, 0.3, 0.3, 0, 1.62, 'head'); hb(0.46, 0.62, 0.34, 0, 1.15, 'torso'); hb(0.46, 0.84, 0.3, 0, 0.42, 'leg'); hb(0.17, 0.6, 0.26, -0.32, 1.15, 'arm'); hb(0.17, 0.6, 0.26, 0.32, 1.15, 'arm');
     const lane = idx % 3;
     if (!squads[team][lane]) squads[team][lane] = { bots: [], turn: 0, wp: 0, arr: 0 };
     const stat = { name: NICKS[stats.length % NICKS.length], team, kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: 10000000 + Math.floor(Math.random() * 89999999) }; stats.push(stat);
@@ -536,6 +537,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (player.hp <= 0) { player.dead = true; respawnIn = 3; score.B++; me.deaths++; if (who) { feed(who, me); showCard(who); } if (who) { who.kills++; mine.forEach(a => { if (a !== who) a.assists++; }); } document.getElementById('msg').textContent = 'ВЫ УБИТЫ'; }
   }
   function respawnPlayer() {
+    unscope();
     const s = SPAWN.A[Math.floor(Math.random() * 5)];
     player.pos.set(s[0], 1.6, s[1]); player.vel.set(0, 0, 0); player.hp = 100; player.dead = false;
     resetLoadout(); openShop(); cameraYaw = 0; cameraPitch = 0;
@@ -693,17 +695,18 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 
   // ---------- оружие: колесо выбора, магазин на 10 секунд, хитмаркер ----------
   const WS = { rifle: { mag: 30, int: 110, name: 'AK-47', spd: 6.2 }, pistol: { mag: 12, int: 190, name: '', spd: 6.8 }, knife: { mag: 0, int: 550, name: 'НОЖ', spd: 7.8 } };   // spd — скорость бега
-  const PN = { usp: 'USP-S', deagle: 'Desert Eagle', beretta: 'Beretta 92FS' };
-  const loadout = { pistol: 'usp' }, store = { rifle: { mag: 30, res: 90 }, pistol: { mag: 12, res: 36 } };
-  const wname = () => curW === 'pistol' ? PN[loadout.pistol] : WS[curW].name;
+  const PN = { usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock' };
+  const loadout = { pistol: 'usp', primary: 'rifle' }, store = { rifle: { mag: 30, res: 90 }, pistol: { mag: 12, res: 36 } };
+  const wname = () => curW === 'pistol' ? PN[loadout.pistol] : (curW === 'rifle' && loadout.primary === 'awp') ? 'AWP' : WS[curW].name;
   function equip(slot) {
+    unscope();
     if (store[curW]) { store[curW].mag = player.ammoInMag; store[curW].res = player.reserveAmmo; }
     curW = slot;
-    const w = WS[slot], st = store[slot] || { mag: 0, res: 0 };
+    const w = (slot === 'rifle' && loadout.primary === 'awp') ? { mag: 5, int: 1400, name: 'AWP', spd: 6.2 } : WS[slot], st = store[slot] || { mag: 0, res: 0 };
     player.maxMag = w.mag; player.ammoInMag = st.mag; player.reserveAmmo = st.res; player.shootInterval = w.int; player.isReloading = false;
     document.getElementById('weapon-name').innerText = wname(); updateUI();
     const sw = document.getElementById('wsw'); if (sw) sw.textContent = wname();
-    if (window.HW_set) window.HW_set(slot === 'pistol' ? loadout.pistol : slot);
+    if (window.HW_set) window.HW_set(slot === 'pistol' ? loadout.pistol : slot === 'rifle' ? loadout.primary : slot);
   }
   window.GAME_SET = n => {                          // переключение из ⚙ тоже меняет оружие в игре (нож бьёт, а не стреляет)
     if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); document.getElementById('wsw').textContent = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
@@ -796,7 +799,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
       '<div id="wheel"><div id="wk" style="margin-left:-105px"><span>Нож</span></div><div id="wp" style="margin-left:35px"><span>Пистолет</span></div><div id="wr" style="margin-top:47px"><span>Автомат</span></div></div>' +
       '<button id="cart" class="interactive-ui">🛒</button><button id="wsw" class="interactive-ui">AK-47</button>' +
-      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="beretta">Beretta 92FS</div></div><div class="col"><h4>Винтовки</h4><div class="it" data-r="1">AK-47</div></div></div></div>';
+      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div></div><div class="col"><h4>Винтовки</h4><div class="it" data-r="1">AK-47</div><div class="it" data-r="awp">AWP</div></div></div></div>';
     document.body.appendChild(d);
     const $ = id => document.getElementById(id), shop = $('shop'), cart = $('cart');
     const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
@@ -806,7 +809,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     shop.addEventListener('click', e => {
       const it = e.target.closest('.it');
       if (!it || player.dead) return;
-      if (it.dataset.p) { loadout.pistol = it.dataset.p; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('pistol'); } else equip('rifle');
+      if (it.dataset.p) { loadout.pistol = it.dataset.p; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('pistol'); } else { loadout.primary = it.dataset.r === 'awp' ? 'awp' : 'rifle'; store.rifle = loadout.primary === 'awp' ? { mag: 5, res: 20 } : { mag: 30, res: 90 }; curW = 'knife'; equip('rifle'); }
       shop.style.display = 'none';
     });
     // колесо оружия: зажми панель патронов и потяни — влево нож, вверх или вправо пистолет, вниз винтовка
@@ -910,8 +913,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     }, { passive: false });
     window.addEventListener('touchmove', e => {
       for (const t of e.changedTouches) if (t.identifier === lookId || t.identifier === fireId) {
-        cameraYaw -= (t.clientX - lx) * 0.0045;
-        cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch - (t.clientY - ly) * 0.0045));
+        cameraYaw -= (t.clientX - lx) * 0.0045 * lookScale;
+        cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch - (t.clientY - ly) * 0.0045 * lookScale));
         lx = t.clientX; ly = t.clientY;
       }
     }, { passive: false });
@@ -923,11 +926,371 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const crouchBtn = document.getElementById('btn-crouch');
     const setCrouch = on => { player.isCrouching = on; player.targetHeight = on ? 0.9 : 1.6; player.speed = on ? 3.5 : 7; crouchBtn.classList.toggle('btn-active', on); };
     tap(crouchBtn, () => { if (player.onGround && !player.dead) setCrouch(!player.isCrouching); });   // в воздухе присесть нельзя
-    tap(document.getElementById('btn-jump'), () => {
-      if (!player.onGround || player.dead) return;
-      if (player.isCrouching) setCrouch(false);                                                                       // прыжок встаёт из приседа
-      player.vel.y = 7.5; player.onGround = false;
-    });
+    window.__setCrouch = setCrouch;
+    const jb = document.getElementById('btn-jump'), jr = () => { jumpHeld = false; };
+    jb.addEventListener('touchstart', e => { e.preventDefault(); jumpHeld = true; tryJump(); }, { passive: false });   // зажал — прыгает снова и снова
+    jb.addEventListener('touchend', jr); jb.addEventListener('touchcancel', jr);
+    jb.addEventListener('click', tryJump);
     tap(document.getElementById('btn-reload'), () => { if (player.dead) return; if (curW === 'knife' || (player.ammoInMag === player.maxMag && !player.isReloading)) { if (window.HW_inspect) window.HW_inspect(); return; } if (player.onGround) reloadAmmo(); });   // с ножом R — осмотр   // в прыжке не перезарядиться
   };
+
+  // ===================================================================================
+  //  ДОПОЛНЕНИЯ: прыжок с удержанием + антибанихоп, залезание, прицел AWP, урон по зонам,
+  //  киллчат с силуэтами, боты с набором оружия, обзор по высоте
+  // ===================================================================================
+  function tryJump() {
+    if (!player.onGround || player.dead || performance.now() - lastLand < 380) return;   // антибанихоп: пауза после приземления
+    if (player.isCrouching && window.__setCrouch) window.__setCrouch(false);
+    player.vel.y = 7.5; player.onGround = false;
+  }
+  function climb(move) {                           // упёрся в уступ/вышку и держишь прыжок — карабкаешься вверх
+    const feet = player.pos.y - player.currentHeight, px = player.pos.x + move.x * 0.6, pz = player.pos.z + move.z * 0.6;
+    const i = Math.floor((px - grid.x0) / grid.cs), j = Math.floor((pz - grid.z0) / grid.cs);
+    if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) return;
+    const k = i * grid.nz + j, top = grid.oH[k];
+    if (top <= feet + 0.5 || top > feet + 9) return;
+    const L = grid.layers[k];
+    if (!L || !L.some(h => Math.abs(h - top) < 0.45)) return;                            // сверху нет площадки
+    player.vel.y = 3.4; player.onGround = false;
+    if (feet >= top - 0.35) { player.pos.x += move.x * 0.9; player.pos.z += move.z * 0.9; }   // перелез на площадку
+  }
+  let scopeEl = null, scopeBtn = null;
+  function mkScope() {
+    if (!scopeEl) {
+      const css = document.createElement('style');
+      css.textContent = '#scope{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;display:none;pointer-events:none;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 0,rgba(0,0,0,0) 30vh,#000 31vh)}' +
+        '#scope::before,#scope::after{content:"";position:absolute;background:#000}#scope::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}#scope::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}' +
+        '#scb{position:absolute;right:150px;bottom:120px;z-index:30;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;display:none;align-items:center;justify-content:center;padding:0}';
+      document.head.appendChild(css);
+      scopeEl = document.createElement('div'); scopeEl.id = 'scope'; document.body.appendChild(scopeEl);
+      scopeBtn = document.createElement('button'); scopeBtn.id = 'scb'; scopeBtn.className = 'interactive-ui'; scopeBtn.textContent = 'ПРИЦЕЛ'; document.body.appendChild(scopeBtn);
+      scopeBtn.addEventListener('touchstart', e => { e.preventDefault(); toggleScope(); }, { passive: false });
+      scopeBtn.addEventListener('click', toggleScope);
+    }
+    scopeBtn.style.display = (started && curW === 'rifle' && loadout.primary === 'awp' && !player.dead) ? 'flex' : 'none';
+  }
+  function toggleScope() {
+    if (scoped) { unscope(); return; }
+    if (!(curW === 'rifle' && loadout.primary === 'awp') || player.dead || player.isReloading) return;
+    scoped = true; lookScale = 0.35; camera.fov = 22; camera.updateProjectionMatrix();
+    scopeEl.style.display = 'block'; const ch = document.getElementById('crosshair'); if (ch) ch.style.display = 'none';
+    if (window.HW_visible) window.HW_visible(false);
+  }
+  function unscope() {
+    if (!scoped) return;
+    scoped = false; lookScale = 1; camera.fov = 75; camera.updateProjectionMatrix();
+    if (scopeEl) scopeEl.style.display = 'none';
+    const ch = document.getElementById('crosshair'); if (ch) ch.style.display = '';
+    if (window.HW_visible) window.HW_visible(true);
+  }
+
+  // ---- поверхности и обзор ----
+  function groundAt(x, z, feet, step) {
+    if (!grid) return 0;
+    const i = Math.floor((x - grid.x0) / grid.cs), j = Math.floor((z - grid.z0) / grid.cs);
+    if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) return 0;
+    const L = grid.layers[i * grid.nz + j];
+    if (!L) return 0;
+    let best = -1; const lim = feet + (step || 0.55);
+    for (let q = 0; q < L.length; q++) if (L[q] <= lim && L[q] > best) best = L[q];
+    return best < 0 ? 0 : best;
+  }
+  function gridBlocked(x, z, r, th) {
+    th = th === undefined ? 0.5 : th;
+    if (!grid) return solids.some(s => x > s.x0 - r && x < s.x1 + r && z > s.z0 - r && z < s.z1 + r);
+    const i0 = Math.floor((x - r - grid.x0) / grid.cs), i1 = Math.floor((x + r - grid.x0) / grid.cs), j0 = Math.floor((z - r - grid.z0) / grid.cs), j1 = Math.floor((z + r - grid.z0) / grid.cs);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz || grid.oH[i * grid.nz + j] > th) return true;
+    return false;
+  }
+  function buildNav() {                             // боты проходят уступы до ~1.2 м (запрыгивают)
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) blocked[i * N + j] = gridBlocked(-40 + (i + 0.5) * CS, -40 + (j + 0.5) * CS, 0.9, 1.25) ? 1 : 0;
+  }
+  function losGrid(a, b) {                          // обзор с учётом высоты: стену закрывает, а стоящего на возвышении — видно
+    const dx = b.x - a.x, dz = b.z - a.z, n = Math.ceil(Math.hypot(dx, dz) / 0.3);
+    for (let k = 1; k < n; k++) {
+      const f = k / n, i = Math.floor((a.x + dx * f - grid.x0) / grid.cs), j = Math.floor((a.z + dz * f - grid.z0) / grid.cs);
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) return false;
+      const c = i * grid.nz + j;
+      if (grid.tall[c] && grid.oH[c] > a.y + (b.y - a.y) * f + 0.05) return false;
+    }
+    return true;
+  }
+
+  // ---- оружие и позы ботов ----
+  function blockGun(type) {
+    const g = new THREE.Group(), bx = (w, h, d, c, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); g.add(o); };
+    if (type === 'knife') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, 0.2, 0xd0d4da, 0, 0, 0.16); }
+    else if (type === 'awp') { bx(0.05, 0.07, 1.1, 0x3b4a3a, 0, 0, 0.25); bx(0.03, 0.03, 0.5, 0x111111, 0, 0.01, 0.95); bx(0.045, 0.05, 0.28, 0x111111, 0, 0.075, 0.2); bx(0.06, 0.12, 0.3, 0x3b4a3a, 0, -0.03, -0.35); }
+    else {
+      const L = { usp: 0.24, deagle: 0.28, glock: 0.2 }[type] || 0.22, col = { usp: 0x2b2b2b, deagle: 0xe3c35a, glock: 0x2f2f33 }[type] || 0x333333;
+      bx(0.04, 0.05, L, col, 0, 0.03, L / 2 - 0.05); bx(0.035, 0.1, 0.05, 0x222222, 0, -0.03, -0.02);
+      if (type === 'usp') bx(0.03, 0.03, 0.12, 0x111111, 0, 0.03, L + 0.04);
+    }
+    return g;
+  }
+  function poseMC(b) {
+    const m = b.mc, two = b.wp === 'rifle' || b.wp === 'awp' || !b.wp;
+    m.upper.rotation.x = BOT.lean; m.head.rotation.x = -BOT.lean * 0.8 - BOT.head;
+    const P = b.wp === 'knife' ? POSE_KNIFE : two ? BOT : POSE_PISTOL;
+    m.armR.rotation.set(P.rp, P.ry, 0); m.armL.rotation.set(P.lp, P.ly, 0);
+    m.armR.userData.elbow.rotation.x = P.re; m.armL.userData.elbow.rotation.x = P.le;
+  }
+  function alignGun(b) {
+    const m = b.mc; b.mesh.updateMatrixWorld(true);
+    const r = b.inner.worldToLocal(m.armR.userData.tip.getWorldPosition(new V())), l = b.inner.worldToLocal(m.armL.userData.tip.getWorldPosition(new V()));
+    if (b.wp === 'knife') { b.gun.rotation.set(-0.6, 0, 0); b.gun.position.copy(r); return; }
+    if (b.wp && b.wp !== 'rifle' && b.wp !== 'awp') { b.gun.quaternion.identity(); b.gun.position.copy(r).lerp(l, 0.5); b.gun.position.y -= 0.02; return; }
+    b.gun.quaternion.setFromUnitVectors(new V(0, 0, 1), l.sub(r).normalize());
+    b.gun.position.copy(r).sub(GRIP.clone().applyQuaternion(b.gun.quaternion));
+  }
+  function mcAnim(b, sw, dt) {                       // бег ногами, прыжок, присед, взгляд вверх/вниз
+    const m = b.mc, air = b.jy > 0.02, ap = b.aimPitch || 0;
+    m.legL.rotation.x = air ? 0.7 : sw * 1.3; m.legR.rotation.x = air ? -0.5 : -sw * 1.3;
+    const lean = BOT.lean + (b.crouch ? 0.3 : 0) - ap * 0.45;
+    m.upper.rotation.x += (lean - m.upper.rotation.x) * Math.min(1, 10 * dt);
+    m.head.rotation.x = -m.upper.rotation.x * 0.8 - BOT.head - ap * 0.7;
+    alignGun(b);
+  }
+  function rollLoadout(b) {                         // у бота: автомат или AWP, пистолет и нож
+    b.loadout = { primary: Math.random() < 0.22 ? 'awp' : 'rifle', pistol: ['usp', 'deagle', 'glock'][Math.floor(Math.random() * 3)] };
+    b.fled = false; b.fleeEnd = 0; b.switchT = 0; b.drawT = 0; b.holdUntil = 0; b.stillT = 0; b.aimPitch = 0;
+    if (b.mc) setBotWeapon(b, b.loadout.primary);
+  }
+  function spawnAt(b) {
+    const s = SPAWN[b.team][Math.floor(Math.random() * 5)];
+    b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = b.team === 'A' ? Math.PI : 0;
+    b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false;
+    rollLoadout(b);
+  }
+  function perceive(b) {                            // видят и вверх, и вниз
+    const pos = b.mesh.position, fx = Math.sin(b.mesh.rotation.y), fz = Math.cos(b.mesh.rotation.y), ey = eye(b);
+    let best = null, bd = 1e9;
+    const foes = bots.filter(o => !o.dead && o.team !== b.team).map(o => ({ pos: o.mesh.position, bot: o }));
+    if (b.team === 'B' && !player.dead) foes.push({ pos: player.pos, ply: true });
+    foes.forEach(e => {
+      const dx = e.pos.x - pos.x, dz = e.pos.z - pos.z, d = Math.hypot(dx, dz);
+      if (d > 60 || d >= bd) return;
+      if (d > 8 && (dx * fx + dz * fz) / d < 0.3 && T - (b.hitT || -9) > 1.5) return;       // вне поля зрения, если по ним только что не стреляли
+      const ty = e.ply ? e.pos.y - 0.25 : e.pos.y + 1.3;
+      if (los(ey, new V(e.pos.x, ty, e.pos.z))) { best = e; bd = d; b.aimDy = ty - ey.y; }
+    });
+    if (best && !b.target) b.react = (BW[b.wp] && BW[b.wp].melee ? 0.15 : 0.3) + Math.random() * 0.35 + (b.wp === 'awp' ? 0.35 : 0);
+    b.target = best;
+    if (best) { b.seenT = T; intel[b.team] = { pos: new V(best.pos.x, 0, best.pos.z), t: T }; }
+  }
+  function follow(b, goal, dt, speed) {
+    const pos = b.mesh.position;
+    if (!b.goal || b.goal.distanceTo(goal) > 2 || b.nextPath <= 0) { b.goal = goal.clone(); b.path = findPath(pos, goal); b.nextPath = 1.5; }
+    const w = b.path[0];
+    if (!w) return;
+    const dx = w.x - pos.x, dz = w.z - pos.z, d = Math.hypot(dx, dz);
+    if (d < 0.8) { b.path.shift(); return; }
+    pos.x += dx / d * speed * dt; pos.z += dz / d * speed * dt;
+    resolve(pos, 0.4, pos.y + 0.75);
+    turnTo(b, Math.atan2(dx, dz), dt); b.walk = true;
+  }
+
+  // ---- киллчат: ник, силуэт оружия, (череп при хедшоте), ник ----
+  const ICON = { rifle: ['0 0 40 12', 'M1 4h8l2-2h10v2h16v2H22l-2 2h-4l-1 3h-3l1-3H9v-1H1z'], awp: ['0 0 46 12', 'M0 6h46v2H0zM10 3h16v2H10zM22 8l-2 4h-3l2-4zM2 4h8v2H2z'], pistol: ['0 0 24 12', 'M1 2h17v3h-3l-1 2v5h-4V7H1z'], knife: ['0 0 30 10', 'M0 4l17-3 11 2-11 4H9L0 7z'] };
+  const wicon = t => { const k = (t === 'rifle' || t === 'awp' || t === 'knife') ? t : 'pistol', i = ICON[k]; return '<svg viewBox="' + i[0] + '" width="' + (k === 'awp' ? 38 : k === 'rifle' ? 32 : 22) + '" height="11" style="vertical-align:middle;margin:0 3px"><path d="' + i[1] + '" fill="#fff"/></svg>'; };
+  function feed(k, v, wt, head) {
+    const kf = document.getElementById('kf'), d = document.createElement('div');
+    d.className = 'k' + (k === me || v === me ? ' me' : '');
+    d.innerHTML = '<span style="color:' + tc(k.team) + '">' + k.name + '</span>' + wicon(wt) + (head ? '💀 ' : '') + '<span style="color:' + tc(v.team) + '">' + v.name + '</span>';
+    kf.appendChild(d);
+    while (kf.children.length > 5) kf.removeChild(kf.firstChild);
+    setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
+  }
+
+  // ---- урон ----
+  function damageBot(o, dmg, team, from, byPlayer, who, head, wt) {
+    if (o.dead) return;
+    o.hp -= dmg; o.hitT = T; if (who) o.dmg.add(who);
+    if (who === me) { const r = gave.get(o.stat) || { dmg: 0, hits: 0 }; r.dmg += dmg; r.hits++; gave.set(o.stat, r); }
+    intel[o.team] = { pos: new V(from.x, 0, from.z), t: T };
+    if (o.hp <= 0) {
+      o.dead = true; o.mesh.visible = false; o.respawn = 3; score[team]++; o.stat.deaths++; o.ls = null;
+      if (who) { feed(who, o.stat, wt, head); who.kills++; o.dmg.forEach(a => { if (a !== who && a.team === who.team) a.assists++; }); }
+      if (byPlayer) { player.score++; updateUI(); }
+    }
+  }
+  function hurt(d, who, head, wt) {
+    if (player.dead || over) return;
+    player.hp = Math.max(0, player.hp - d); updateUI();
+    if (who) { mine.add(who); const r = took.get(who) || { dmg: 0, hits: 0 }; r.dmg += d; r.hits++; took.set(who, r); }
+    const h = document.getElementById('hurt'); h.style.opacity = 1; setTimeout(() => { h.style.opacity = 0; }, 80);
+    if (player.hp <= 0) {
+      player.dead = true; respawnIn = 3; score.B++; me.deaths++; unscope();
+      if (who) { feed(who, me, wt, head); showCard(who); who.kills++; mine.forEach(a => { if (a !== who) a.assists++; }); }
+      document.getElementById('msg').textContent = 'ВЫ УБИТЫ';
+    }
+  }
+  function knifeHit(now) {                          // нож: один удар — 100 урона куда угодно
+    if (window.HW_fire) window.HW_fire('knife');
+    player.lastShootTime = now; weaponContainer.position.z = 0.08;
+    const fx = -Math.sin(cameraYaw), fz = -Math.cos(cameraYaw);
+    let best = null, bd = 1e9;
+    bots.forEach(b => {
+      if (b.dead || b.team === 'A') return;
+      const dx = b.mesh.position.x - player.pos.x, dz = b.mesh.position.z - player.pos.z, d = Math.hypot(dx, dz);
+      if (d < 1.9 && (dx * fx + dz * fz) / (d || 1) > 0.5 && d < bd) { bd = d; best = b; }
+    });
+    if (best) { damageBot(best, 100, 'A', player.pos, true, me, false, 'knife'); hm(best.dead); }
+  }
+  window.GAME_SET = n => {                          // переключение из ⚙ меняет оружие и в игре
+    if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); document.getElementById('wsw').textContent = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
+    else if (n === 'awp' || n === 'rifle') { if (loadout.primary !== n || curW !== 'rifle') { loadout.primary = n; store.rifle = n === 'awp' ? { mag: 5, res: 20 } : { mag: 30, res: 90 }; curW = 'knife'; equip('rifle'); } else if (window.HW_set) window.HW_set(n); }
+    else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
+  };
+  window.reloadAmmo = function () {
+    if (curW === 'knife' || player.isReloading || player.reserveAmmo <= 0 || player.ammoInMag === player.maxMag) return;
+    unscope(); player.isReloading = true;
+    const ms = curW === 'pistol' ? 1200 : (curW === 'rifle' && loadout.primary === 'awp') ? 2200 : 1500;
+    if (window.HW_reload) window.HW_reload(ms);
+    document.getElementById('weapon-name').innerText = 'ПЕРЕЗАРЯДКА...';
+    const w = curW;
+    setTimeout(() => {
+      if (curW !== w) return;
+      const take = Math.min(player.maxMag - player.ammoInMag, player.reserveAmmo);
+      player.ammoInMag += take; player.reserveAmmo -= take; player.isReloading = false;
+      document.getElementById('weapon-name').innerText = wname(); updateUI();
+    }, ms);
+  };
+  window.processShoot = function (now) {
+    if (!started || over || player.dead || player.isReloading) return;
+    if (now - player.lastShootTime < player.shootInterval) return;
+    if (curW === 'knife') { knifeHit(now); return; }
+    if (player.ammoInMag <= 0) { reloadAmmo(); return; }
+    const awp = curW === 'rifle' && loadout.primary === 'awp';
+    player.ammoInMag--; player.lastShootTime = now; updateUI();
+    if (window.HW_fire) window.HW_fire(awp ? 'awp' : curW);
+    recoilPitch += awp ? 0.06 : 0.022; recoilYaw += (Math.random() - 0.5) * (awp ? 0.02 : 0.012); weaponContainer.position.z = 0.05;
+    // разброс: стоя — средний, сидя — меньше, бег — больше, прыжок — сильно больше; AWP без прицела очень неточна
+    burst = Math.max(0, burst - (now - lastShot) / 1000 * SPREAD.recover); lastShot = now;
+    const moving = Math.hypot(moveJoystick.x, moveJoystick.y) > 0.1;
+    let sp = SPREAD.base + burst;
+    if (moving) sp += SPREAD.move;
+    if (!player.onGround) sp += SPREAD.air;
+    if (player.isCrouching) sp *= SPREAD.crouch;
+    burst = Math.min(burst + SPREAD.perShot, SPREAD.max);
+    if (awp) sp = scoped ? 0.0006 + (moving ? 0.004 : 0) + (player.onGround ? 0 : 0.02) : 0.04 + sp;
+    const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
+    raycaster.setFromCamera(new THREE.Vector2(Math.cos(a) * r / camera.aspect, Math.sin(a) * r), camera);
+    const targets = colliders.slice();
+    bots.forEach(b => { if (!b.dead) b.mesh.traverse(c => { if (c.userData.hb) { c.userData.bot = b; targets.push(c); } }); });
+    const hit = raycaster.intersectObjects(targets)[0];
+    if (!hit) return;
+    const b = hit.object.userData.bot;
+    if (b) {
+      if (b.team !== 'A' && !b.dead) {
+        const zone = hit.object.userData.zone, head = zone === 'head';
+        const dmg = awp ? ((zone === 'leg' || zone === 'arm') ? 40 : 100) : (head ? 100 : 35);   // AWP: везде 100, кроме ног и рук
+        damageBot(b, dmg, 'A', player.pos, true, me, head, awp ? 'awp' : curW === 'pistol' ? loadout.pistol : 'rifle');
+        hm(b.dead);
+      }
+    } else if (hit.face) createBulletHole(hit.point, hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
+  };
+  window.updatePlayer = function (dt) {
+    shopTick(); mkScope();
+    player.speed = (scoped ? 2.5 : WS[curW].spd) * (player.isCrouching ? 0.5 : 1);        // в прицеле медленно, с AWP без прицела — как с автоматом
+    if (player.dead && (respawnIn -= dt) <= 0 && !over) respawnPlayer();
+    if (jumpHeld) tryJump();
+    player.vel.y -= 22 * dt;
+    const mv = player.dead ? { x: 0, y: 0 } : moveJoystick;
+    const move = new V(mv.x, 0, -mv.y).normalize().applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
+    player.pos.x += move.x * player.speed * dt; player.pos.z += move.z * player.speed * dt; player.pos.y += player.vel.y * dt;
+    player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
+    if (grid && jumpHeld && !player.dead && (mv.x || mv.y)) climb(move);
+    resolve(player.pos, 0.4, player.pos.y - player.currentHeight);
+    const gy = groundAt(player.pos.x, player.pos.z, player.pos.y - player.currentHeight);
+    if (player.pos.y - player.currentHeight <= gy) { if (!player.onGround) lastLand = performance.now(); player.pos.y = gy + player.currentHeight; player.vel.y = 0; player.onGround = true; }
+    else if (Math.abs(player.vel.y) > 0.5) player.onGround = false;
+    recoilPitch = THREE.MathUtils.lerp(recoilPitch, 0, 10 * dt);
+    recoilYaw = THREE.MathUtils.lerp(recoilYaw, 0, 10 * dt);
+    weaponContainer.position.z = THREE.MathUtils.lerp(weaponContainer.position.z, 0, 12 * dt);
+    camera.rotation.y = cameraYaw + recoilYaw; camera.rotation.x = cameraPitch + recoilPitch; camera.position.copy(player.pos);
+  };
+
+  // ---- мышление ботов ----
+  window.updateBots = function (dt) {
+    if (!started || over) return;
+    T += dt; timeLeft -= dt;
+    if (timeLeft <= 0) endMatch();
+    bots.forEach(b => {
+      if (b.dead) { b.respawn -= dt; if (b.respawn <= 0) spawnAt(b); return; }
+      if (!b.loadout) rollLoadout(b);
+      const pos = b.mesh.position;
+      b.walk = false; b.react -= dt; b.nextPath -= dt; b.think -= dt;
+      if (b.think <= 0) { b.think = 0.15 + Math.random() * 0.1; perceive(b); }
+      const BX = BW[b.wp] || BW.rifle, prim = b.loadout.primary;
+      let want = prim;
+      if (b.target) {
+        const e = b.target, dx = e.pos.x - pos.x, dz = e.pos.z - pos.z, d = Math.hypot(dx, dz);
+        b.combatT = T;
+        turnTo(b, Math.atan2(dx, dz), dt, 9);
+        b.aimPitch += (Math.atan2(b.aimDy || 0, Math.max(d, 1)) - b.aimPitch) * Math.min(1, 8 * dt);     // смотрит вверх/вниз на цель
+        if (b.hp < 35 && !b.fled && Math.random() < 0.02) { b.fled = true; b.fleeEnd = T + 3.5; }       // раненый отступает к своим
+        if (T < b.fleeEnd) { const sp = SPAWN[b.team][0]; follow(b, new V(sp[0], 0, sp[1]), dt, 6.2); b.crouch = false; }
+        else {
+          b.mt -= dt;
+          if (b.mt <= 0) {
+            b.mt = 0.5 + Math.random() * 1.1; b.sdir = Math.random() < 0.5 ? -1 : 1;
+            b.crouch = !BX.melee && b.wp !== 'awp' && d > 14 && Math.random() < 0.45;
+            if (!b.crouch && b.jy === 0 && Math.random() < (T - (b.hitT || -9) < 1.2 ? 0.3 : 0.1)) b.vy = 5.5;
+          }
+          if (!BX.melee && b.wp !== 'awp' && !b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, pos.y + 0.75); b.walk = true; }
+          if (b.react <= 0 && T > b.drawT && T - b.last > BX.int && (!BX.melee || d < 1.9)) {
+            b.last = T;
+            const pr = BX.melee ? 0.9 : Math.max(0.08, 0.55 - d * 0.012) * BX.acc * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
+            const head = Math.random() < 0.12;
+            if (Math.random() < pr) e.ply ? hurt(BX.dp, b.stat, head, b.wp) : damageBot(e.bot, BX.db, b.team, pos, false, b.stat, head, b.wp);
+          }
+          if (BX.melee ? d > 1.5 : (b.wp !== 'awp' && d > 22)) follow(b, e.pos, dt, BX.melee ? 6.5 : 4.5);
+        }
+      } else {
+        b.aimPitch += (0 - b.aimPitch) * Math.min(1, 4 * dt);
+        const mul = b.wp === 'knife' ? 1.28 : b.wp === 'awp' ? 0.85 : 1;       // с ножом бегут быстрее
+        const it = intel[b.team];
+        if (it && T - it.t < 10 && b.chk !== it.t && Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < 40) {
+          b.crouch = false; follow(b, it.pos, dt, 5.5 * mul);                    // идти проверять место вместе с командой
+          if (Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < 3.5) b.chk = it.t;
+        } else {
+          const sq = b.sq, wps = LANES[b.team][b.lane], alive = sq.bots.filter(x => !x.dead).length;
+          while (sq.bots[sq.turn].dead) sq.turn = (sq.turn + 1) % sq.bots.length;
+          if (sq.bots[sq.turn] === b && T >= b.holdUntil) {                      // идёт один, остальные держат углы
+            const g = wps[sq.wp % wps.length];
+            b.crouch = false; follow(b, g, dt, 5 * mul);
+            if (Math.hypot(g.x - pos.x, g.z - pos.z) < 3.5) {
+              if (prim === 'awp') b.holdUntil = T + 4 + Math.random() * 3;       // снайпер занимает позицию
+              sq.arr++; sq.turn = (sq.turn + 1) % sq.bots.length;
+              if (sq.arr >= alive) { sq.arr = 0; sq.wp++; }
+            }
+          } else { b.crouch = Math.sin(T * 0.3 + b.idx * 3) > 0.4; turnTo(b, (b.team === 'A' ? Math.PI : 0) + Math.sin(T * 0.9 + b.idx * 2) * 1.1, dt, 3); }
+        }
+        b.stillT = b.walk ? 0 : b.stillT + dt;
+        want = (T - (b.combatT || -99) < 3 || b.stillT > 0.8) ? prim : 'knife';   // вне боя в движении достают нож
+      }
+      if (want !== b.wp && T >= (b.switchT || 0)) { setBotWeapon(b, want); b.drawT = T + 0.45; b.switchT = T + 0.9; }    // смена оружия
+      // уступы до ~1.2 м: запрыгивают, спускаются плавно
+      if (grid) {
+        const gr = groundAt(pos.x, pos.z, pos.y, 1.25);
+        if (gr > pos.y + 0.3 && b.jy === 0) b.vy = 5.5;
+        pos.y += (gr - pos.y) * Math.min(1, (gr > pos.y ? 10 : 18) * dt);
+        if (Math.abs(gr - pos.y) < 0.02) pos.y = gr;
+      }
+      b.jt -= dt;
+      if (b.walk && b.jt <= 0) { b.jt = 3 + Math.random() * 6; if (!b.crouch && b.jy === 0 && Math.random() < 0.35) b.vy = 5.5; }
+      if (b.jy > 0 || b.vy > 0) { b.vy -= 18 * dt; b.jy = Math.max(0, b.jy + b.vy * dt); if (b.jy === 0) b.vy = 0; }
+      b.cs += (((b.crouch && !(b.act && b.act.crouch)) ? 0.78 : 1) - b.cs) * Math.min(1, 10 * dt);
+      b.inner.position.y = b.jy; b.inner.scale.y = b.cs;
+      b.anim += (b.walk ? dt * 9 : 0);
+      const sw = b.walk ? Math.sin(b.anim) * 0.6 : 0;
+      b.lL.rotation.x = sw; b.rL.rotation.x = -sw;
+      if (b.mc) mcAnim(b, sw, dt);
+    });
+    const t = Math.max(0, Math.ceil(timeLeft));
+    document.getElementById('sa').textContent = score.A; document.getElementById('sb').textContent = score.B;
+    document.getElementById('st').textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+  };
+
 })();
