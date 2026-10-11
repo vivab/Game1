@@ -1,7 +1,7 @@
 /* hands.js — оружие (АК, 3 пистолета, нож) и свои руки в перчатках.
    Подключать ПОСЛЕ основного <script> в index.html. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v13', V = THREE.Vector3;
+  const DEG = Math.PI / 180, KEY = 'hands_v14', V = THREE.Vector3;
   const BIG = 1.35, U = 0.105 * BIG;      // BIG — размер оружия и рук (1 = реальный)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
@@ -24,9 +24,9 @@
   // Твои настройки из ⚙ (ox/oy/oz — сдвиг оружия вместе с руками, wz — только оружие, sz — размер, kp/ky/kr — поворот ножа)
   const DEF = {
     rifle:  { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: H('cup', 0.55, -1, 0.5, 4, -18, 150), f: 0, ox: -0.12, oy: 0.01 },
-    awp:    { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: H('cup', 0.55, -1, 0.5, 4, -18, 150), f: 0, ox: -0.12, oy: 0.01 },
+    awp:    { R: H('pistol', 0.5, -1.2, 0, 15, 10, -85), L: Hk(1.3, 'cup', -0.2, -1, 1.35, 10, -18, 150), f: 0, ox: -0.18, oy: 0.04, wz: -0.3 },
     usp:    { R: Hk(1.3, 'pistol', 0.3, -0.2, 0.55, 29, -28, -66), L: Hk(0.8, 'fist', -0.45, -0.3, 0.2, 20, -10, 85), f: 0, ox: -0.1, sz: 1.52, oy: 0.015, wz: -0.3, kp: 60, oz: -0.125 },
-    glock:  { R: Hk(1.3, 'pistol', 0.3, -0.2, 0.55, 29, -28, -66), L: Hk(0.8, 'fist', -0.45, -0.3, 0.2, 20, -10, 85), f: 0, ox: -0.1, sz: 1.3, oy: 0.015, wz: -0.2, oz: -0.125 },
+    glock:  { R: Hk(1.3, 'pistol', 0.3, -0.2, 0.55, 29, -28, -66), L: Hk(0.8, 'fist', -0.45, -0.3, 0.2, 20, -10, 85), f: 0, ox: -0.1, sz: 1.3, oy: 0.015, wz: -0.135, oz: -0.125 },
     deagle: { R: Hk(1.3, 'pistol', 0.65, 0.1, 0.55, 20, -18, -85), L: Hk(0.25, 'fist', -0.65, -0.1, 0.6, 20, -30, 85), f: 0, ox: -0.075, oy: -0.02 },
     knife:  { R: H('fist', 0.2, 0, 0, 19, -17, -17), L: H('open', -4.2, -0.5, -0.5, 25, -20, 0), f: 1, ox: -0.04, sz: 0.78, oz: -0.075, wz: -0.025, kp: 4, ky: 71, kr: 107 }
   };
@@ -101,7 +101,7 @@
     if (knife ? front < rear : front > rear) th += Math.PI;
     return th;
   }
-  function goldSkin(root) {                         // золотой дигл: градиент по высоте и тонкие полосы
+  function steelSkin(root) {                        // дигл как в КС: светлая сталь, тёмная рукоять, тонкая насечка
     root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(root);
     root.traverse(o => {
@@ -109,11 +109,12 @@
       const p = o.geometry.attributes.position, col = new Float32Array(p.count * 3), v = new V();
       for (let i = 0; i < p.count; i++) {
         v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
-        const t = (v.y - box.min.y) / ((box.max.y - box.min.y) || 1), k = (0.6 + 0.4 * t) * (0.93 + 0.07 * Math.sin((v.x + v.z) * 90));
-        col[i * 3] = k; col[i * 3 + 1] = 0.82 * k; col[i * 3 + 2] = 0.36 * k;
+        const t = (v.y - box.min.y) / ((box.max.y - box.min.y) || 1), st = 0.94 + 0.06 * Math.sin((v.x + v.z) * 110);
+        const k = (t < 0.4 ? 0.2 : 0.72 + 0.2 * t) * st;
+        col[i * 3] = k; col[i * 3 + 1] = k * 1.02; col[i * 3 + 2] = k * 1.07;
       }
       o.geometry.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.vertexColors = true; m.map = null; m.color.set(0xffffff); m.metalness = 0.1; m.roughness = 0.4; if (m.emissive) { m.emissive.set(0x4a3a10); m.emissiveMap = null; } m.needsUpdate = true; });
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.vertexColors = true; m.map = null; m.color.set(0xffffff); m.metalness = 0.15; m.roughness = 0.35; if (m.emissive) { m.emissive.set(0x30343b); m.emissiveMap = null; } m.needsUpdate = true; });
     });
   }
   function loadW(name, cb) {
@@ -127,11 +128,11 @@
       s.traverse(o => {
         if (!o.isMesh) return;
         (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.4) m.metalness = 0.3; m.side = THREE.DoubleSide;
-        if (name !== 'rifle') { m.metalness = 0; m.roughness = 0.7; if (m.emissive) { m.emissive.set(0x555555); if (m.map) m.emissiveMap = m.map; } else if (m.color) m.color.setRGB(1.6, 1.6, 1.6); m.needsUpdate = true; } });
+        if (name !== 'rifle') { m.metalness = 0; m.roughness = 0.7; if (m.emissive) { m.emissive.set(name === 'awp' ? 0x9a9a9a : 0x555555); if (m.map) m.emissiveMap = m.map; } else if (m.color) m.color.setRGB(1.6, 1.6, 1.6); m.needsUpdate = true; } });
         const p = o.geometry.attributes.position;
         for (let i = 0; i < p.count; i += 2) P.push(new V().fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld));
       });
-      if (name === 'deagle') goldSkin(s);
+      if (name === 'deagle') steelSkin(s);
       w.P = P; w.inner = s; w.yaw0 = w.yaw !== undefined ? w.yaw : autoYaw(P, w.knife);
       w.wrap = new THREE.Group(); w.pivot = new THREE.Group();
       w.wrap.add(s); w.pivot.add(w.wrap); animRoot.add(w.pivot);
@@ -163,7 +164,7 @@
     if (w.knife) {
       w.wrap.position.set(-s * c.x, -s * c.y, -s * (b.max.z - 0.15 * size.z));
       w.pivot.position.set(gx, sY, sZ + wz); w.pivot.rotation.order = 'YXZ';
-      const kv = (k, d) => (tune[cur][k] !== undefined ? tune[cur][k] : d) * DEG; w.pivot.rotation.set(kv('kp', 29), kv('ky', 46), kv('kr', 0)); w.base = { x: gx, y: sY, z: sZ + wz, rz: kv('kr', 0) };   // клинок вверх-влево
+      const kv = (k, d) => (tune[cur][k] !== undefined ? tune[cur][k] : d) * DEG; w.pivot.rotation.set(kv('kp', 29), kv('ky', 46), kv('kr', 0)); w.base = { x: gx, y: sY, z: sZ + wz, rz: kv('kr', 0), dir: new V(0, 0, -1).applyEuler(new THREE.Euler(kv('kp', 29), kv('ky', 46), 0, 'YXZ')) };   // клинок вверх-влево
     } else {
       const wp = new V(gx - s * c.x, sY - s * b.max.y, sZ + wz + w.muz * BIG - s * b.min.z), ctr = wp.clone().add(c.clone().multiplyScalar(s));   // центр оружия — точка вращения
       w.wrap.position.copy(wp).sub(ctr); w.pivot.position.copy(ctr); w.base = { x: ctr.x, y: ctr.y, z: ctr.z, rz: 0 };
@@ -242,16 +243,16 @@
   const kf = (...rows) => rows.map(r => [r[0]].concat(r[1]));
   const KF = {
     // автомат и пистолеты: поднял → смотрит слева → медленно с правой стороны → вернул и опустил
-    gun: kf([0, Z], [0.7, UP], [1.5, LEFT], [2.1, LEFT], [3.5, RIGHT], [4.0, RIGHT], [4.8, UP], [5.4, Z]),
+    pistol: kf([0, Z], [0.6, UP], [1.3, LEFT], [2.2, LEFT], [3.0, UP], [3.6, Z]),                       // как в Standoff 2: взял, посмотрел левую сторону, вернул
+    heavy: kf([0, Z], [0.7, UP], [1.5, RIGHT], [2.5, RIGHT], [3.3, UP], [4.0, Z]),                      // автомат и AWP: смотрим только правую сторону
     // нож: поднял остриём вверх → вращение вокруг оси → плавно вернул
-    knife: kf([0, Z], [0.8, [-0.05, 0.12, 0.08, 0.55, 0, 0, 0]], [2.6, [-0.05, 0.12, 0.08, 0.55, 0, 0, Math.PI * 2]], [3.5, [0, 0, 0, 0, 0, 0, Math.PI * 2]]),
+    knife: kf([0, Z], [0.8, [-0.05, 0.1, 0.08, 0.9, 0, 0, 0]], [2.6, [-0.05, 0.1, 0.08, 0.9, 0, 0, Math.PI * 2]], [3.5, [0, 0, 0, 0, 0, 0, Math.PI * 2]]),   // [3] — угол подъёма острия
     rel: {            // перезарядка (время 0..1 от длительности)
       rifle: kf([0, Z], [0.18, [0.02, -0.1, 0, -0.45, 0, 0.35, 0]], [0.6, [0.02, -0.1, 0, -0.45, 0.05, 0.4, 0]], [0.8, [0, -0.08, 0.03, -0.38, 0, 0.3, 0]], [0.88, [0, -0.04, -0.01, -0.15, 0, 0.1, 0]], [1, Z]),
       pistol: kf([0, Z], [0.2, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.62, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.82, [0, -0.05, 0.02, -0.2, 0, 0.2, 0]], [1, Z]),
       awp: kf([0, Z], [0.15, [0.02, -0.04, 0, -0.3, 0.1, 0.4, 0]], [0.4, [0.02, -0.04, 0.07, -0.3, 0.1, 0.4, 0]], [0.55, [0.02, -0.04, -0.01, -0.3, 0.1, 0.4, 0]], [0.85, [0.02, -0.1, 0, -0.4, 0, 0.3, 0]], [1, Z])
     }
   };
-  KF.awp = KF.gun;
   const DRAW = { knife: 0.6, rifle: 0.85, pistol: 0.6, awp: 1.0 };                                     // длительность доставания
   const FROM = { knife: [0.2, -0.5, 0.06, -0.8, 0, 0.7], rifle: [0.12, -0.55, 0.08, -0.9, 0.25, 0.15], pistol: [0.15, -0.4, 0.05, -0.6, 0, 0.25], awp: [0.1, -0.6, 0.1, -1.0, 0.3, 0.1] };
   const KICK = { rifle: [0.035, 0.05], pistol: [0.05, 0.11], awp: [0.09, 0.18] };                    // отдача: назад и вверх
@@ -274,15 +275,15 @@
     const w = W[cur];
     if (!w || !w.ready || !w.base) return;
     const now = ms / 1000, kind = w.knife ? 'knife' : cur === 'awp' ? 'awp' : cur === 'rifle' ? 'rifle' : 'pistol';
-    const o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, rx: 0, ry: 0, rz: 0 };
+    const o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, rx: 0, ry: 0, rz: 0, tip: 0 };
     let spin = 0;
-    const add = v => { o.x += v[0]; o.y += v[1]; o.z += v[2]; o.rx += v[3]; o.ry += v[4]; o.rz += v[5]; spin += v[6] || 0; };
+    const add = (v, lift) => { o.x += v[0]; o.y += v[1]; o.z += v[2]; if (lift) o.tip += v[3]; else o.rx += v[3]; o.ry += v[4]; o.rz += v[5]; spin += v[6] || 0; };
     if (drw) {                                                          // доставание
       const u = (ms - drw.t0) / 1000 / DRAW[kind];
       if (u >= 1) drw = null;
       else { const f = 1 - sm(u), q = FROM[kind]; o.x += q[0] * f; o.y += q[1] * f; o.z += q[2] * f; o.rx += q[3] * f; o.ry += q[4] * f; o.rz += q[5] * f + (kind === 'knife' ? Math.sin(u * 10) * 0.1 * (1 - u) * (1 - u) : 0); }
     }
-    if (ins) { const v = sample(w.knife ? KF.knife : KF.gun, (ms - ins.t0) / 1000); if (v) add(v); else ins = null; }          // осмотр
+    if (ins) { const v = sample(w.knife ? KF.knife : kind === 'pistol' ? KF.pistol : KF.heavy, (ms - ins.t0) / 1000); if (v) add(v, w.knife); else ins = null; }          // осмотр
     if (rel) { const u = (ms - rel.t0) / rel.D, v = u >= 1 ? null : sample(KF.rel[kind === 'knife' ? 'rifle' : kind], u); if (v) add(v); else rel = null; }   // перезарядка
     kick *= Math.exp(-dt * 14);
     if (kind !== 'knife') { const k = KICK[kind]; o.z += k[0] * kick; o.rx += k[1] * kick; o.y += 0.01 * kick; }
@@ -290,7 +291,9 @@
     if (w.flash) w.flash.visible = ms < flashUntil;
     const b = w.base, E = new THREE.Euler(o.rx, o.ry, o.rz, 'YXZ');
     animRoot.matrix.makeTranslation(b.x + o.x, b.y + o.y, b.z + o.z)
-      .multiply(new THREE.Matrix4().makeRotationFromEuler(E)).multiply(new THREE.Matrix4().makeTranslation(-b.x, -b.y, -b.z));
+      .multiply(new THREE.Matrix4().makeRotationFromEuler(E));
+    if (w.knife && o.tip) { const ax = new V().crossVectors(b.dir || new V(0, 0, -1), new V(0, 1, 0)); if (ax.lengthSq() > 1e-6) animRoot.matrix.multiply(new THREE.Matrix4().makeRotationAxis(ax.normalize(), o.tip)); }   // острие ножа идёт вверх
+    animRoot.matrix.multiply(new THREE.Matrix4().makeTranslation(-b.x, -b.y, -b.z));
     animRoot.matrixWorldNeedsUpdate = true;
     if (w.knife) w.pivot.rotation.z = b.rz + spin;                      // нож крутится вокруг своей оси
   }
