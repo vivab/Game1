@@ -7,7 +7,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const squads = { A: [], B: [] }, intel = { A: null, B: null };
   const stats = [], mine = new Set(), took = new Map(), gave = new Map();      // таблица матча; кто бил игрока
   const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: 10000000 + Math.floor(Math.random() * 89999999) }; stats.push(me);
-  let tabOn = false, grid = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
+  let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
   const SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
@@ -77,6 +77,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     return [x, z];
   }
   function resolve(p, r, feet) {
+    if (tg) return resolveTG(p, r, feet);
     if (grid) return resolveGrid(p, r, feet);
     for (let it = 0; it < 2; it++) solids.forEach(s => {
       if (feet >= s.h) return;
@@ -91,6 +92,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   const ray = new THREE.Raycaster();
   function los(a, b) {
+    if (tg) return losTG(a, b);
     if (grid) return losGrid(a, b);
     const d = new V().subVectors(b, a), dist = d.length();
     ray.set(a, d.normalize()); ray.far = dist;
@@ -202,9 +204,9 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     return null;
   }
   // ---------- боты в стиле Minecraft: суставы управляются кодом ----------
-  const BOT = { lean: 0.35, head: 0.15, rp: -0.5, ry: 0.7, re: -1.3, lp: -1.2, ly: -0.55, le: -0.3 };
-  try { Object.assign(BOT, JSON.parse(localStorage.getItem('bot_v3'))); } catch (e) {}
-  const saveBot = () => { try { localStorage.setItem('bot_v3', JSON.stringify(BOT)); } catch (e) {} };
+  const BOT = { lean: 0.12, head: 0.05, rp: -0.35, ry: 0.75, re: -1.55, lp: -0.75, ly: -0.6, le: -1.0 };   // как в Block Strike: оба локтя согнуты, автомат у груди
+  try { Object.assign(BOT, JSON.parse(localStorage.getItem('bot_v4'))); } catch (e) {}
+  const saveBot = () => { try { localStorage.setItem('bot_v4', JSON.stringify(BOT)); } catch (e) {} };
   // Цвета одежды. A — спецназ (синие штаны), B — террорист (оранжевый комбинезон, чёрные штаны)
   const SK = { B: { top: '#e8590c', vest: '#8f3f0c', pants: '#1c1c1c' }, A: { top: '#2f5fd0', vest: '#1b3a8a', pants: '#2447b3' } };
   const PXS = 1.8 / 32, SKINS = {};                  // 1 пиксель текстуры = 5.6 см, рост 1.8 м
@@ -418,7 +420,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const bb = new THREE.Box3().setFromObject(wrap), cs = 0.5, x0 = bb.min.x, z0 = bb.min.z, nx = Math.ceil((bb.max.x - x0) / cs), nz = Math.ceil((bb.max.z - z0) / cs);
     const low = new Uint8Array(nx * nz), tall = new Uint8Array(nx * nz), oH = new Float32Array(nx * nz), oLo = new Float32Array(nx * nz).fill(99), layers = new Array(nx * nz);
     const cellK = (x, zz) => { const i = Math.floor((x - x0) / cs), j = Math.floor((zz - z0) / cs); return (i >= 0 && j >= 0 && i < nx && j < nz) ? i * nz + j : -1; };
-    for (let t = 0; t < tris.length; t += 9) {
+    for (let t = 0; t < 0; t += 9) {                               // (старая растеризация отключена — теперь точная геометрия)
       const ax = tris[t] + dx, ay = tris[t + 1] + dy, az = tris[t + 2] + dz, bx = tris[t + 3] + dx, by = tris[t + 4] + dy, bz = tris[t + 5] + dz, cx = tris[t + 6] + dx, cy = tris[t + 7] + dy, cz = tris[t + 8] + dz;
       const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
       const nxv = uy * vz - uz * vy, nyv = uz * vx - ux * vz, nzv = ux * vy - uy * vx, nl = Math.hypot(nxv, nyv, nzv) || 1;
@@ -445,6 +447,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.color && !dk.has(m)) { dk.add(m); m.color.multiplyScalar(0.68); } }); } });   // карта темнее
     grid = { x0, z0, cs, nx, nz, low, tall, oH, oLo, layers, rects };
     { const sc = 4, cv = document.createElement('canvas'); cv.width = Math.ceil(nx * cs * sc); cv.height = Math.ceil(nz * cs * sc); const g2 = cv.getContext('2d'); g2.fillStyle = 'rgba(148,163,184,.4)'; rects.forEach(r => g2.fillRect((r.x0 - x0) * sc, (r.z0 - z0) * sc, (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc)); grid.cv = cv; grid.cvs = sc; }   // карта стен для радара
+    tg = buildTG(tris, dx, dy, dz, bb); miniFromTG();
     buildNav();
     const xs = [-6, -3, 0, 3, 6];
     SPAWN.A = xs.map(x => freeNear(x, 32)); SPAWN.B = xs.map(x => freeNear(x, -32));
@@ -644,7 +647,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
   }
   function uiExtra() {
-    uiWeapons(); botPanel(); gfxUI();
+    uiWeapons(); botPanel(); botCopy(); gfxUI();
     const css = document.createElement('style');
     css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
       '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
@@ -740,7 +743,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     bots.forEach(b => {
       if (b.dead || b.team === 'A') return;
       const dx = b.mesh.position.x - player.pos.x, dz = b.mesh.position.z - player.pos.z, d = Math.hypot(dx, dz);
-      if (d < 1.9 && (dx * fx + dz * fz) / (d || 1) > 0.5 && d < bd) { bd = d; best = b; }
+      if (d < 1.9 && (dx * fx + dz * fz) / (d || 1) > 0.5 && d < bd && (!tg || los(camera.position, new V(b.mesh.position.x, b.mesh.position.y + 1.1, b.mesh.position.z)))) { bd = d; best = b; }   // через стену не ударить
     });
     if (best) { damageBot(best, 55, 'A', player.pos, true, me); hm(best.dead); }
   }
@@ -1136,7 +1139,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     bots.forEach(b => {
       if (b.dead || b.team === 'A') return;
       const dx = b.mesh.position.x - player.pos.x, dz = b.mesh.position.z - player.pos.z, d = Math.hypot(dx, dz);
-      if (d < 1.9 && (dx * fx + dz * fz) / (d || 1) > 0.5 && d < bd) { bd = d; best = b; }
+      if (d < 1.9 && (dx * fx + dz * fz) / (d || 1) > 0.5 && d < bd && (!tg || los(camera.position, new V(b.mesh.position.x, b.mesh.position.y + 1.1, b.mesh.position.z)))) { bd = d; best = b; }   // через стену не ударить
     });
     if (best) { damageBot(best, 100, 'A', player.pos, true, me, false, 'knife'); hm(best.dead); }
   }
@@ -1402,6 +1405,244 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (fpsAvg < 40 && pr > prMin) n = Math.max(prMin, pr - 0.15);             // слабый телефон: ещё снижаем разрешение
     else if (fpsAvg > 56 && pr < prMax) n = Math.min(prMax, pr + 0.1);
     if (n !== pr) { pr = n; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); }
+  }
+
+  // ======================= точная геометрия карты (треугольники) =======================
+  // Столкновения, высота пола (ступени, пандусы, площадки) и обзор считаются по настоящим треугольникам карты,
+  // поэтому нет «невидимых стен», нельзя стрелять и видеть сквозь стены и перекрытия.
+  let _qx = 0, _qz = 0;
+  const _d = { x: 0, y: 0, z: 0 };
+  function buildTG(tris, dx, dy, dz, bb) {
+    const n = tris.length / 9, v = new Float32Array(n * 9);
+    for (let t = 0; t < n; t++) { const o = t * 9; for (let q = 0; q < 3; q++) { v[o + q * 3] = tris[o + q * 3] + dx; v[o + q * 3 + 1] = tris[o + q * 3 + 1] + dy; v[o + q * 3 + 2] = tris[o + q * 3 + 2] + dz; } }
+    const cs = 2, x0 = bb.min.x - 1, z0 = bb.min.z - 1, nx = Math.ceil((bb.max.x - bb.min.x + 2) / cs), nz = Math.ceil((bb.max.z - bb.min.z + 2) / cs);
+    const G = { v, n, cs, x0, z0, nx, nz, all: new Array(nx * nz), floor: new Array(nx * nz), wall: new Array(nx * nz), kind: new Int8Array(n), ymin: new Float32Array(n), ymax: new Float32Array(n), hn: new Float32Array(n * 2), stamp: new Uint32Array(n), q: 0, hitTri: -1, bx0: bb.min.x, bx1: bb.max.x, bz0: bb.min.z, bz1: bb.max.z };
+    const ci = (x, lim) => Math.max(0, Math.min(lim - 1, Math.floor(x / cs)));
+    for (let t = 0; t < n; t++) {
+      const o = t * 9, ax = v[o], ay = v[o + 1], az = v[o + 2], bx = v[o + 3], by = v[o + 4], bz = v[o + 5], cx = v[o + 6], cy = v[o + 7], cz = v[o + 8];
+      const ux = bx - ax, uy = by - ay, uz = bz - az, wx = cx - ax, wy = cy - ay, wz = cz - az;
+      const nxv = uy * wz - uz * wy, nyv = uz * wx - ux * wz, nzv = ux * wy - uy * wx, nl = Math.hypot(nxv, nyv, nzv);
+      if (nl < 1e-9) { G.kind[t] = -1; continue; }
+      const kind = Math.abs(nyv / nl) > 0.6 ? 1 : 3;                       // 1 — пол/ступени/крыша (можно стоять), 3 — стена
+      G.kind[t] = kind; G.ymin[t] = Math.min(ay, by, cy); G.ymax[t] = Math.max(ay, by, cy);
+      const hl = Math.hypot(nxv, nzv) || 1; G.hn[t * 2] = nxv / hl; G.hn[t * 2 + 1] = nzv / hl;
+      const i0 = ci(Math.min(ax, bx, cx) - x0, nx), i1 = ci(Math.max(ax, bx, cx) - x0, nx), j0 = ci(Math.min(az, bz, cz) - z0, nz), j1 = ci(Math.max(az, bz, cz) - z0, nz);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const c = i * nz + j;
+        (G.all[c] || (G.all[c] = [])).push(t);
+        if (kind === 1) (G.floor[c] || (G.floor[c] = [])).push(t); else (G.wall[c] || (G.wall[c] = [])).push(t);
+      }
+    }
+    return G;
+  }
+  function cidx(G, x, z) { const i = Math.floor((x - G.x0) / G.cs), j = Math.floor((z - G.z0) / G.cs); return (i < 0 || j < 0 || i >= G.nx || j >= G.nz) ? -1 : i * G.nz + j; }
+  function groundTG(x, z, feet, step) {            // высота поверхности под ногами: самая высокая, до которой можно дотянуться шагом
+    const G = tg, c = cidx(G, x, z); if (c < 0) return null;
+    const L = G.floor[c]; if (!L) return null;
+    const v = G.v, lim = feet + step; let best = -1e9;
+    for (let k = 0; k < L.length; k++) {
+      const t = L[k]; if (G.ymin[t] > lim) continue;
+      const o = t * 9, ax = v[o], az = v[o + 2], bx = v[o + 3], bz = v[o + 5], cx = v[o + 6], cz = v[o + 8];
+      const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz); if (Math.abs(d) < 1e-9) continue;
+      const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d, l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d, l3 = 1 - l1 - l2;
+      if (l1 < -0.02 || l2 < -0.02 || l3 < -0.02) continue;
+      const h = l1 * v[o + 1] + l2 * v[o + 4] + l3 * v[o + 7];
+      if (h <= lim && h > best) best = h;
+    }
+    return best > -1e8 ? best : null;
+  }
+  function floorAbove(x, z, minH, maxH) {          // ближайшая площадка выше minH
+    const G = tg, c = cidx(G, x, z); if (c < 0) return null;
+    const L = G.floor[c]; if (!L) return null;
+    const v = G.v; let best = 1e9;
+    for (let k = 0; k < L.length; k++) {
+      const t = L[k], o = t * 9, ax = v[o], az = v[o + 2], bx = v[o + 3], bz = v[o + 5], cx = v[o + 6], cz = v[o + 8];
+      const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz); if (Math.abs(d) < 1e-9) continue;
+      const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / d, l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / d, l3 = 1 - l1 - l2;
+      if (l1 < -0.02 || l2 < -0.02 || l3 < -0.02) continue;
+      const h = l1 * v[o + 1] + l2 * v[o + 4] + l3 * v[o + 7];
+      if (h > minH && h <= maxH && h < best) best = h;
+    }
+    return best < 1e8 ? best : null;
+  }
+  function distTri2D(v, o, px, pz) {               // расстояние от точки до проекции треугольника на землю; ближайшая точка в _qx,_qz (0 — внутри)
+    const ax = v[o], az = v[o + 2], bx = v[o + 3], bz = v[o + 5], cx = v[o + 6], cz = v[o + 8];
+    const d = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+    if (Math.abs(d) > 1e-7) {
+      const l1 = ((bz - cz) * (px - cx) + (cx - bx) * (pz - cz)) / d, l2 = ((cz - az) * (px - cx) + (ax - cx) * (pz - cz)) / d;
+      if (l1 >= 0 && l2 >= 0 && 1 - l1 - l2 >= 0) { _qx = px; _qz = pz; return 0; }
+    }
+    let best = 1e9;
+    for (let e = 0; e < 3; e++) {
+      const x1 = v[o + e * 3], z1 = v[o + e * 3 + 2], x2 = v[o + ((e + 1) % 3) * 3], z2 = v[o + ((e + 1) % 3) * 3 + 2];
+      const ex = x2 - x1, ez = z2 - z1, L2 = ex * ex + ez * ez;
+      let t = L2 > 1e-12 ? ((px - x1) * ex + (pz - z1) * ez) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const qx = x1 + ex * t, qz = z1 + ez * t, dd = Math.hypot(px - qx, pz - qz);
+      if (dd < best) { best = dd; _qx = qx; _qz = qz; }
+    }
+    return best;
+  }
+  function resolveTG(p, r, feet) {                 // выталкивает из стен; низкое (до ступеньки) и то, что выше головы, стеной не считается
+    const G = tg, v = G.v, lo = feet + 0.45, hi = feet + 1.75;
+    let pushed = false;
+    for (let it = 0; it < 3; it++) {
+      const i0 = Math.max(0, Math.floor((p.x - r - G.x0) / G.cs)), i1 = Math.min(G.nx - 1, Math.floor((p.x + r - G.x0) / G.cs));
+      const j0 = Math.max(0, Math.floor((p.z - r - G.z0) / G.cs)), j1 = Math.min(G.nz - 1, Math.floor((p.z + r - G.z0) / G.cs));
+      let moved = false;
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const L = G.wall[i * G.nz + j]; if (!L) continue;
+        for (let k = 0; k < L.length; k++) {
+          const t = L[k]; if (G.ymax[t] <= lo || G.ymin[t] >= hi) continue;
+          const o = t * 9, d = distTri2D(v, o, p.x, p.z);
+          if (d >= r) continue;
+          let nx, nz, push;
+          if (d < 1e-6) {
+            nx = G.hn[t * 2]; nz = G.hn[t * 2 + 1];
+            if ((p.x - v[o]) * nx + (p.z - v[o + 2]) * nz < 0) { nx = -nx; nz = -nz; }
+            push = r;
+          } else { nx = (p.x - _qx) / d; nz = (p.z - _qz) / d; push = r - d; }
+          p.x += nx * push; p.z += nz * push; moved = pushed = true;
+        }
+      }
+      if (!moved) break;
+    }
+    const cx = Math.max(G.bx0 + r, Math.min(G.bx1 - r, p.x)), cz = Math.max(G.bz0 + r, Math.min(G.bz1 - r, p.z));   // за край карты не выйти
+    if (cx !== p.x || cz !== p.z) { p.x = cx; p.z = cz; pushed = true; }
+    return pushed;
+  }
+  function wallNearTG(x, z, r, lo, hi) {           // верхняя точка стены рядом (или -1, если стены нет)
+    const G = tg, v = G.v; let top = -1;
+    const i0 = Math.max(0, Math.floor((x - r - G.x0) / G.cs)), i1 = Math.min(G.nx - 1, Math.floor((x + r - G.x0) / G.cs));
+    const j0 = Math.max(0, Math.floor((z - r - G.z0) / G.cs)), j1 = Math.min(G.nz - 1, Math.floor((z + r - G.z0) / G.cs));
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+      const L = G.wall[i * G.nz + j]; if (!L) continue;
+      for (let k = 0; k < L.length; k++) {
+        const t = L[k]; if (G.ymax[t] <= lo || G.ymin[t] >= hi || G.ymax[t] <= top) continue;
+        if (distTri2D(v, t * 9, x, z) < r) top = G.ymax[t];
+      }
+    }
+    return top;
+  }
+  function rayTG(o, d, L) {                        // ближайшее пересечение луча с картой: расстояние или -1; номер треугольника в tg.hitTri
+    const G = tg, v = G.v, n = Math.max(1, Math.ceil(L / 0.5)); G.q++;
+    let best = L, bt = -1, lastC = -1;
+    for (let s = 0; s <= n; s++) {
+      const f = L * s / n, x = o.x + d.x * f, z = o.z + d.z * f, i = Math.floor((x - G.x0) / G.cs), j = Math.floor((z - G.z0) / G.cs);
+      if (i < 0 || j < 0 || i >= G.nx || j >= G.nz) continue;
+      const c = i * G.nz + j; if (c === lastC) continue; lastC = c;
+      const Lc = G.all[c]; if (!Lc) continue;
+      for (let k = 0; k < Lc.length; k++) {
+        const t = Lc[k]; if (G.stamp[t] === G.q) continue; G.stamp[t] = G.q;
+        const q = t * 9, e1x = v[q + 3] - v[q], e1y = v[q + 4] - v[q + 1], e1z = v[q + 5] - v[q + 2], e2x = v[q + 6] - v[q], e2y = v[q + 7] - v[q + 1], e2z = v[q + 8] - v[q + 2];
+        const px = d.y * e2z - d.z * e2y, py = d.z * e2x - d.x * e2z, pz = d.x * e2y - d.y * e2x, det = e1x * px + e1y * py + e1z * pz;
+        if (det > -1e-9 && det < 1e-9) continue;
+        const inv = 1 / det, tx = o.x - v[q], ty = o.y - v[q + 1], tz = o.z - v[q + 2], u = (tx * px + ty * py + tz * pz) * inv;
+        if (u < 0 || u > 1) continue;
+        const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x, w = (d.x * qx + d.y * qy + d.z * qz) * inv;
+        if (w < 0 || u + w > 1) continue;
+        const tt = (e2x * qx + e2y * qy + e2z * qz) * inv;
+        if (tt > 0.001 && tt < best) { best = tt; bt = t; }
+      }
+    }
+    G.hitTri = bt;
+    return bt >= 0 ? best : -1;
+  }
+  function losTG(a, b) {                           // видимость: стены, пол и потолок между этажами закрывают
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L = Math.hypot(dx, dy, dz);
+    if (L < 0.4) return true;
+    _d.x = dx / L; _d.y = dy / L; _d.z = dz / L;
+    return rayTG(a, _d, L - 0.2) < 0;
+  }
+
+  function miniFromTG() {                           // карта стен для радара по настоящим стенам
+    const G = tg, sc = 4, cv = document.createElement('canvas');
+    cv.width = Math.ceil(grid.nx * grid.cs * sc); cv.height = Math.ceil(grid.nz * grid.cs * sc);
+    const g2 = cv.getContext('2d'), v = G.v;
+    g2.fillStyle = g2.strokeStyle = 'rgba(148,163,184,.5)'; g2.lineWidth = 1.2; g2.beginPath();
+    for (let t = 0; t < G.n; t++) {
+      if (G.kind[t] !== 3 || G.ymax[t] <= 0.5 || G.ymin[t] >= 1.8) continue;
+      const o = t * 9;
+      g2.moveTo((v[o] - grid.x0) * sc, (v[o + 2] - grid.z0) * sc); g2.lineTo((v[o + 3] - grid.x0) * sc, (v[o + 5] - grid.z0) * sc); g2.lineTo((v[o + 6] - grid.x0) * sc, (v[o + 8] - grid.z0) * sc); g2.closePath();
+    }
+    g2.fill(); g2.stroke();
+    grid.cv = cv; grid.cvs = sc;
+  }
+  function groundAt(x, z, feet, step) {             // на чём стоим: самая высокая поверхность не выше ступеньки
+    if (!tg) return 0;
+    const h = groundTG(x, z, feet, step || 0.55);
+    return h === null ? 0 : h;
+  }
+  function gridBlocked(x, z, r, th) {               // проходима ли точка: есть пол и нет стены нужной высоты
+    th = th === undefined ? 0.5 : th;
+    if (!tg) return solids.some(s => x > s.x0 - r && x < s.x1 + r && z > s.z0 - r && z < s.z1 + r);
+    if (groundTG(x, z, 0, 1.3) === null) return true;
+    return wallNearTG(x, z, r, th, 1.8) >= 0;
+  }
+  function climb(move) {                            // упёрся в уступ/вышку и держишь прыжок — карабкаешься вверх
+    if (!tg) return;
+    const feet = player.pos.y - player.currentHeight, px = player.pos.x + move.x * 0.55, pz = player.pos.z + move.z * 0.55;
+    const top = floorAbove(px, pz, feet + 0.6, feet + 9);                       // ближайшая площадка выше ступеньки
+    if (top === null) return;
+    const wt = wallNearTG(px, pz, 0.25, feet + 0.5, feet + 1.8);                // перед нами настоящая стена, ведущая на эту площадку
+    if (wt < 0 || Math.abs(wt - top) > 0.6) return;
+    player.vel.y = 3.4; player.onGround = false;
+    if (feet >= top - 0.35) { player.pos.x += move.x * 0.9; player.pos.z += move.z * 0.9; }   // перелез на площадку
+  }
+  window.processShoot = function (now) {
+    if (!started || over || player.dead || player.isReloading) return;
+    if (now - player.lastShootTime < player.shootInterval) return;
+    if (curW === 'knife') { knifeHit(now); return; }
+    if (player.ammoInMag <= 0) { reloadAmmo(); return; }
+    const awp = curW === 'rifle' && loadout.primary === 'awp';
+    player.ammoInMag--; player.lastShootTime = now; updateUI();
+    if (window.HW_fire) window.HW_fire(awp ? 'awp' : curW);
+    recoilPitch += awp ? 0.06 : 0.022; recoilYaw += (Math.random() - 0.5) * (awp ? 0.02 : 0.012); weaponContainer.position.z = 0.05;
+    burst = Math.max(0, burst - (now - lastShot) / 1000 * SPREAD.recover); lastShot = now;
+    const moving = Math.hypot(moveJoystick.x, moveJoystick.y) > 0.1;
+    let sp = SPREAD.base + burst;
+    if (moving) sp += SPREAD.move;
+    if (!player.onGround) sp += SPREAD.air;
+    if (player.isCrouching) sp *= SPREAD.crouch;
+    burst = Math.min(burst + SPREAD.perShot, SPREAD.max);
+    if (awp) sp = scoped ? 0.0006 + (moving ? 0.004 : 0) + (player.onGround ? 0 : 0.02) : 0.04 + sp;
+    const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
+    raycaster.setFromCamera(new THREE.Vector2(Math.cos(a) * r / camera.aspect, Math.sin(a) * r), camera); raycaster.far = 150;
+    const bt = [];
+    bots.forEach(b => { if (!b.dead) b.mesh.traverse(c => { if (c.userData.hb) { c.userData.bot = b; bt.push(c); } }); });
+    let hit, wallD = -1;
+    if (tg) {                                        // стены — по точным треугольникам: пуля не пролетает сквозь стену
+      hit = raycaster.intersectObjects(bt)[0];
+      const og = raycaster.ray.origin, dr = raycaster.ray.direction;
+      wallD = rayTG(og, dr, 150);
+      if (hit && wallD >= 0 && wallD < hit.distance) hit = null;
+      if (!hit) {
+        if (wallD >= 0) {
+          const q = tg.hitTri * 9, v = tg.v, e1x = v[q + 3] - v[q], e1y = v[q + 4] - v[q + 1], e1z = v[q + 5] - v[q + 2], e2x = v[q + 6] - v[q], e2y = v[q + 7] - v[q + 1], e2z = v[q + 8] - v[q + 2];
+          const nrm = new V(e1y * e2z - e1z * e2y, e1z * e2x - e1x * e2z, e1x * e2y - e1y * e2x).normalize();
+          if (nrm.dot(dr) > 0) nrm.negate();
+          createBulletHole(new V(og.x + dr.x * wallD, og.y + dr.y * wallD, og.z + dr.z * wallD), nrm);
+        }
+        return;
+      }
+    } else {
+      hit = raycaster.intersectObjects(colliders.concat(bt))[0];
+      if (!hit) return;
+    }
+    const b = hit.object.userData.bot;
+    if (b) {
+      if (b.team !== 'A' && !b.dead) {
+        const zone = hit.object.userData.zone, head = zone === 'head';
+        const dmg = awp ? ((zone === 'leg' || zone === 'arm') ? 40 : 100) : (head ? 100 : 35);   // AWP: везде 100, кроме ног и рук
+        damageBot(b, dmg, 'A', player.pos, true, me, head, awp ? 'awp' : curW === 'pistol' ? loadout.pistol : 'rifle');
+        hm(b.dead);
+      }
+    } else if (hit.face) createBulletHole(hit.point, hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
+  };
+  function botCopy() {                              // кнопка «Копировать позу ботов» — чтобы прислать удачные значения
+    const panel = document.getElementById('hn-p'); if (!panel) return;
+    const b = document.createElement('button'); b.textContent = 'Показать значения ботов'; b.style.cssText = 'margin:6px 0;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:#334155;color:#fff;font-size:12px';
+    b.addEventListener('click', () => { const t = JSON.stringify(BOT); try { navigator.clipboard.writeText(t); } catch (e) {} prompt('Значения поз ботов (скопируй и пришли):', t); });
+    panel.appendChild(b);
   }
 
 })();
