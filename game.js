@@ -7,7 +7,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const squads = { A: [], B: [] }, intel = { A: null, B: null };
   const stats = [], mine = new Set(), took = new Map(), gave = new Map();      // таблица матча; кто бил игрока
   const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: 10000000 + Math.floor(Math.random() * 89999999) }; stats.push(me);
-  let tabOn = false, grid = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0;
+  let tabOn = false, grid = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
   const SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
@@ -380,8 +380,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const MAPFILE = 'lowpoly__fps__tdm__game__map_by_resoforge.glb';
   function loadMap() {
     new THREE.GLTFLoader().load(MAPFILE, g => {
-      try { applyMap(g.scene); } catch (e) { console.log('карта', e); dbg('ошибка карты: ' + e.message); }
-    }, undefined, () => dbg('не загрузилась карта ' + MAPFILE));
+      try { applyMap(g.scene); } catch (e) { console.log('карта', e); dbg('ошибка карты: ' + e.message); mapOK = true; mapBtn(); }
+    }, undefined, () => { dbg('не загрузилась карта ' + MAPFILE); mapOK = true; mapBtn(); });
   }
   function asphaltTex(w, d) {                       // асфальт: зерно, пятна и трещины
     const c = document.createElement('canvas'); c.width = c.height = 256;
@@ -416,7 +416,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const ctr = box.getCenter(new V()), dx = -ctr.x, dy = -(floorY === null ? box.min.y : floorY), dz = -ctr.z;
     wrap.position.set(dx, dy, dz); wrap.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(wrap), cs = 0.5, x0 = bb.min.x, z0 = bb.min.z, nx = Math.ceil((bb.max.x - x0) / cs), nz = Math.ceil((bb.max.z - z0) / cs);
-    const low = new Uint8Array(nx * nz), tall = new Uint8Array(nx * nz), oH = new Float32Array(nx * nz), layers = new Array(nx * nz);
+    const low = new Uint8Array(nx * nz), tall = new Uint8Array(nx * nz), oH = new Float32Array(nx * nz), oLo = new Float32Array(nx * nz).fill(99), layers = new Array(nx * nz);
     const cellK = (x, zz) => { const i = Math.floor((x - x0) / cs), j = Math.floor((zz - z0) / cs); return (i >= 0 && j >= 0 && i < nx && j < nz) ? i * nz + j : -1; };
     for (let t = 0; t < tris.length; t += 9) {
       const ax = tris[t] + dx, ay = tris[t + 1] + dy, az = tris[t + 2] + dz, bx = tris[t + 3] + dx, by = tris[t + 4] + dy, bz = tris[t + 5] + dz, cx = tris[t + 6] + dx, cy = tris[t + 7] + dy, cz = tris[t + 8] + dz;
@@ -429,10 +429,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
         const p = u / st, q = v / st, w = 1 - p - q, k = cellK(ax * w + bx * p + cx * q, az * w + bz * p + cz * q);
         if (k < 0) continue;
         if (walk) { const h = Math.round((ay * w + by * p + cy * q) * 10) / 10, Ls = layers[k] || (layers[k] = []); if (Ls.indexOf(h) < 0) Ls.push(h); }
-        else { if (hi > oH[k]) oH[k] = hi; if (hi > 1.4) tall[k] = 1; }
+        else { if (hi > oH[k]) oH[k] = hi; if (lo < oLo[k]) oLo[k] = lo; if (hi > 1.4) tall[k] = 1; }
       }
     }
-    for (let k = 0; k < nx * nz; k++) low[k] = oH[k] > 0.5 ? 1 : 0;
+    for (let k = 0; k < nx * nz; k++) low[k] = (oH[k] > 0.5 && oLo[k] < 1.8) ? 1 : 0;
     const rects = [];
     for (let i = 0; i < nx; i++) { let j = 0; while (j < nz) { if (!low[i * nz + j]) { j++; continue; } let k = j; while (k < nz && low[i * nz + k]) k++; rects.push({ x0: x0 + i * cs, x1: x0 + (i + 1) * cs, z0: z0 + j * cs, z1: z0 + k * cs, h: 3 }); j = k; } }
     colliders.forEach(o => scene.remove(o)); scene.children.filter(o => o.type === 'GridHelper').forEach(o => scene.remove(o));
@@ -443,13 +443,15 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     scene.background = new THREE.Color(0x6f98c2); if (scene.fog) { scene.fog.color.set(0x8aa9c8); scene.fog.density = 0.014; }   // дневное небо                                  // белый пол
     const dk = new Set();
     scene.add(wrap); wrap.traverse(o => { if (o.isMesh) { colliders.push(o); o.castShadow = o.receiveShadow = true; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.color && !dk.has(m)) { dk.add(m); m.color.multiplyScalar(0.68); } }); } });   // карта темнее
-    grid = { x0, z0, cs, nx, nz, low, tall, oH, layers, rects };
+    grid = { x0, z0, cs, nx, nz, low, tall, oH, oLo, layers, rects };
+    { const sc = 4, cv = document.createElement('canvas'); cv.width = Math.ceil(nx * cs * sc); cv.height = Math.ceil(nz * cs * sc); const g2 = cv.getContext('2d'); g2.fillStyle = 'rgba(148,163,184,.4)'; rects.forEach(r => g2.fillRect((r.x0 - x0) * sc, (r.z0 - z0) * sc, (r.x1 - r.x0) * sc, (r.z1 - r.z0) * sc)); grid.cv = cv; grid.cvs = sc; }   // карта стен для радара
     buildNav();
     const xs = [-6, -3, 0, 3, 6];
     SPAWN.A = xs.map(x => freeNear(x, 32)); SPAWN.B = xs.map(x => freeNear(x, -32));
     const f = Math.min(1, (bb.max.x - bb.min.x) / 2 * 0.6 / 30);   // маршруты ботов под ширину карты
     ['A', 'B'].forEach(t => LANES[t].forEach(l => l.forEach(pt => { pt.x *= f; })));
     if (!started) { bots.forEach(spawnAt); respawnPlayer(); }
+    mapOK = true; mapBtn(); setGfx(gfxLevel);
   }
 
   function makeBot(team, idx) {
@@ -642,7 +644,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
   }
   function uiExtra() {
-    uiWeapons(); botPanel();
+    uiWeapons(); botPanel(); gfxUI();
     const css = document.createElement('style');
     css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
       '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
@@ -668,7 +670,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     ctx.save(); ctx.beginPath(); ctx.arc(c, c, 54, 0, 6.283); ctx.clip();
     const px = player.pos.x, pz = player.pos.z;
     ctx.fillStyle = 'rgba(148,163,184,.4)';
-    (grid ? grid.rects : solids).forEach(s => ctx.fillRect(c + (s.x0 - px) * k, c + (s.z0 - pz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k));
+    if (grid && grid.cv) ctx.drawImage(grid.cv, c + (grid.x0 - px) * k, c + (grid.z0 - pz) * k, grid.nx * grid.cs * k, grid.nz * grid.cs * k); else solids.forEach(s => ctx.fillRect(c + (s.x0 - px) * k, c + (s.z0 - pz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k));
     const ang = Math.atan2(-Math.cos(cameraYaw), -Math.sin(cameraYaw)), hf = Math.atan(Math.tan(camera.fov * 0.5 * Math.PI / 180) * camera.aspect);
     ctx.fillStyle = 'rgba(255,255,255,.16)'; ctx.beginPath(); ctx.moveTo(c, c); ctx.arc(c, c, 42, ang - hf, ang + hf); ctx.closePath(); ctx.fill();
     const dot = (x, y, col, r) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); };
@@ -892,7 +894,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
 
   window.setupControls = function () {
-    document.getElementById('start-btn').addEventListener('click', () => { document.getElementById('start-overlay').style.display = 'none'; started = true; openShop(); });
+    document.getElementById('start-btn').addEventListener('click', () => { if (!mapOK) return; document.getElementById('start-overlay').style.display = 'none'; started = true; respawnPlayer(); openShop(); });
+    mapBtn();
     initMatch(); loadModels(); loadMap();
     // плавающий джойстик: появляется там, куда ткнул в левой нижней части экрана
     const zone = document.getElementById('joystick-zone');
@@ -1080,7 +1083,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function follow(b, goal, dt, speed) {
     const pos = b.mesh.position;
-    if (!b.goal || b.goal.distanceTo(goal) > 2 || b.nextPath <= 0) { b.goal = goal.clone(); b.path = findPath(pos, goal); b.nextPath = 1.5; }
+    if ((!b.goal || b.goal.distanceTo(goal) > 2 || b.nextPath <= 0) && pathBudget > 0) { pathBudget--; b.goal = goal.clone(); b.path = findPath(pos, goal); b.nextPath = 1.2 + Math.random() * 0.8; }   // не больше одного поиска пути за кадр
     const w = b.path[0];
     if (!w) return;
     const dx = w.x - pos.x, dz = w.z - pos.z, d = Math.hypot(dx, dz);
@@ -1175,7 +1178,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     burst = Math.min(burst + SPREAD.perShot, SPREAD.max);
     if (awp) sp = scoped ? 0.0006 + (moving ? 0.004 : 0) + (player.onGround ? 0 : 0.02) : 0.04 + sp;
     const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
-    raycaster.setFromCamera(new THREE.Vector2(Math.cos(a) * r / camera.aspect, Math.sin(a) * r), camera);
+    raycaster.setFromCamera(new THREE.Vector2(Math.cos(a) * r / camera.aspect, Math.sin(a) * r), camera); raycaster.far = 150;
     const targets = colliders.slice();
     bots.forEach(b => { if (!b.dead) b.mesh.traverse(c => { if (c.userData.hb) { c.userData.bot = b; targets.push(c); } }); });
     const hit = raycaster.intersectObjects(targets)[0];
@@ -1191,7 +1194,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     } else if (hit.face) createBulletHole(hit.point, hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
   };
   window.updatePlayer = function (dt) {
-    shopTick(); mkScope();
+    shopTick(); mkScope(); perfTick(dt);
     player.speed = (scoped ? 2.5 : WS[curW].spd) * (player.isCrouching ? 0.5 : 1);        // в прицеле медленно, с AWP без прицела — как с автоматом
     if (player.dead && (respawnIn -= dt) <= 0 && !over) respawnPlayer();
     if (jumpHeld) tryJump();
@@ -1201,7 +1204,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     player.pos.x += move.x * player.speed * dt; player.pos.z += move.z * player.speed * dt; player.pos.y += player.vel.y * dt;
     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
     if (grid && jumpHeld && !player.dead && (mv.x || mv.y)) climb(move);
-    resolve(player.pos, 0.4, player.pos.y - player.currentHeight);
+    resolve(player.pos, 0.33, player.pos.y - player.currentHeight);
     const gy = groundAt(player.pos.x, player.pos.z, player.pos.y - player.currentHeight);
     if (player.pos.y - player.currentHeight <= gy) { if (!player.onGround) lastLand = performance.now(); player.pos.y = gy + player.currentHeight; player.vel.y = 0; player.onGround = true; }
     else if (Math.abs(player.vel.y) > 0.5) player.onGround = false;
@@ -1214,7 +1217,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   // ---- мышление ботов ----
   window.updateBots = function (dt) {
     if (!started || over) return;
-    T += dt; timeLeft -= dt;
+    T += dt; timeLeft -= dt; pathBudget = 1; fr++;
     if (timeLeft <= 0) endMatch();
     bots.forEach(b => {
       if (b.dead) { b.respawn -= dt; if (b.respawn <= 0) spawnAt(b); return; }
@@ -1243,7 +1246,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
             b.last = T;
             const pr = BX.melee ? 0.9 : Math.max(0.08, 0.55 - d * 0.012) * BX.acc * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
             const head = Math.random() < 0.12;
-            if (Math.random() < pr) e.ply ? hurt(BX.dp, b.stat, head, b.wp) : damageBot(e.bot, BX.db, b.team, pos, false, b.stat, head, b.wp);
+            if (Math.random() < pr && los(eye(b), new V(e.pos.x, e.ply ? e.pos.y - 0.25 : e.pos.y + 1.3, e.pos.z))) e.ply ? hurt(BX.dp, b.stat, head, b.wp) : damageBot(e.bot, BX.db, b.team, pos, false, b.stat, head, b.wp);
           }
           if (BX.melee ? d > 1.5 : (b.wp !== 'awp' && d > 22)) follow(b, e.pos, dt, BX.melee ? 6.5 : 4.5);
         }
@@ -1286,11 +1289,119 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       b.anim += (b.walk ? dt * 9 : 0);
       const sw = b.walk ? Math.sin(b.anim) * 0.6 : 0;
       b.lL.rotation.x = sw; b.rL.rotation.x = -sw;
-      if (b.mc) mcAnim(b, sw, dt);
+      const far = (pos.x - player.pos.x) * (pos.x - player.pos.x) + (pos.z - player.pos.z) * (pos.z - player.pos.z) > 1600;
+      if (b.mc && (!far || (fr + b.idx) % 2 === 0)) mcAnim(b, sw, dt);        // дальних ботов анимируем через кадр
     });
     const t = Math.max(0, Math.ceil(timeLeft));
     document.getElementById('sa').textContent = score.A; document.getElementById('sb').textContent = score.B;
     document.getElementById('st').textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
   };
+
+
+  // ---- оптимизация: динамическое разрешение, без теней, радар реже ----
+  let pathBudget = 1, fr = 0, fpsAvg = 60, resT = 0, pr = Math.min(window.devicePixelRatio || 1, 1.5), prMax = pr, perfInit = false;
+  function perfTick(dt) {
+    if (!perfInit) {
+      perfInit = true;
+      renderer.shadowMap.enabled = false;                                     // тени — самое дорогое на телефоне
+      scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m) m.needsUpdate = true; }); } });
+      renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    fpsAvg += (1 / Math.max(dt, 0.001) - fpsAvg) * 0.05; resT += dt;
+    if (resT < 1.5) return;
+    resT = 0;
+    let n = pr;
+    if (fpsAvg < 40 && pr > 0.65) n = Math.max(0.65, pr - 0.15);             // слабый телефон: снижаем разрешение
+    else if (fpsAvg > 56 && pr < prMax) n = Math.min(prMax, pr + 0.1);
+    if (n !== pr) { pr = n; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); }
+  }
+  function mapBtn() {                                                         // кнопка старта ждёт загрузки карты
+    const b = document.getElementById('start-btn');
+    if (!b) return;
+    b.disabled = !mapOK; b.textContent = mapOK ? 'В БОЙ' : 'ЗАГРУЗКА КАРТЫ…'; b.style.opacity = mapOK ? 1 : 0.6;
+  }
+  const origMini = window.renderMinimap; let lastMini = 0;
+  window.renderMinimap = function () { const n = performance.now(); if (n - lastMini < 50) return; lastMini = n; origMini(); };   // радар 20 раз в секунду
+
+
+  // ---- столкновения и обзор без «невидимых стен» ----
+  function resolveGrid(p, r, feet) {
+    const i0 = Math.floor((p.x - grid.x0) / grid.cs), j0 = Math.floor((p.z - grid.z0) / grid.cs), m = 0.08, sz = grid.cs - 2 * m;
+    for (let it = 0; it < 2; it++) for (let i = i0 - 2; i <= i0 + 2; i++) for (let j = j0 - 2; j <= j0 + 2; j++) {
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) continue;
+      const k = i * grid.nz + j;
+      if (grid.oH[k] <= feet + 0.5 || grid.oLo[k] >= feet + 1.8) continue;          // ниже ступеньки или выше головы — не стена
+      const bx = grid.x0 + i * grid.cs + m, bz = grid.z0 + j * grid.cs + m, cx = Math.max(bx, Math.min(p.x, bx + sz)), cz = Math.max(bz, Math.min(p.z, bz + sz));
+      const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+      if (d >= r) continue;
+      if (d < 1e-6) p.x += (p.x < bx + sz / 2 ? -1 : 1) * r; else { p.x = cx + dx / d * r; p.z = cz + dz / d * r; }
+    }
+    p.x = Math.max(grid.x0 + r, Math.min(grid.x0 + grid.nx * grid.cs - r, p.x)); p.z = Math.max(grid.z0 + r, Math.min(grid.z0 + grid.nz * grid.cs - r, p.z));
+  }
+  function gridBlocked(x, z, r, th) {
+    th = th === undefined ? 0.5 : th;
+    if (!grid) return solids.some(s => x > s.x0 - r && x < s.x1 + r && z > s.z0 - r && z < s.z1 + r);
+    const i0 = Math.floor((x - r - grid.x0) / grid.cs), i1 = Math.floor((x + r - grid.x0) / grid.cs), j0 = Math.floor((z - r - grid.z0) / grid.cs), j1 = Math.floor((z + r - grid.z0) / grid.cs);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) return true;
+      const k = i * grid.nz + j;
+      if (grid.oH[k] > th && grid.oLo[k] < 1.8) return true;
+    }
+    return false;
+  }
+  function losGrid(a, b) {                          // стены закрывают обзор; пол и потолок между этажами — тоже
+    const dx = b.x - a.x, dz = b.z - a.z, n = Math.ceil(Math.hypot(dx, dz) / 0.3);
+    let py = a.y;
+    for (let k = 1; k < n; k++) {
+      const f = k / n, y = a.y + (b.y - a.y) * f, i = Math.floor((a.x + dx * f - grid.x0) / grid.cs), j = Math.floor((a.z + dz * f - grid.z0) / grid.cs);
+      if (i < 0 || j < 0 || i >= grid.nx || j >= grid.nz) return false;
+      const c = i * grid.nz + j;
+      if (grid.tall[c] && y >= grid.oLo[c] - 0.05 && y <= grid.oH[c] + 0.05) return false;
+      const L = grid.layers[c];
+      if (L) for (let q = 0; q < L.length; q++) { const h = L[q]; if (h > 0.45 && (py - h) * (y - h) < 0) return false; }
+      py = y;
+    }
+    return true;
+  }
+
+  // ---- графика: низкая / средняя / высокая ----
+  const GFX = { low: { pr: 0.75, min: 0.5, far: 110, fog: 0.032 }, mid: { pr: 1.1, min: 0.65, far: 220, fog: 0.016 }, high: { pr: Math.min(window.devicePixelRatio || 1, 2), min: 0.9, far: 600, fog: 0.012 } };
+  let gfxLevel = 'mid', prMin = 0.65;
+  try { gfxLevel = localStorage.getItem('gfx') || 'mid'; } catch (e) {}
+  if (!GFX[gfxLevel]) gfxLevel = 'mid';
+  function setGfx(l) {
+    gfxLevel = l; try { localStorage.setItem('gfx', l); } catch (e) {}
+    const g = GFX[l]; prMax = g.pr; prMin = g.min; pr = prMax;
+    if (typeof renderer !== 'undefined' && renderer) { renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); }
+    if (camera) { camera.far = g.far; camera.updateProjectionMatrix(); }
+    if (scene && scene.fog) scene.fog.density = g.fog;
+    document.querySelectorAll('.gfx button').forEach(b => b.classList.toggle('on', b.dataset.g === l));
+  }
+  function gfxUI() {                                // выбор графики на стартовом экране и в ⚙
+    const css = document.createElement('style');
+    css.textContent = '.gfx{display:flex;gap:6px;align-items:center;margin:8px 0;font:12px sans-serif;color:#fff;justify-content:center}.gfx button{padding:7px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:#334155;color:#fff;font-size:12px;margin:0}.gfx button.on{background:#22c55e;border-color:#22c55e}';
+    document.head.appendChild(css);
+    const mk = () => { const d = document.createElement('div'); d.className = 'gfx interactive-ui'; d.innerHTML = '<span>Графика:</span><button data-g="low">Низкая</button><button data-g="mid">Средняя</button><button data-g="high">Высокая</button>'; d.addEventListener('click', e => { const g = e.target.dataset && e.target.dataset.g; if (g) setGfx(g); }); return d; };
+    const so = document.getElementById('start-overlay'), sb = document.getElementById('start-btn');
+    if (so && sb) so.insertBefore(mk(), sb);
+    const panel = document.getElementById('hn-p');
+    if (panel) panel.insertBefore(mk(), panel.children[1] || null);
+    setGfx(gfxLevel);
+  }
+  function perfTick(dt) {
+    if (!perfInit) {
+      perfInit = true;
+      renderer.shadowMap.enabled = false;                                     // тени — самое дорогое на телефоне
+      scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m) m.needsUpdate = true; }); } });
+      setGfx(gfxLevel);
+    }
+    fpsAvg += (1 / Math.max(dt, 0.001) - fpsAvg) * 0.05; resT += dt;
+    if (resT < 1.5) return;
+    resT = 0;
+    let n = pr;
+    if (fpsAvg < 40 && pr > prMin) n = Math.max(prMin, pr - 0.15);             // слабый телефон: ещё снижаем разрешение
+    else if (fpsAvg > 56 && pr < prMax) n = Math.min(prMax, pr + 0.1);
+    if (n !== pr) { pr = n; renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); }
+  }
 
 })();
