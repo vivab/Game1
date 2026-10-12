@@ -66,19 +66,24 @@
   function makeHand(side, pose, u, k) {
     const sx = side === 'R' ? -1 : 1, P = POSES[pose], g = new THREE.Group();
     g.rotation.order = 'YXZ';
-    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.95 * u, 0.38 * u, 1.05 * u), GLOVE));
+    const hand = new THREE.Group(), arm = new THREE.Group();            // кисть и предплечье двигаются отдельно (осмотр ножа)
+    hand.matrixAutoUpdate = arm.matrixAutoUpdate = false; g.add(hand); g.add(arm);
+    g.userData.hand = hand; g.userData.arm = arm; g.userData.wr = new V(0, 0, 0.5 * u); g.userData.el = new V(0, 0, 7 * u);   // запястье и локоть (в системе руки)
+    hand.add(new THREE.Mesh(new THREE.BoxGeometry(0.95 * u, 0.38 * u, 1.05 * u), GLOVE));
     const pad = new THREE.Mesh(new THREE.BoxGeometry(0.7 * u, 0.12 * u, 0.6 * u), PAD);
-    pad.position.set(0, 0.22 * u, -0.1 * u); g.add(pad);
+    pad.position.set(0, 0.22 * u, -0.1 * u); hand.add(pad);
     const lens = [[0.5, 0.35, 0.28], [0.55, 0.4, 0.3], [0.5, 0.37, 0.28], [0.4, 0.28, 0.24]];
-    for (let i = 0; i < 4; i++) g.add(chain(sx * (0.33 - i * 0.22) * u, 0, -0.52 * u, lens[i].map(v => v * u), 0.2 * u, P.f[i], P.sp ? -sx * P.sp[i] : 0, k, [GLOVE, GLOVE, SKIN]));
-    g.add(chain(sx * 0.5 * u, -0.02 * u, 0.2 * u, [0.55 * u, 0.42 * u], 0.24 * u, P.th, -sx * 0.5, k, [GLOVE, SKIN]));
-    const part = (a, b, w, h, m) => { const p = new THREE.Mesh(new THREE.BoxGeometry(w * u, h * u, (b - a) * u), m); p.position.z = (a + b) / 2 * u; g.add(p); };
+    for (let i = 0; i < 4; i++) hand.add(chain(sx * (0.33 - i * 0.22) * u, 0, -0.52 * u, lens[i].map(v => v * u), 0.2 * u, P.f[i], P.sp ? -sx * P.sp[i] : 0, k, [GLOVE, GLOVE, SKIN]));
+    hand.add(chain(sx * 0.5 * u, -0.02 * u, 0.2 * u, [0.55 * u, 0.42 * u], 0.24 * u, P.th, -sx * 0.5, k, [GLOVE, SKIN]));
+    const part = (a, b, w, h, m) => { const p = new THREE.Mesh(new THREE.BoxGeometry(w * u, h * u, (b - a) * u), m); p.position.z = (a + b) / 2 * u; arm.add(p); };
     part(0.5, 1.5, 0.95, 0.62, CUFF); part(1.5, 7, 0.85, 0.75, SKIN);
     return g;
   }
   window.makeHand = makeHand;
 
-  const holder = new THREE.Group(), anch = {}, sliders = {}, wsl = {}, animRoot = new THREE.Group(), staticHolder = new THREE.Group();
+  const holder = new THREE.Group(), anch = {}, sliders = {}, wsl = {}, animRoot = new THREE.Group(), staticHolder = new THREE.Group(), follow = new THREE.Group();
+  follow.matrixAutoUpdate = false;                 // двигает нож вместе с кистью при осмотре
+  const m1 = new THREE.Matrix4(), m2 = new THREE.Matrix4(), m3 = new THREE.Matrix4(), mA = new THREE.Matrix4(), mH = new THREE.Matrix4(), mL = new THREE.Matrix4(), mG = new THREE.Matrix4(), mGi = new THREE.Matrix4();
   animRoot.matrixAutoUpdate = false;               // оружие и руки двигаются вместе через animRoot
   let cur = 'rifle', sel = 'R', ins = null, drw = null, rel = null, kick = 0, flashUntil = 0, slash = null;       // ins — идёт осмотр ножа
 
@@ -135,7 +140,7 @@
       if (name === 'deagle') steelSkin(s);
       w.P = P; w.inner = s; w.yaw0 = w.yaw !== undefined ? w.yaw : autoYaw(P, w.knife);
       w.wrap = new THREE.Group(); w.pivot = new THREE.Group();
-      w.wrap.add(s); w.pivot.add(w.wrap); animRoot.add(w.pivot);
+      w.wrap.add(s); w.pivot.add(w.wrap); follow.add(w.pivot);
       if (!w.knife) { w.flash = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 6), new THREE.MeshBasicMaterial({ color: 0xffbb00, side: THREE.DoubleSide })); w.flash.rotation.x = -Math.PI / 2; w.flash.visible = false; w.pivot.add(w.flash); }
       w.ready = 1; w.cbs.forEach(f => { if (f) f(); }); place();
     }, undefined, () => { w.loading = 0; console.log('оружие не загрузилось', w.file); });
@@ -246,8 +251,8 @@
     // автомат и пистолеты: поднял → смотрит слева → медленно с правой стороны → вернул и опустил
     pistol: kf([0, Z], [0.6, UP], [1.3, LEFT], [2.2, LEFT], [3.0, UP], [3.6, Z]),                       // как в Standoff 2: взял, посмотрел левую сторону, вернул
     heavy: kf([0, Z], [0.65, UP], [1.4, LEFT], [2.4, LEFT], [3.2, UP], [3.9, Z]),                       // автомат и AWP: так же, как у USP — смотрим левую сторону
-    // нож (как в Роблоксе): правая рука поднимает нож к центру, он медленно вращается в кисти, затем плавно возвращается; левая рука не двигается
-    knife: kf([0, Z], [0.7, [-0.13, 0.2, 0.1, 0.45, 0, 0, 0]], [1.6, [-0.13, 0.2, 0.1, 0.5, 0.18, -0.12, Math.PI]], [2.6, [-0.13, 0.2, 0.1, 0.45, -0.1, 0.05, Math.PI * 2]], [3.4, [0, 0, 0, 0, 0, 0, Math.PI * 2]]),   // [3] — угол подъёма острия, [6] — вращение ножа в кисти
+    // нож (как в Роблоксе): рука на месте — работает только кисть (запястье) и чуть предплечье до локтя: поднял, повернул клинок острием вверх, показал другую сторону, вернул
+    knife: kf([0, [0, 0, 0]], [0.5, [0.07, 0.32, 0]], [1.25, [0.09, 0.3, -1.0]], [2.05, [0.09, 0.25, 0.5]], [2.75, [0.05, 0.15, 0.05]], [3.4, [0, 0, 0]]),   // [локоть, сгиб кисти, крен кисти (минус — острие вверх)]
     rel: {            // перезарядка (время 0..1 от длительности)
       rifle: kf([0, Z], [0.18, [0.02, -0.1, 0, -0.45, 0, 0.35, 0]], [0.6, [0.02, -0.1, 0, -0.45, 0.05, 0.4, 0]], [0.8, [0, -0.08, 0.03, -0.38, 0, 0.3, 0]], [0.88, [0, -0.04, -0.01, -0.15, 0, 0.1, 0]], [1, Z]),
       pistol: kf([0, Z], [0.2, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.62, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.82, [0, -0.05, 0.02, -0.2, 0, 0.2, 0]], [1, Z]),
@@ -285,7 +290,11 @@
       else { const f = 1 - sm(u), q = FROM[kind]; o.x += q[0] * f; o.y += q[1] * f; o.z += q[2] * f; o.rx += q[3] * f; o.ry += q[4] * f; o.rz += q[5] * f + (kind === 'knife' ? Math.sin(u * 10) * 0.1 * (1 - u) * (1 - u) : 0); }
     }
     const oS = { x: o.x, y: o.y, z: o.z };                                // что достаётся неподвижной руке (только доставание и дыхание)
-    if (ins) { const v = sample(w.knife ? KF.knife : kind === 'pistol' ? KF.pistol : KF.heavy, (ms - ins.t0) / 1000); if (v) add(v, w.knife); else ins = null; }          // осмотр
+    let kw = null;
+    if (ins) {                                                        // осмотр
+      if (w.knife) { kw = sample(KF.knife, (ms - ins.t0) / 1000); if (!kw) ins = null; }
+      else { const v = sample(kind === 'pistol' ? KF.pistol : KF.heavy, (ms - ins.t0) / 1000); if (v) add(v, false); else ins = null; }
+    }
     if (rel) { const u = (ms - rel.t0) / rel.D, v = u >= 1 ? null : sample(KF.rel[kind === 'knife' ? 'rifle' : kind], u); if (v) add(v); else rel = null; }   // перезарядка
     kick *= Math.exp(-dt * 14);
     if (kind !== 'knife') { const k = KICK[kind]; o.z += k[0] * kick; o.rx += k[1] * kick; o.y += 0.01 * kick; }
@@ -299,10 +308,22 @@
     animRoot.matrixWorldNeedsUpdate = true;
     if (w.knife) w.pivot.rotation.z = b.rz + spin;                      // нож крутится вокруг своей оси
     if (w.knife) staticHolder.position.set(oS.x, oS.y, oS.z); else staticHolder.position.set(0, 0, 0);
+    if (w.knife) {                                                    // суставы правой руки: локоть → запястье; нож едет вместе с кистью
+      const gR = holder.children.find(c => c.userData.side === 'R');
+      if (gR && gR.userData.arm) {
+        const a = kw ? kw[0] : 0, fl = kw ? kw[1] : 0, ro = kw ? kw[2] : 0, E = gR.userData.el, Wr = gR.userData.wr;
+        mA.makeTranslation(E.x, E.y, E.z).multiply(m1.makeRotationX(a)).multiply(m2.makeTranslation(-E.x, -E.y, -E.z));
+        mH.makeTranslation(Wr.x, Wr.y, Wr.z).multiply(m1.makeRotationZ(ro)).multiply(m2.makeRotationX(fl)).multiply(m3.makeTranslation(-Wr.x, -Wr.y, -Wr.z));
+        mL.copy(mA).multiply(mH);
+        gR.updateMatrix(); mG.copy(gR.matrix); mGi.copy(mG).invert();
+        gR.userData.arm.matrix.copy(mA); gR.userData.hand.matrix.copy(mL);
+        follow.matrix.copy(mG).multiply(mL).multiply(mGi);
+      } else follow.matrix.identity();
+    } else follow.matrix.identity();
   }
 
   window.loadGLTFModels = function () {
-    weaponContainer.add(animRoot); animRoot.add(holder); weaponContainer.add(staticHolder);
+    weaponContainer.add(animRoot); animRoot.add(holder); animRoot.add(follow); weaponContainer.add(staticHolder);
     buildPanel(); tick();
     window.addEventListener('resize', place);
     loadW('rifle', place);
