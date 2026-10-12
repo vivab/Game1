@@ -251,8 +251,8 @@
     // автомат и пистолеты: поднял → смотрит слева → медленно с правой стороны → вернул и опустил
     pistol: kf([0, Z], [0.6, UP], [1.3, LEFT], [2.2, LEFT], [3.0, UP], [3.6, Z]),                       // как в Standoff 2: взял, посмотрел левую сторону, вернул
     heavy: kf([0, Z], [0.65, UP], [1.4, LEFT], [2.4, LEFT], [3.2, UP], [3.9, Z]),                       // автомат и AWP: так же, как у USP — смотрим левую сторону
-    // нож (как в Роблоксе): рука на месте — работает только кисть (запястье) и чуть предплечье до локтя: поднял, повернул клинок острием вверх, показал другую сторону, вернул
-    knife: kf([0, [0, 0, 0]], [0.5, [0.07, 0.32, 0]], [1.25, [0.09, 0.3, -1.0]], [2.05, [0.09, 0.25, 0.5]], [2.75, [0.05, 0.15, 0.05]], [3.4, [0, 0, 0]]),   // [локоть, сгиб кисти, крен кисти (минус — острие вверх)]
+    // нож (как в Block Strike): правая рука опускается, нож ложится ребром, затем клинок встаёт вертикально и всё возвращается; левая рука неподвижна
+    knife: kf([0, [0, 0, 0, 0, 0]], [0.55, [-0.22, 0.05, -0.55, 0.12, -0.7]], [1.3, [-0.12, 0.12, -0.15, -1.8, 0]], [2.1, [-0.10, 0.10, -0.12, -1.75, 0]], [3.0, [0, 0, 0, 0, 0]]),   // как в Block Strike: кисть опускается и нож ложится ребром → клинок резко встаёт вверх → пауза → всё возвращается. [локоть вниз, локоть влево, сгиб кисти, крен кисти (минус — острие вверх), вращение ножа]
     rel: {            // перезарядка (время 0..1 от длительности)
       rifle: kf([0, Z], [0.18, [0.02, -0.1, 0, -0.45, 0, 0.35, 0]], [0.6, [0.02, -0.1, 0, -0.45, 0.05, 0.4, 0]], [0.8, [0, -0.08, 0.03, -0.38, 0, 0.3, 0]], [0.88, [0, -0.04, -0.01, -0.15, 0, 0.1, 0]], [1, Z]),
       pistol: kf([0, Z], [0.2, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.62, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.82, [0, -0.05, 0.02, -0.2, 0, 0.2, 0]], [1, Z]),
@@ -292,7 +292,7 @@
     const oS = { x: o.x, y: o.y, z: o.z };                                // что достаётся неподвижной руке (только доставание и дыхание)
     let kw = null;
     if (ins) {                                                        // осмотр
-      if (w.knife) { kw = sample(KF.knife, (ms - ins.t0) / 1000); if (!kw) ins = null; }
+      if (w.knife) { kw = sample(KF.knife, (ms - ins.t0) / 1000); if (!kw) ins = null; else spin += kw[4]; }
       else { const v = sample(kind === 'pistol' ? KF.pistol : KF.heavy, (ms - ins.t0) / 1000); if (v) add(v, false); else ins = null; }
     }
     if (rel) { const u = (ms - rel.t0) / rel.D, v = u >= 1 ? null : sample(KF.rel[kind === 'knife' ? 'rifle' : kind], u); if (v) add(v); else rel = null; }   // перезарядка
@@ -311,8 +311,8 @@
     if (w.knife) {                                                    // суставы правой руки: локоть → запястье; нож едет вместе с кистью
       const gR = holder.children.find(c => c.userData.side === 'R');
       if (gR && gR.userData.arm) {
-        const a = kw ? kw[0] : 0, fl = kw ? kw[1] : 0, ro = kw ? kw[2] : 0, E = gR.userData.el, Wr = gR.userData.wr;
-        mA.makeTranslation(E.x, E.y, E.z).multiply(m1.makeRotationX(a)).multiply(m2.makeTranslation(-E.x, -E.y, -E.z));
+        const a = kw ? kw[0] : 0, ey = kw ? kw[1] : 0, fl = kw ? kw[2] : 0, ro = kw ? kw[3] : 0, E = gR.userData.el, Wr = gR.userData.wr;
+        mA.makeTranslation(E.x, E.y, E.z).multiply(m1.makeRotationY(ey)).multiply(m2.makeRotationX(a)).multiply(m3.makeTranslation(-E.x, -E.y, -E.z));
         mH.makeTranslation(Wr.x, Wr.y, Wr.z).multiply(m1.makeRotationZ(ro)).multiply(m2.makeRotationX(fl)).multiply(m3.makeTranslation(-Wr.x, -Wr.y, -Wr.z));
         mL.copy(mA).multiply(mH);
         gR.updateMatrix(); mG.copy(gR.matrix); mGi.copy(mG).invert();
