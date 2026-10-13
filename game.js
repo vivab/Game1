@@ -6,7 +6,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const solids = [], walls = [], score = { A: 0, B: 0 };
   const squads = { A: [], B: [] }, intel = { A: null, B: null };
   const stats = [], mine = new Set(), took = new Map(), gave = new Map();      // таблица матча; кто бил игрока
-  const me = { name: 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: 10000000 + Math.floor(Math.random() * 89999999) }; stats.push(me);
+  const _prof = (() => { try { return JSON.parse(localStorage.getItem('profile_v1')) || {}; } catch (e) { return {}; } })();   // профиль из меню
+  const me = { name: _prof.nick || 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: _prof.id || (10000000 + Math.floor(Math.random() * 89999999)) }; stats.push(me);
+  const MS = { hits: 0, headHits: 0, headKills: 0, wk: {} };            // статистика игрока за матч: попадания, хедшоты, убийства по оружию
+  let AUTO = false, AUTODONE = false;                                    // автозапуск матча из меню (?play=1)
   let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
@@ -631,6 +634,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     over = true; tabOn = false; fillTab();
     document.getElementById('res').textContent = score.A > score.B ? 'ПОБЕДА' : score.A < score.B ? 'ПОРАЖЕНИЕ' : 'НИЧЬЯ';
     document.getElementById('resd').textContent = 'Счёт ' + score.A + ' : ' + score.B + ' · Ваши убийства: ' + me.kills;
+    try {                                                              // место среди своей команды по убийствам — для наград в меню
+      const team = stats.filter(x => x.team === 'A'), place = 1 + team.filter(x => x !== me && (x.kills > me.kills || (x.kills === me.kills && x.deaths < me.deaths))).length;
+      localStorage.setItem('lastMatch', JSON.stringify({ ts: Date.now(), place, kills: me.kills, deaths: me.deaths, assists: me.assists, headKills: MS.headKills, hits: MS.hits, headHits: MS.headHits, wk: MS.wk, win: score.A > score.B ? 1 : score.A < score.B ? -1 : 0, applied: false }));
+    } catch (e) {}
     const tab = document.getElementById('tab');
     tab.style.display = 'flex';
     setTimeout(() => { tab.style.display = 'none'; document.getElementById('end').style.display = 'flex'; }, 7000);   // таб висит 7 секунд
@@ -887,7 +894,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     document.head.appendChild(css);
     const d = document.createElement('div');
     d.innerHTML = '<div id="sc"><b id="sa" style="background:#2563eb">0</b><span id="st">2:00</span><b id="sb" style="background:#d97706">0</b></div><div id="msg"></div><div id="hurt"></div>' +
-      '<div id="end" class="interactive-ui"><div id="res" style="font-size:44px;font-weight:900"></div><div id="resd" style="margin-top:8px;font-size:18px"></div><button onclick="location.reload()">ИГРАТЬ СНОВА</button></div>';
+      '<div id="end" class="interactive-ui"><div id="res" style="font-size:44px;font-weight:900"></div><div id="resd" style="margin-top:8px;font-size:18px"></div><button onclick="location.href=\'menu.html?rewards=1\'">ПОЛУЧИТЬ НАГРАДЫ</button></div>';
     document.body.appendChild(d); tabUI(); uiExtra();
   }
   function initMatch() {
@@ -898,6 +905,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 
   window.setupControls = function () {
     document.getElementById('start-btn').addEventListener('click', () => { if (!mapOK) return; document.getElementById('start-overlay').style.display = 'none'; started = true; respawnPlayer(); openShop(); });
+    if (/[?&]play=1/.test(location.search)) {                          // пришли из меню: без стартового экрана, сразу в бой, когда загрузится карта
+      AUTO = true; const so = document.getElementById('start-overlay'); if (so) so.style.display = 'none';
+      const l = document.createElement('div'); l.id = 'autoload'; l.style.cssText = 'position:fixed;inset:0;z-index:999;background:#0d1117;color:#f5b82e;display:flex;align-items:center;justify-content:center;font:700 22px sans-serif'; l.textContent = 'ЗАГРУЗКА КАРТЫ…'; document.body.appendChild(l);
+    }
     mapBtn();
     initMatch(); loadModels(); loadMap();
     // плавающий джойстик: появляется там, куда ткнул в левой нижней части экрана
@@ -1112,11 +1123,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function damageBot(o, dmg, team, from, byPlayer, who, head, wt) {
     if (o.dead) return;
     o.hp -= dmg; o.hitT = T; if (who) o.dmg.add(who);
-    if (who === me) { const r = gave.get(o.stat) || { dmg: 0, hits: 0 }; r.dmg += dmg; r.hits++; gave.set(o.stat, r); }
+    if (who === me) { const r = gave.get(o.stat) || { dmg: 0, hits: 0 }; r.dmg += dmg; r.hits++; gave.set(o.stat, r); if (wt !== 'knife') { MS.hits++; if (head) MS.headHits++; } }
     intel[o.team] = { pos: new V(from.x, 0, from.z), t: T };
     if (o.hp <= 0) {
       o.dead = true; o.mesh.visible = false; o.respawn = 3; score[team]++; o.stat.deaths++; o.ls = null;
       if (who) { feed(who, o.stat, wt, head); who.kills++; o.dmg.forEach(a => { if (a !== who && a.team === who.team) a.assists++; }); }
+      if (who === me) { const w = wt || 'rifle'; MS.wk[w] = (MS.wk[w] || 0) + 1; if (head) MS.headKills++; }
       if (byPlayer) { player.score++; updateUI(); }
     }
   }
@@ -1322,6 +1334,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const b = document.getElementById('start-btn');
     if (!b) return;
     b.disabled = !mapOK; b.textContent = mapOK ? 'В БОЙ' : 'ЗАГРУЗКА КАРТЫ…'; b.style.opacity = mapOK ? 1 : 0.6;
+    if (mapOK && AUTO && !AUTODONE) { AUTODONE = true; const l = document.getElementById('autoload'); if (l) l.remove(); setTimeout(() => b.click(), 30); }
   }
   const origMini = window.renderMinimap; let lastMini = 0;
   window.renderMinimap = function () { const n = performance.now(); if (n - lastMini < 50) return; lastMini = n; origMini(); };   // радар 20 раз в секунду
