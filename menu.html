@@ -542,7 +542,7 @@ function rerender() {
   body.replaceChildren(); v.render(body); body.scrollTop = keep; refreshBalances();
 }
 function push(v) { stack.push(v); try { history.pushState({ d: stack.length }, ''); } catch (e) {} renderTop(); }
-function back() { if (stack.length) { try { history.back(); } catch (e) { stack.pop(); renderTop(); } } }
+function back() { if (stack.length) { stack.pop(); renderTop(); } }   // «Назад» работает сразу, не завися от истории браузера
 function resetTo(v) { stack = v ? [v] : []; try { history.replaceState({ d: stack.length }, ''); } catch (e) {} renderTop(); }
 window.addEventListener('popstate', e => { const d = (e.state && e.state.d) || 0; while (stack.length > d) stack.pop(); renderTop(); });
 
