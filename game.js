@@ -654,7 +654,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
   }
   function uiExtra() {
-    uiWeapons(); botPanel(); botCopy(); gfxUI();
+    uiWeapons(); botPanel(); botCopy(); exitBtn(); gfxUI();
     const css = document.createElement('style');
     css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
       '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
@@ -1651,6 +1651,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       }
     } else if (hit.face) createBulletHole(hit.point, hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
   };
+  function exitBtn() {                              // кнопка «В меню» в панели настроек — выход из матча обратно в меню
+    const panel = document.getElementById('hn-p'); if (!panel) return;
+    const b = document.createElement('button'); b.textContent = '← В меню';
+    b.style.cssText = 'margin:6px 0;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:#7a1f1f;color:#fff;font-size:13px;font-weight:700;width:100%';
+    b.addEventListener('click', () => { if (confirm('Выйти из матча в меню? Матч не засчитается.')) location.href = 'menu.html'; });
+    panel.appendChild(b);
+  }
   function botCopy() {                              // кнопка «Копировать позу ботов» — чтобы прислать удачные значения
     const panel = document.getElementById('hn-p'); if (!panel) return;
     const b = document.createElement('button'); b.textContent = 'Показать значения ботов'; b.style.cssText = 'margin:6px 0;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.35);background:#334155;color:#fff;font-size:12px';
