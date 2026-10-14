@@ -39,8 +39,18 @@
     usp:    Object.assign({ file: 'low-poly_usp-s.glb', len: 0.34 }, PIS),
     glock:  Object.assign({ file: 'glock.glb', len: 0.3 }, PIS),
     deagle: Object.assign({ file: 'low-poly_desert_eagle.glb', len: 0.27 }, PIS, { ndcX: 0.245 }),
-    knife:  { file: 'knife_default_t__cs2.glb', len: 0.46, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] }
+    knife:  { file: 'knife_default_t__cs2.glb', len: 0.46, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] },
+    m4a4:    { file: 'rifle__m4a4_weapon_model_cs2.glb', len: 0.9, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    m16:     { file: 'low-poly_m16a4_acog.glb', len: 0.95, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    m249:    { file: 'low-poly_m249_saw.glb', len: 1.0, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    mossberg:{ file: 'low-poly_mossberg_590.glb', len: 0.95, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    m870:    { file: 'low_poly_shotgun-m870.glb', len: 0.95, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: Math.PI, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    p250:    Object.assign({ file: 'sig_sauer_p250_low-poly.glb', len: 0.22 }, PIS),
+    karambit:{ file: 'low_poly_stylized_karambit_knife.glb', len: 0.22, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] }
   };
+  // новые оружия: первичные — как АК (мушка/рука), пистолеты — как USP, нож — как нож
+  ['m4a4', 'm16', 'm249', 'mossberg', 'm870'].forEach(n => { DEF[n] = JSON.parse(JSON.stringify(DEF.rifle)); });
+  DEF.p250 = JSON.parse(JSON.stringify(DEF.usp)); DEF.karambit = JSON.parse(JSON.stringify(DEF.knife));
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
@@ -259,6 +269,7 @@
       awp: kf([0, Z], [0.15, [0.02, -0.04, 0, -0.3, 0.1, 0.4, 0]], [0.4, [0.02, -0.04, 0.07, -0.3, 0.1, 0.4, 0]], [0.55, [0.02, -0.04, -0.01, -0.3, 0.1, 0.4, 0]], [0.85, [0.02, -0.1, 0, -0.4, 0, 0.3, 0]], [1, Z])
     }
   };
+  const PRIM_HANDS = { rifle: 1, m4a4: 1, m16: 1, m249: 1, mossberg: 1, m870: 1 };   // первичные оружия (руки как у АК)
   const DRAW = { knife: 0.6, rifle: 0.85, pistol: 0.6, awp: 1.0 };                                     // длительность доставания
   const FROM = { knife: [0.2, -0.5, 0.06, -0.8, 0, 0.7], rifle: [0.12, -0.55, 0.08, -0.9, 0.25, 0.15], pistol: [0.15, -0.4, 0.05, -0.6, 0, 0.25], awp: [0.1, -0.6, 0.1, -1.0, 0.3, 0.1] };
   const KICK = { rifle: [0.035, 0.05], pistol: [0.05, 0.11], awp: [0.09, 0.18] };                    // отдача: назад и вверх
@@ -280,7 +291,7 @@
     const ms = performance.now(), dt = Math.min((ms - lastT) / 1000, 0.05); lastT = ms;
     const w = W[cur];
     if (!w || !w.ready || !w.base) return;
-    const now = ms / 1000, kind = w.knife ? 'knife' : cur === 'awp' ? 'awp' : cur === 'rifle' ? 'rifle' : 'pistol';
+    const now = ms / 1000, kind = w.knife ? 'knife' : cur === 'awp' ? 'awp' : PRIM_HANDS[cur] ? 'rifle' : 'pistol';
     const o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, rx: 0, ry: 0, rz: 0, tip: 0 };
     let spin = 0;
     const add = (v, lift) => { o.x += v[0]; o.y += v[1]; o.z += v[2]; if (lift) o.tip += v[3]; else o.rx += v[3]; o.ry += v[4]; o.rz += v[5]; spin += v[6] || 0; };
