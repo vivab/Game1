@@ -36,10 +36,10 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 .screen.on{display:grid}
 
 /* ---------- главный экран ---------- */
-#s-main{grid-template-columns:76px minmax(0,1fr) minmax(220px,29%);grid-template-rows:62px minmax(0,1fr);gap:8px 10px}
-.top{grid-column:1/-1;display:flex;align-items:center;gap:10px;position:relative;min-width:0}
-.pcard{display:flex;align-items:center;gap:9px;padding:5px 12px 5px 5px;background:var(--panel);border:1px solid var(--line);min-width:0;max-width:34%;text-align:left}
-.pcard .av{width:46px;height:46px;flex:none;border:1px solid var(--line2);image-rendering:pixelated;background:#202830}
+#s-main{grid-template-columns:62px minmax(0,1fr) minmax(190px,26%);grid-template-rows:50px minmax(0,1fr);gap:6px 10px}
+.top{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px;min-width:0}
+.pcard{justify-self:start;display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;background:var(--panel);border:1px solid var(--line);min-width:0;max-width:100%;text-align:left}
+.pcard .av{width:40px;height:40px;flex:none;border:1px solid var(--line2);image-rendering:pixelated;background:#202830}
 .pcard .meta{min-width:0}
 .pcard .nick{font-weight:700;font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pcard .pid{font-size:11px;color:var(--mute);margin-top:1px}
@@ -47,27 +47,23 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 .xpbar>i{display:block;height:100%;background:linear-gradient(90deg,var(--gold2),var(--gold));width:0}
 .lvl{flex:none;width:34px;height:38px;display:grid;place-items:center;font:700 14px var(--head);color:var(--goldtext);
   background:linear-gradient(180deg,var(--gold),var(--gold2));clip-path:polygon(50% 0,100% 22%,100% 78%,50% 100%,0 78%,0 22%)}
-.play{position:absolute;left:50%;top:0;transform:translateX(-50%);height:56px;min-width:min(300px,34vw);padding:0 34px;display:flex;align-items:center;justify-content:center;gap:12px;
-  font:400 25px var(--head);color:var(--goldtext);letter-spacing:.5px;
-  background:linear-gradient(180deg,#ffd467 0%,var(--gold) 46%,var(--gold2) 100%);
-  border:1px solid #ffe29a;box-shadow:0 0 0 2px rgba(242,182,50,.18),0 8px 26px rgba(242,182,50,.28),inset 0 -3px 0 rgba(120,70,0,.35);overflow:hidden}
-.play:active{transform:translateX(-50%) translateY(1px)}
+.play{position:relative;height:44px;min-width:190px;padding:0 26px;display:flex;align-items:center;justify-content:center;gap:10px;font:400 20px var(--head);color:var(--goldtext);letter-spacing:.5px;background:linear-gradient(180deg,#ffd467 0%,var(--gold) 46%,var(--gold2) 100%);border:1px solid #ffe29a;box-shadow:0 0 0 2px rgba(242,182,50,.16),0 6px 20px rgba(242,182,50,.24),inset 0 -3px 0 rgba(120,70,0,.35);overflow:hidden}
+.play:active{transform:translateY(1px)}
 .play .ic{font-size:24px;fill:currentColor;stroke:none}
 .play::after{content:"";position:absolute;top:0;bottom:0;width:60px;left:-90px;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-18deg);animation:sheen 1.6s .6s 1 both}
 @keyframes sheen{to{left:130%}}
-.bal{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
-.cur{display:flex;align-items:center;gap:7px;height:38px;padding:0 10px 0 5px;font:700 16px var(--body);border:1px solid var(--line2)}
+.bal{justify-self:end;display:flex;align-items:center;gap:6px;flex:none}
+.cur{display:flex;align-items:center;gap:6px;height:34px;padding:0 9px 0 4px;font:700 15px var(--body);border:1px solid var(--line2)}
 .cur i{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font:400 14px var(--head);font-style:normal}
 .cur.c{background:linear-gradient(180deg,#3a4d73,#2b3a58);color:#dce7ff}.cur.c i{background:var(--silver);color:#0f1a30}
 .cur.g{background:linear-gradient(180deg,#6d5421,#4d3a14);color:#ffe9b3}.cur.g i{background:var(--gold);color:var(--goldtext)}
-.iconbtn{width:38px;height:38px;display:grid;place-items:center;font-size:20px;background:var(--panel);border:1px solid var(--line);color:var(--mute)}
+.iconbtn{width:34px;height:34px;display:grid;place-items:center;font-size:20px;background:var(--panel);border:1px solid var(--line);color:var(--mute)}
 
-.side{display:flex;flex-direction:column;gap:8px}
-.navbtn{flex:1;max-height:116px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:var(--panel);border:1px solid var(--line);
-  font-weight:700;font-size:12px;color:var(--text)}
-.navbtn .ic{font-size:30px;color:var(--gold)}
+.side{display:flex;flex-direction:column;gap:6px}
+.navbtn{flex:none;height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--panel);border:1px solid var(--line);font-weight:700;font-size:10.5px;color:var(--text)}
+.navbtn .ic{font-size:21px;color:var(--gold)}
 .navbtn:active{background:var(--panel2)}
-.navbtn .tag{font-size:10px;color:var(--mute);font-weight:600}
+.navbtn .tag{display:none}
 
 .stage{position:relative;min-height:0;display:flex;align-items:flex-end;justify-content:center}
 #stageWrap{position:absolute;inset:0}
@@ -78,7 +74,7 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 
 .right{display:flex;flex-direction:column;gap:8px;min-height:0}
 .card{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.card>.hd{display:flex;align-items:center;gap:8px;padding:0 6px 0 12px;height:38px;flex:none;border-bottom:1px solid var(--line);font:400 14px var(--head)}
+.card>.hd{display:flex;align-items:center;gap:8px;padding:0 6px 0 12px;height:32px;flex:none;border-bottom:1px solid var(--line);font:400 13px var(--head)}
 .card>.hd .cnt{font:600 12px var(--body);color:var(--mute)}
 .card>.hd .sp{flex:1}
 .card>.hd button.go{height:100%;padding:0 10px;color:var(--mute);font-size:16px;display:flex;align-items:center}
@@ -212,72 +208,48 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 
 /* вертикальная ориентация и узкие экраны */
 
-/* ---------- экран после матча ---------- */
-#s-res{grid-template-rows:56px minmax(0,1fr);gap:0;padding:0}
-.rtabs{display:flex;align-items:stretch;background:linear-gradient(180deg,#14181c,#0d1013);border-bottom:2px solid var(--line);padding-top:var(--st)}
-.rt{padding:0 clamp(16px,4vw,44px);font:400 clamp(16px,2.4vw,24px) var(--head);color:var(--mute);position:relative;display:flex;align-items:center}
-.rt.on{color:var(--text);background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.03))}
-.rt.on::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:3px;background:var(--text)}
-.rtabs .sp{flex:1}.rt.exit{color:#cdd3d9;padding-right:calc(var(--sr) + clamp(16px,4vw,44px))}
-.rbody{overflow:auto;min-height:0;padding:10px calc(var(--sr) + 10px) calc(var(--sb) + 10px) calc(var(--sl) + 10px);-webkit-overflow-scrolling:touch}
-.sbn{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.sbn .bn{flex:1;text-align:center;padding:9px 0;font:400 clamp(20px,3.2vw,32px) var(--head);letter-spacing:1px}
-.sbn .bn.win{background:linear-gradient(90deg,transparent,rgba(82,196,110,.35),transparent);color:#7fe39a}
-.sbn .bn.lose{background:linear-gradient(90deg,transparent,rgba(224,82,74,.35),transparent);color:#ff9b94}
-.sbn .bn.draw{color:var(--mute)}
-.sbd{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.sp2{background:var(--panel);border:1px solid var(--line);min-width:0}
-.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;font:400 clamp(15px,2.2vw,22px) var(--head);background:rgba(0,0,0,.28)}
-.ph .ps{font-size:clamp(22px,3.6vw,40px)}
-.sp2.ct .ph{color:#8aa4e6}.sp2.tt .ph{color:#f0b24a}
-.tr{display:grid;grid-template-columns:26px minmax(0,1fr) repeat(4,38px) 44px;align-items:center;gap:6px;padding:6px 10px;font-size:15px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.04)}
-.tr>span{text-align:center}.tr>.who{text-align:left;display:flex;align-items:center;gap:8px;min-width:0}
-.tr .av{width:34px;height:34px;flex:none;image-rendering:pixelated;border:1px solid var(--line2)}
-.tr .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tr.th{font-size:13px;color:var(--mute);background:rgba(255,255,255,.03);padding:7px 10px}
-.sp2.ct .tr:not(.th){color:#9db3ea}.sp2.tt .tr:not(.th){color:#f0bd62}
-.tr.me{background:rgba(255,255,255,.1);color:#fff!important}
-.tr .pg{color:var(--dim);font-weight:600;font-size:13px}
-.sfoot{display:flex;justify-content:space-between;margin-top:10px;padding:10px 16px;background:rgba(0,0,0,.35);color:var(--mute);font-size:14px}
-.medal{display:inline-block;width:20px;height:20px;vertical-align:-4px;margin-left:6px;flex:none}
-.medal svg{width:100%;height:100%}
-.resg{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(220px,1fr);gap:10px}
-.xph{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);padding:12px 16px}
-.lvl.big{width:56px;height:62px;font-size:22px}
-.xph .xm{flex:1;min-width:0}
-.xph .xl{display:flex;align-items:baseline;gap:10px;font-size:16px;font-weight:700}
-.xph .xl b{color:var(--gold);font:400 22px var(--head)}
-.xph .xl .xr{margin-left:auto;font-weight:600;color:var(--mute);font-size:15px}
-.xph .xb{height:10px;background:#0c0f12;border:1px solid var(--line);margin-top:8px}
-.xph .xb i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .75s ease}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}
-.chip{padding:5px 10px;background:rgba(242,182,50,.12);border:1px solid var(--gold2);font-size:13px;font-weight:700;color:#ffe29a}
-.rcg{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px}
-.rc{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
-.rc.me{border:2px solid var(--gold)}
-.rch{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,0,0,.25);font-size:14px;font-weight:600;color:#cfd6dc}
-.rch .ic{font-size:20px;color:#aeb7c0}
-.rca{height:96px;display:grid;place-items:center;position:relative;background:linear-gradient(180deg,#2b343b,#20272d)}
-.rca svg{width:72px;height:72px}.rca.bx svg{width:92%;height:92%}
-.rca .q{font:400 46px var(--head);color:rgba(255,255,255,.45)}
-.rcn{position:absolute;right:8px;bottom:4px;font:400 24px var(--head)}
-.rcl{padding:6px 10px;font-size:13px;font-weight:700;background:var(--rcol,#5c6e9e);color:#fff}
-.rcf{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(0,0,0,.25);font-size:13.5px;font-weight:600;min-width:0}
-.rcf .av{width:26px;height:26px;flex:none;image-rendering:pixelated;border:1px solid var(--line2)}
-.rcf span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.vote{background:var(--panel);border:1px solid var(--line);padding:14px}
-.vote h3{margin:0 0 4px;font:400 clamp(17px,2.4vw,24px) var(--head)}
-.vote .vs{color:var(--mute);font-size:14px;margin-bottom:12px}
-.vmap{background:#14191d;border:1px solid var(--line)}
-.vmap .vi{height:110px;background-size:cover;background-position:center}
-.vmap .vn{padding:8px 10px;font-weight:700;font-size:16px}
-.pips{display:flex;gap:4px;margin-top:6px}.pips i{width:12px;height:9px;background:#0c0f12;border:1px solid var(--line);display:block}.pips i.on{background:var(--gold);border-color:var(--gold2)}
-.chat{background:var(--panel);border:1px solid var(--line);margin-top:10px;display:flex;flex-direction:column;height:210px}
-.cmsgs{flex:1;overflow:auto;padding:8px 12px;font-size:14px;line-height:1.4}
+/* ---------- экран после матча (компактно, как в Standoff 2) ---------- */
+#s-res{grid-template-rows:auto minmax(0,1fr);gap:0;padding:0;background:rgba(8,10,12,.6)}
+.rtabs{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:calc(var(--st) + 5px) calc(var(--sr) + 12px) 4px calc(var(--sl) + 12px)}
+.rt{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;background:var(--panel);border:1px solid var(--line);font:400 12px var(--head);letter-spacing:.4px}
+.rt .ic{font-size:15px;color:var(--gold)}
+.rtitle{text-align:center;font:400 19px var(--head);letter-spacing:.5px}.rtitle.win{color:var(--gold)}.rtitle.lose{color:#ff9b94}
+.rbody{overflow:auto;min-height:0;padding:4px calc(var(--sr) + 12px) calc(var(--sb) + 8px) calc(var(--sl) + 12px);-webkit-overflow-scrolling:touch}
+.rg{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-rows:auto minmax(150px,1fr);gap:8px;min-height:100%}
+.pn{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-height:0;min-width:0}
+.pn>.ph{padding:6px 11px;font:400 12.5px var(--head);background:rgba(0,0,0,.25);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.pn>.ph .sp{flex:1}.pn>.ph small{font:600 11px var(--body);color:var(--mute)}
+.lvrow{display:flex;align-items:center;gap:8px;padding:8px 11px 5px;font-size:13px;font-weight:700}
+.lvrow .lvl{width:26px;height:29px;font-size:11px}.lvrow .xr{margin-left:auto;font-weight:600;font-size:12px;color:var(--mute)}.lvrow .xr b{color:var(--gold)}
+.sbar{display:flex;gap:2px;padding:0 11px}.sbar i{flex:1;height:7px;background:#0c0f12;border:1px solid var(--line);display:block}.sbar i.on{background:var(--gold);border-color:var(--gold2)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 11px 9px}
+.st2{background:#20272d;border:1px solid var(--line2);text-align:center;padding:5px 2px}.st2 span{display:block;font-size:10px;color:var(--mute);font-weight:700;letter-spacing:.3px}.st2 b{font:400 17px var(--head)}
+.chips{display:flex;gap:5px;flex-wrap:wrap;padding:0 11px 9px}.chip{padding:3px 8px;background:rgba(242,182,50,.12);border:1px solid var(--gold2);font-size:11px;font-weight:700;color:#ffe29a}
+.mcards{display:flex;gap:8px;padding:8px 11px 9px;flex-wrap:wrap}
+.mcard{width:150px;background:#14191d;border:1px solid var(--line);text-align:left;padding:0}.mcard.me{border-color:var(--gold)}
+.mcard .vi{height:64px;background-size:cover;background-position:center}.mcard .vn{padding:5px 8px 6px;font-size:12px;font-weight:700}
+.pips{display:flex;gap:3px;margin-top:4px}.pips i{width:9px;height:9px;background:#0c0f12;border:1px solid var(--line);display:block}.pips i.on{background:var(--gold);border-color:var(--gold2)}
+.rcg{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px;padding:8px 11px 10px;overflow:auto;align-content:start;min-height:0}
+.rc2{background:#20272d;border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}.rc2.me{border:1px solid var(--gold);box-shadow:0 0 0 1px rgba(242,182,50,.35)}
+.rc2 .rh{display:flex;align-items:center;gap:6px;padding:4px 6px;background:rgba(0,0,0,.28);font-size:11px;font-weight:700;min-width:0}
+.rc2 .rh .av{width:18px;height:18px;flex:none;image-rendering:pixelated;border:1px solid var(--line2)}.rc2 .rh span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc2 .ra{height:52px;display:grid;place-items:center;background:linear-gradient(180deg,#b9c3dc,#8892ad)}.rc2 .ra svg{width:44px;height:44px}.rc2 .ra.bx svg{width:70%;height:70%}.rc2 .ra .q{font:400 30px var(--head);color:rgba(30,40,60,.55)}
+.rc2 .rb{padding:4px 7px;background:var(--rcol,#d9831d);color:#fff;font:400 12px var(--head);display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden}
+.chatp .cmsgs{flex:1;overflow:auto;padding:7px 11px;font-size:12.5px;line-height:1.4;min-height:0}
 .cmsgs div{margin-bottom:3px;word-break:break-word;-webkit-user-select:text;user-select:text}.cmsgs b{color:var(--gold)}
-.crow{display:flex;border-top:1px solid var(--line)}
-.crow input{flex:1;height:46px;padding:0 12px;background:#0f1316;border:0;font-size:15px;min-width:0}
-.crow button{width:50px;color:var(--mute);font-size:20px}
+.crow{display:flex;border-top:1px solid var(--line)}.crow input{flex:1;height:40px;padding:0 11px;background:#20272d;border:0;font-size:13.5px;min-width:0}.crow button{width:44px;color:var(--mute);font-size:17px}
+.medal{display:inline-block;width:18px;height:18px;vertical-align:-3px;margin-left:5px;flex:none}.medal svg{width:100%;height:100%}
+/* таблица матча */
+.sbd{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sp2{background:var(--panel);border:1px solid var(--line);min-width:0}
+.ph2{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;font:400 13px var(--head);background:rgba(0,0,0,.28)}.ph2 .ps{font-size:20px}
+.sp2.ct .ph2{color:#8aa4e6}.sp2.tt .ph2{color:#f0b24a}
+.tr{display:grid;grid-template-columns:20px minmax(0,1fr) repeat(4,32px) 38px;align-items:center;gap:4px;padding:4px 9px;font-size:12px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.04)}
+.tr>span{text-align:center}.tr>.who{text-align:left;display:flex;align-items:center;gap:6px;min-width:0}
+.tr .av{width:24px;height:24px;flex:none;image-rendering:pixelated;border:1px solid var(--line2)}.tr .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr.th{font-size:10.5px;color:var(--mute);background:rgba(255,255,255,.03);padding:5px 9px}
+.sp2.ct .tr:not(.th){color:#9db3ea}.sp2.tt .tr:not(.th){color:#f0bd62}.tr.me{background:rgba(255,255,255,.1);color:#fff!important}.tr .pg{color:var(--dim);font-size:11px}
+.sfoot{display:flex;justify-content:space-between;margin-top:8px;padding:7px 12px;background:rgba(0,0,0,.35);color:var(--mute);font-size:12px}
 /* ---------- экран загрузки матча ---------- */
 .loadscr{position:fixed;inset:0;z-index:100;background-color:#0b0e11;background-size:cover;background-position:center;color:var(--text)}
 .loadscr .ls-sh{position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,10,12,.94) 0%,rgba(8,10,12,.5) 46%,rgba(8,10,12,.08) 100%),linear-gradient(0deg,rgba(8,10,12,.92) 0%,transparent 42%)}
@@ -288,10 +260,10 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 .ls-br i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .7s ease}
 .ls-pl{position:absolute;left:5vw;bottom:15.5vh;font-size:13px;color:var(--mute)}
 .ls-tp{position:absolute;left:5vw;right:5vw;bottom:6vh;font-size:14px;color:#aab4bd}
-@media (max-aspect-ratio:1/1){.sbd,.resg{grid-template-columns:1fr}}
+@media (max-aspect-ratio:1/1){.sbd,.rg{grid-template-columns:1fr}}
 @media (max-aspect-ratio:1/1){
   #s-main{grid-template-columns:1fr 1fr;grid-template-rows:auto 64px minmax(220px,1fr) minmax(0,1fr)}
-  .play{position:static;transform:none;order:3;height:56px;flex:1 0 100%}
+  .play{order:3;height:46px;flex:1 0 100%}
   .top{flex-wrap:wrap;height:auto}
   .pcard{max-width:none;flex:1}
   .side{grid-column:1/-1;flex-direction:row}
@@ -299,14 +271,14 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
   .right{grid-column:1/-1;flex-direction:row}.right .card{flex:1}
 }
 @media (max-height:430px){
-  .play{height:50px;font-size:22px}
-  #s-main{grid-template-rows:56px minmax(0,1fr)}
+  .play{height:42px;font-size:19px}
+  #s-main{grid-template-rows:48px minmax(0,1fr)}
   .pcard .av{width:40px;height:40px}.xpbar{margin-top:3px}
   .navbtn .ic{font-size:26px}
 }
 @media (max-width:760px) and (min-aspect-ratio:1/1){
   #s-main{grid-template-columns:64px minmax(0,1fr) 200px}
-  .play{min-width:200px;padding:0 20px;font-size:20px}
+  .play{min-width:150px;padding:0 16px;font-size:17px}
   .pcard{max-width:30%}.xpbar{width:90px}.cur{padding-right:7px;font-size:14px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -381,7 +353,7 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 
   <!-- ЭКРАН ПОСЛЕ МАТЧА: статистика и результат -->
   <section class="screen" id="s-res">
-    <header class="rtabs"><button class="rt" id="tabStat">СТАТИСТИКА</button><button class="rt on" id="tabRes">РЕЗУЛЬТАТ</button><span class="sp"></span><button class="rt exit" id="resExit">ВЫХОД</button></header>
+    <header class="rtabs"><button class="rt" id="tabStat"><svg class="ic"><use href="#i-stat"/></svg><span id="tabStatT">СТАТИСТИКА</span></button><div class="rtitle" id="resTitle"></div><button class="rt" id="resExit"><svg class="ic"><use href="#i-x"/></svg>ВЫХОД</button></header>
     <div class="rbody" id="resBody"></div>
   </section>
 </div>
@@ -728,7 +700,7 @@ function simulateMatch(place) {
   const my = rows[0];
   showRewards({ place: myPlace, kills, deaths: my.d, assists: my.a, headKills: Math.floor(kills * 0.4), hits: kills * 4 + 6, headHits: Math.floor(kills * 1.6),
     wk: kills ? { rifle: Math.ceil(kills * 0.6), usp: Math.floor(kills * 0.2), awp: Math.floor(kills * 0.1), knife: Math.floor(kills * 0.1) } : {},
-    win: sA > sB ? 1 : sA < sB ? -1 : 0, rows, sc: { A: sA, B: sB }, map: 'Crid', mode: 'Командный бой', level: P.level });
+    win: sA > sB ? 1 : sA < sB ? -1 : 0, rows, sc: { A: sA, B: sB }, map: 'Crid', mode: 'Командный бой', level: P.level, sim: true });
 }
 
 /* =====================================================================
@@ -905,82 +877,91 @@ function showRewards(m) {
   const R = applyMatch(P, m, Math.random); save();
   try { const lm = JSON.parse(localStorage.getItem('lastMatch') || 'null'); if (lm) { lm.applied = true; localStorage.setItem('lastMatch', JSON.stringify(lm)); } } catch (e) {}
   const rows = rowsOf(m);
-  const cards = rows.filter(r => !r.me).map(r => ({ n: r.n, t: r.t, k: r.k, d: rollDrop(placeIn(rows, r), Math.random) })).sort((a, b) => b.k - a.k);   // награды остальных игроков тоже показываем всем
-  RES = { R, m, tab: 'res', cards, tm: [], iv: 0 };
+  const cards = rows.filter(r => !r.me).map(r => ({ n: r.n, t: r.t, k: r.k, d: rollDrop(placeIn(rows, r), Math.random) })).sort((a, b) => b.k - a.k);   // награды остальных игроков тоже показываем
+  if (RES) clearInterval(RES.iv);
+  RES = { R, m, tab: 'res', cards, tm: [], iv: 0, left: 15, voted: 0, meVote: false, started: false, paint: null };
+  RES.iv = setInterval(tickVote, 1000);
   renderResult(); showScreen('res');
 }
-function clearResTimers() { if (!RES) return; clearInterval(RES.iv); (RES.tm || []).forEach(clearTimeout); RES.tm = []; }
+function tickVote() {                                  // голосование за карту; когда время вышло — следующий матч стартует сам (если игрок не вышел)
+  if (!RES) return;
+  if (RES.left > 0) RES.left--;
+  if (RES.voted < 10 && (RES.left <= 12 || Math.random() < 0.4)) RES.voted = Math.min(10, RES.voted + 1 + (Math.random() < 0.4 ? 1 : 0));
+  if (RES.left === 0) { RES.voted = 10; if (!RES.m.sim && !RES.started) { RES.started = true; clearInterval(RES.iv); startLoadScreen(); } }
+  if (RES.paint) RES.paint();
+}
+function clearResTimers() { if (!RES) return; (RES.tm || []).forEach(clearTimeout); RES.tm = []; }
 function renderResult() {
   if (!RES) return;
-  clearResTimers();
-  $('#tabStat').classList.toggle('on', RES.tab === 'stat'); $('#tabRes').classList.toggle('on', RES.tab === 'res');
+  clearResTimers(); RES.paint = null;
+  const w = RES.m.win, t = $('#resTitle'); t.textContent = w === 1 ? 'Победа' : w === -1 ? 'Поражение' : 'Ничья'; t.className = 'rtitle ' + (w === 1 ? 'win' : w === -1 ? 'lose' : '');
+  $('#tabStatT').textContent = RES.tab === 'stat' ? 'РЕЗУЛЬТАТ' : 'СТАТИСТИКА';
   const body = $('#resBody'); body.replaceChildren(); body.scrollTop = 0;
   if (RES.tab === 'stat') drawStat(body); else drawRes(body);
 }
-function exitResult() { clearResTimers(); RES = null; renderMain(); showScreen('main'); }
+function exitResult() { if (RES) { clearInterval(RES.iv); clearResTimers(); } RES = null; renderMain(); showScreen('main'); }
 function drawStat(body) {
   const m = RES.m, rows = rowsOf(m), tot = t => rows.filter(r => r.t === t).reduce((a, r) => a + r.k, 0), sc = m.sc || { A: tot('A'), B: tot('B') };
-  const res = m.win === 1 ? 'ПОБЕДА' : m.win === -1 ? 'ПОРАЖЕНИЕ' : 'НИЧЬЯ', rc = m.win === 1 ? 'win' : m.win === -1 ? 'lose' : 'draw';
   const panel = (t, name, cls) => {
     const list = rows.filter(r => r.t === t).sort((a, b) => b.k - a.k || a.d - b.d);
-    const box = h('section', { class: 'sp2 ' + cls }, h('div', { class: 'ph' }, h('b', { text: name }), h('span', { class: 'ps', text: String(sc[t]) })),
+    const box = h('section', { class: 'sp2 ' + cls }, h('div', { class: 'ph2' }, h('b', { text: name }), h('span', { class: 'ps', text: String(sc[t]) })),
       h('div', { class: 'tr th' }, ['#', 'Имя', 'У', 'П', 'С', 'Счёт', 'Пинг'].map(x => h('span', { text: x }))));
     list.forEach((r, i) => box.append(h('div', { class: 'tr' + (r.me ? ' me' : '') }, h('span', { text: String(i + 1) }),
-      h('span', { class: 'who' }, r.me ? avatarFor(P, 34, 'av') : avatarFor(hashId(r.n), 34, 'av'), h('span', { class: 'nm' }, r.me ? P.nick : r.n, r.me ? medalEl(P.level) : null)),
+      h('span', { class: 'who' }, r.me ? avatarFor(P, 24, 'av') : avatarFor(hashId(r.n), 24, 'av'), h('span', { class: 'nm' }, r.me ? P.nick : r.n, r.me ? medalEl(P.level) : null)),
       h('span', { text: String(r.k) }), h('span', { text: String(r.a) }), h('span', { text: String(r.d) }), h('span', { text: String(r.k) }), h('span', { class: 'pg', text: String(r.p) }))));
     return box;
   };
-  body.append(h('div', { class: 'sbn' }, h('div', { class: 'bn ' + rc, text: res })),
-    h('div', { class: 'sbd' }, panel('A', 'СПЕЦНАЗ (CT)', 'ct'), panel('B', 'ТЕРРОРИСТЫ (T)', 'tt')),
+  body.append(h('div', { class: 'sbd' }, panel('A', 'СПЕЦНАЗ (CT)', 'ct'), panel('B', 'ТЕРРОРИСТЫ (T)', 'tt')),
     h('div', { class: 'sfoot' }, h('span', { text: (m.mode || 'Командный бой') + ' / ' + (m.map || 'Crid') }), h('span', { text: 'Сегодня в ' + pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes()) })));
 }
 function rewardCard(name, avNode, d, me) {
-  const lucky = d.type !== 'silver';
   let art, label, col = '';
-  if (d.type === 'silver') { art = h('div', { class: 'rca' }, h('span', { html: COIN_SVG, style: 'display:contents' }), h('span', { class: 'rcn', text: String(d.amount) })); label = 'Серебро'; }
-  else if (d.type === 'box') { art = h('div', { class: 'rca bx', html: boxSVG(d.kind) }); label = CFG.boxes[d.kind].name; }
-  else { const r = rarityById(d.rarity); art = h('div', { class: 'rca' }, h('span', { class: 'q', text: '?' })); label = d.knife ? 'Нож ?' : 'Скин ?'; col = r.color; }
-  return h('div', { class: 'rc' + (me ? ' me' : '') }, h('div', { class: 'rch' }, ico(lucky ? 'dice' : 'thumb'), lucky ? 'Удача' : 'Хорошая игра'), art,
-    h('div', { class: 'rcl', text: label, style: col ? '--rcol:' + col : '' }), h('div', { class: 'rcf' }, avNode, h('span', { text: name })));
+  if (d.type === 'silver') { art = h('div', { class: 'ra' }, h('span', { html: COIN_SVG, style: 'display:contents' })); label = String(d.amount); }
+  else if (d.type === 'box') { art = h('div', { class: 'ra bx', html: boxSVG(d.kind) }); label = 'Ящик'; }
+  else { art = h('div', { class: 'ra' }, h('span', { class: 'q', text: '?' })); label = d.knife ? 'Нож ?' : 'Скин ?'; col = rarityById(d.rarity).color; }
+  return h('div', { class: 'rc2' + (me ? ' me' : '') }, h('div', { class: 'rh' }, avNode, h('span', { text: name })), art,
+    h('div', { class: 'rb', style: col ? '--rcol:' + col : '' }, h('span', { text: label })));
 }
 function drawRes(body) {
-  const R = RES.R, later = (f, ms) => { RES.tm.push(setTimeout(f, ms)); };
-  const lv = h('span', { class: 'lvl big', text: String(R.startLevel) }), bar = h('i'), xr = h('span', { class: 'xr' });
-  const showXp = (l, x) => { lv.textContent = String(l); xr.textContent = l >= CFG.maxLevel ? 'максимум' : fmt(x) + ' / ' + fmt(CFG.xpNeed(l)); };
+  const R = RES.R, m = RES.m, later = (f, ms) => { RES.tm.push(setTimeout(f, ms)); }, fast = reduced(), SEG = 20;
+  // --- Статистика: уровень, полоса опыта, плитки (без хедшотов и без монет)
+  const lvl = h('b', { text: String(R.startLevel) }), xr = h('span', { class: 'xr' }), bars = h('div', { class: 'sbar' });
+  for (let i = 0; i < SEG; i++) bars.append(h('i'));
+  const setBar = pct => [].slice.call(bars.children).forEach((e, i) => e.classList.toggle('on', i < Math.round(pct / 100 * SEG)));
+  const showXp = (l, x) => { lvl.textContent = String(l); xr.replaceChildren(l >= CFG.maxLevel ? 'максимум' : h('b', { text: fmt(x) }), l >= CFG.maxLevel ? '' : ' / ' + fmt(CFG.xpNeed(l))); };
   showXp(R.startLevel, R.startXp);
-  const chips = h('div', { class: 'chips' });
-  R.ups.forEach(u => chips.append(h('span', { class: 'chip', text: 'Уровень ' + u.level + ': +' + u.silver + ' серебра' + (u.box ? ' + ящик' : '') })));
-  const xph = h('div', { class: 'xph' }, lv, h('div', { class: 'xm' }, h('div', { class: 'xl' }, h('b', { text: R.xp ? '+' + fmt(R.xp) : '+0' }), 'Опыт за матч', xr), h('div', { class: 'xb' }, bar),
-    R.xp ? null : h('div', { style: 'color:var(--mute);font-size:12.5px;margin-top:8px', text: 'Опыт даётся, когда есть хотя бы одно убийство.' }), R.ups.length ? chips : null));
-  const grid = h('div', { class: 'rcg' }, rewardCard(P.nick, avatarFor(P, 26, 'av'), R.drop, true));
-  RES.cards.forEach(c => grid.append(rewardCard(c.n, avatarFor(hashId(c.n), 26, 'av'), c.d, false)));
-  // голосование за следующую карту (пока одна карта)
+  const tile = (l, v) => h('div', { class: 'st2' }, h('span', { text: l }), h('b', { text: String(v) }));
+  const chips = h('div', { class: 'chips' }); R.ups.forEach(u => chips.append(h('span', { class: 'chip', text: 'Уровень ' + u.level + ': +' + u.silver + ' серебра' + (u.box ? ' + ящик' : '') })));
+  const stat = h('section', { class: 'pn' }, h('div', { class: 'ph', text: 'Статистика' }),
+    h('div', { class: 'lvrow' }, h('span', { text: 'Уровень:' }), lvl, xr), bars,
+    h('div', { class: 'tiles' }, tile('ОПЫТ', R.xp ? '+' + fmt(R.xp) : '0'), tile('УБИЙСТВ', m.kills || 0), tile('ПОМОЩЬ', m.assists || 0), tile('СМЕРТЕЙ', m.deaths || 0)),
+    R.ups.length ? chips : null, R.xp ? null : h('div', { style: 'padding:0 11px 9px;color:var(--mute);font-size:11.5px', text: 'Опыт даётся, когда есть хотя бы одно убийство.' }));
+  // --- Голосование за карту (пока одна карта); время вышло — матч начнётся сам
   const pips = h('div', { class: 'pips' }); for (let i = 0; i < 10; i++) pips.append(h('i'));
-  const vs = h('div', { class: 'vs' });
-  const vote = h('div', { class: 'vote' }, h('h3', { text: 'Выбор следующей карты' }), vs,
-    h('div', { class: 'vmap' }, h('div', { class: 'vi', style: 'background-image:' + mapArt() }), h('div', { class: 'vn' }, 'Crid', pips)),
-    h('button', { class: 'btn gold', style: 'width:100%;margin-top:12px;min-height:50px', text: 'ИГРАТЬ СНОВА', onclick: () => startLoadScreen() }));
-  let left = 15, voted = 0;
-  const paint = () => { vs.textContent = left > 0 ? 'Голосование заканчивается через: 00:' + pad2(left) : 'Голосование завершено: Crid'; [].slice.call(pips.children).forEach((p, i) => p.classList.toggle('on', i < voted)); };
-  paint();
-  RES.iv = setInterval(() => { if (left > 0) left--; if (voted < 10 && (left <= 12 || Math.random() < 0.4)) voted = Math.min(10, voted + 1 + (Math.random() < 0.4 ? 1 : 0)); if (left === 0) voted = 10; paint(); }, 1000);
-  // чат матча (локальный, пока без сети)
-  const msgs = h('div', { class: 'cmsgs' }, h('div', { style: 'color:var(--mute)', text: 'Чат матча. Онлайн-чат появится вместе с сервером.' }));
-  const inp = h('input', { type: 'text', placeholder: 'Написать сообщение…', maxlength: '120', autocomplete: 'off', 'aria-label': 'Сообщение' });
+  const card = h('button', { class: 'mcard' + (RES.meVote ? ' me' : ''), 'aria-label': 'Голосовать за Crid', onclick: () => { if (RES.meVote || RES.left === 0) return; RES.meVote = true; RES.voted = Math.min(10, RES.voted + 1); card.classList.add('me'); RES.paint(); } },
+    h('div', { class: 'vi', style: 'background-image:' + mapArt() }), h('div', { class: 'vn' }, 'Crid', pips));
+  const vh = h('div', { class: 'ph' });
+  const vote = h('section', { class: 'pn' }, vh, h('div', { class: 'mcards' }, card));
+  RES.paint = () => { vh.textContent = RES.left > 0 ? 'Голосование заканчивается через: 0:' + pad2(RES.left) : (RES.m.sim ? 'Голосование завершено: Crid (тест — матч не запускается)' : 'Загрузка матча…'); [].slice.call(pips.children).forEach((pp, i) => pp.classList.toggle('on', i < RES.voted)); };
+  RES.paint();
+  // --- Награды всех игроков
+  const grid = h('div', { class: 'rcg' }, rewardCard(P.nick, avatarFor(P, 18, 'av'), R.drop, true));
+  RES.cards.forEach(c => grid.append(rewardCard(c.n, avatarFor(hashId(c.n), 18, 'av'), c.d, false)));
+  const awards = h('section', { class: 'pn' }, h('div', { class: 'ph', text: 'Награды' }), grid);
+  // --- Чат матча (локальный, пока без сети)
+  const msgs = h('div', { class: 'cmsgs' }, h('div', { style: 'color:var(--mute)', text: 'Онлайн-чат появится вместе с сервером.' }));
+  const inp = h('input', { type: 'text', placeholder: 'Сообщение…', maxlength: '120', autocomplete: 'off', 'aria-label': 'Сообщение' });
   const send = () => { const t = inp.value.trim(); if (!t) return; msgs.append(h('div', null, h('b', { text: P.nick + ': ' }), t)); inp.value = ''; msgs.scrollTop = msgs.scrollHeight; };
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
-  const chat = h('div', { class: 'chat' }, msgs, h('div', { class: 'crow' }, inp, h('button', { 'aria-label': 'Отправить', onclick: send }, ico('next'))));
-  body.append(h('div', { class: 'resg' }, h('div', null, xph, grid), h('div', null, vote, chat)));
-  // анимация полосы опыта по уровням
-  const segs = []; let lvl = R.startLevel, from = R.startLevel >= CFG.maxLevel ? 100 : R.startXp / CFG.xpNeed(lvl) * 100;
-  R.ups.forEach(u => { segs.push({ from, to: 100, up: u.level }); lvl = u.level; from = 0; });
+  const chat = h('section', { class: 'pn chatp' }, h('div', { class: 'ph', text: 'Чат' }), msgs, h('div', { class: 'crow' }, inp, h('button', { 'aria-label': 'Отправить', onclick: send }, ico('edit'))));
+  body.append(h('div', { class: 'rg' }, stat, vote, awards, chat));
+  // --- анимация полосы опыта по уровням
+  const stepsTo = (from, to, t0) => { const n = Math.max(1, Math.round(Math.abs(to - from) / 5)); for (let i = 1; i <= n; i++) { const v = from + (to - from) * i / n; later(() => setBar(v), fast ? 0 : t0 + i * 45); } return t0 + n * 45; };
+  const segs = []; let lv0 = R.startLevel, from = R.startLevel >= CFG.maxLevel ? 100 : R.startXp / CFG.xpNeed(lv0) * 100;
+  R.ups.forEach(u => { segs.push({ from, to: 100, up: u.level }); lv0 = u.level; from = 0; });
   segs.push({ from, to: R.endLevel >= CFG.maxLevel ? 100 : R.endXp / CFG.xpNeed(R.endLevel) * 100, up: 0 });
-  const fast = reduced(); bar.style.transition = 'none'; bar.style.width = (segs[0].from || 0) + '%';
-  let t = 250;
-  segs.forEach(sg => {
-    later(() => { bar.style.transition = fast ? 'none' : 'width .75s ease'; bar.style.width = sg.to + '%'; }, fast ? 0 : t); t += fast ? 0 : 800;
-    if (sg.up) { later(() => { lv.textContent = String(sg.up); bar.style.transition = 'none'; bar.style.width = '0%'; }, fast ? 0 : t); t += fast ? 0 : 150; }
-  });
+  setBar(segs[0].from || 0); let t = 250;
+  segs.forEach(sg => { t = stepsTo(sg.from, sg.to, t) + 120; if (sg.up) { const u = sg.up; later(() => { lvl.textContent = String(u); setBar(0); }, fast ? 0 : t); t += 120; } });
   later(() => showXp(R.endLevel, R.endXp), fast ? 0 : t);
 }
 /* ---------- загрузка матча: карта одной картинкой, как в CS / Standoff ---------- */
@@ -1109,8 +1090,7 @@ function init() {
   $('#frOpen').addEventListener('click', () => push(vFriends()));
   $('#stOpen').addEventListener('click', () => push(vStats()));
   $('#subBack').addEventListener('click', back);
-  $('#tabStat').addEventListener('click', () => { if (RES) { RES.tab = 'stat'; renderResult(); } });
-  $('#tabRes').addEventListener('click', () => { if (RES) { RES.tab = 'res'; renderResult(); } });
+  $('#tabStat').addEventListener('click', () => { if (RES) { RES.tab = RES.tab === 'stat' ? 'res' : 'stat'; renderResult(); } });
   $('#resExit').addEventListener('click', exitResult);
   // результат прошлого матча (его сохраняет игра в конце боя)
   let pending = null;
