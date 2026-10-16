@@ -309,32 +309,35 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   };
   Object.assign(BW, {
     m4a4: { int: 0.13, dp: 8, db: 11, acc: 1, range: 45 }, m16: { int: 0.15, dp: 9, db: 12, acc: 1, range: 48 },
-    m249: { int: 0.07, dp: 7, db: 9, acc: 0.7, range: 45 }, mossberg: { int: 0.9, dp: 26, db: 30, acc: 0.85, range: 16 },
-    m870: { int: 0.85, dp: 24, db: 28, acc: 0.85, range: 16 }, p250: { int: 0.3, dp: 11, db: 14, acc: 0.9, range: 28 } });
+    m249: { int: 0.07, dp: 7, db: 9, acc: 0.7, range: 45 }, mossberg: { int: 0.9, dp: 26, db: 30, acc: 0.85, range: 16, close: 1 },
+    m870: { int: 0.85, dp: 24, db: 28, acc: 0.85, range: 16, close: 1 }, p250: { int: 0.3, dp: 11, db: 14, acc: 0.9, range: 28 } });
   const BWN = { rifle: 'AK-47', awp: 'AWP', m4a4: 'M4A4', m16: 'M16A4', m249: 'M249', mossberg: 'Mossberg 590', m870: 'M870', usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250', knife: 'Нож', karambit: 'Керамбит' };
   const POSE_PISTOL = { rp: -1.25, ry: 0.42, re: -0.2, lp: -1.25, ly: -0.42, le: -0.2 }, POSE_KNIFE = { rp: -0.7, ry: 0.15, re: -1.1, lp: -0.2, ly: -0.1, le: -0.5 };
   const rollWeapon = () => 'rifle';     // реальный набор оружия бот получает в rollLoadout
-  function blockGun(type) {                         // пистолеты и нож ботов — из блоков
+  function blockGun(type) {                         // простое оружие из блоков для ботов (дуло смотрит в +Z)
     const g = new THREE.Group(), bx = (w, h, d, c, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); g.add(o); };
-    if (type === 'knife') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, 0.2, 0xd0d4da, 0, 0, 0.16); }
-    else {
-      const L = { usp: 0.24, deagle: 0.28, beretta: 0.22 }[type], col = { usp: 0x2b2b2b, deagle: 0xc8ccd2, beretta: 0x3a3a40 }[type];
+    if (type === 'knife' || type === 'karambit') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, type === 'karambit' ? 0.14 : 0.2, 0xd0d4da, 0, 0, 0.14); }
+    else if (type === 'usp' || type === 'deagle' || type === 'glock' || type === 'p250') {
+      const L = { usp: 0.24, deagle: 0.28, glock: 0.22, p250: 0.23 }[type], col = { usp: 0x2b2b2b, deagle: 0xc8ccd2, glock: 0x1f1f22, p250: 0x3a3d44 }[type];
       bx(0.04, 0.05, L, col, 0, 0.03, L / 2 - 0.05); bx(0.035, 0.1, 0.05, 0x222222, 0, -0.03, -0.02);
       if (type === 'usp') bx(0.03, 0.03, 0.12, 0x111111, 0, 0.03, L + 0.04);
-    }
+    } else if (type === 'm4a4' || type === 'm16') {
+      bx(0.05, 0.075, 0.36, 0x1c1d21, 0, 0.03, 0.2); bx(0.055, 0.055, 0.28, 0x24262b, 0, 0.02, 0.55); bx(0.02, 0.02, type === 'm16' ? 0.3 : 0.2, 0x101113, 0, 0.03, 0.82);
+      bx(0.045, 0.085, 0.22, 0x1c1d21, 0, 0, -0.12); bx(0.04, 0.14, 0.06, 0x15161a, 0, -0.08, 0.2); bx(0.035, 0.09, 0.04, 0x15161a, 0, -0.06, 0.03); bx(0.04, 0.04, 0.09, 0x101113, 0, 0.09, 0.2);
+    } else if (type === 'm249') {
+      bx(0.07, 0.09, 0.42, 0x23262b, 0, 0.03, 0.2); bx(0.05, 0.05, 0.3, 0x2d3036, 0, 0.04, 0.58); bx(0.025, 0.025, 0.34, 0x111214, 0, 0.04, 0.9);
+      bx(0.1, 0.12, 0.13, 0x3b3f2a, 0, -0.1, 0.18); bx(0.05, 0.1, 0.26, 0x23262b, 0, 0, -0.16); bx(0.035, 0.09, 0.04, 0x15161a, 0, -0.06, 0.02);
+    } else if (type === 'mossberg' || type === 'm870') {
+      bx(0.03, 0.03, 0.62, 0x15171a, 0, 0.04, 0.5); bx(0.03, 0.03, 0.5, 0x1b1d21, 0, 0.0, 0.46); bx(0.048, 0.05, 0.2, 0x5a3b1f, 0, -0.01, 0.42);
+      bx(0.05, 0.09, 0.22, 0x1b1d21, 0, 0.03, 0.08); bx(0.045, 0.09, 0.3, 0x5a3b1f, 0, 0, -0.2); bx(0.035, 0.09, 0.04, 0x15161a, 0, -0.06, 0.02);
+    } else if (type === 'awp') {
+      bx(0.05, 0.08, 0.5, 0x33402e, 0, 0.03, 0.1); bx(0.022, 0.022, 0.55, 0x111214, 0, 0.04, 0.62); bx(0.04, 0.04, 0.16, 0x0f1012, 0, 0.1, 0.2);
+      bx(0.05, 0.1, 0.3, 0x33402e, 0, -0.005, -0.28); bx(0.04, 0.12, 0.05, 0x15161a, 0, -0.08, 0.1); bx(0.035, 0.09, 0.04, 0x15161a, 0, -0.06, -0.05);
+    } else { bx(0.05, 0.07, 0.8, 0x111111, 0, 0.03, 0.3); }
     return g;
   }
   const boxGun = () => new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-  const makeGun = type => {
-    if (type === 'rifle') return GUN.obj ? GUN.obj.clone(true) : boxGun();
-    if (GUNS[type]) return GUNS[type].clone(true);
-    if (PRIM_T[type]) return boxGun();
-    return blockGun(type);
-  };
-  function loadExtraGuns() {                       // модели для ботов: грузятся один раз, пока у бота блоки
-    const list = { m4a4: ['rifle__m4a4_weapon_model_cs2.glb', 0.9], m16: ['low-poly_m16a4_acog.glb', 0.95], m249: ['low-poly_m249_saw.glb', 1.0], mossberg: ['low-poly_mossberg_590.glb', 0.95], m870: ['low_poly_shotgun-m870.glb', 0.95], p250: ['sig_sauer_p250_low-poly.glb', 0.22] };
-    for (const k in list) new THREE.GLTFLoader().load(list[k][0], gl => { GUNS[k] = fitTo(gl.scene, list[k][1], false); bots.forEach(b => { if (b.wp === k) setBotWeapon(b, k); }); }, undefined, () => {});
-  }
+  const makeGun = type => type === 'rifle' ? (GUN.obj ? GUN.obj.clone(true) : boxGun()) : blockGun(type);
   function setBotWeapon(b, type) {
     if (b.gun) b.inner.remove(b.gun);
     b.wp = type; b.gun = makeGun(type); b.inner.add(b.gun); b.stat.weapon = BWN[type];
@@ -413,7 +416,6 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function loadModels() {
     new THREE.GLTFLoader().load('ak-47_low_poly.glb', g => { GUN.obj = fitTo(g.scene, 0.88, false); bots.forEach(b => dress(b)); }, undefined, () => bots.forEach(b => dress(b)));
-    loadExtraGuns();
   }
 
   // ---------- карта Crid ----------
@@ -690,7 +692,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 500); }, 5000);
   }
   function uiExtra() {
-    uiWeapons(); botPanel(); botCopy(); exitBtn(); gfxUI();
+    uiWeapons(); botPanel(); botCopy(); exitBtn(); gfxUI(); fixShop();
     const css = document.createElement('style');
     css.textContent = '#kf{position:absolute;right:138px;top:68px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:3px;pointer-events:none}' +
       '.k{background:rgba(15,23,42,.72);border-radius:6px;padding:2px 8px;font:700 12px sans-serif;color:#fff;transition:opacity .5s}.k.me{outline:1px solid rgba(255,255,255,.7)}' +
@@ -840,8 +842,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       '#cart{position:absolute;left:18px;bottom:20px;z-index:30;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.75);font-size:22px;display:none;align-items:center;justify-content:center}' +
       '#shop{position:absolute;top:0;left:0;width:100%;height:100%;z-index:120;background:rgba(10,12,18,.9);color:#fff;font-family:sans-serif;display:none}' +
       '#shT{position:absolute;left:14px;top:8px;font-size:14px}#shB{position:absolute;left:14px;right:60px;top:30px;height:4px;background:#333}#shB i{display:block;height:100%;background:#fff}' +
-      '#shX{position:absolute;right:14px;top:6px;font-size:26px}#shC{position:absolute;left:14px;right:14px;top:48px;display:flex;gap:10px}' +
-      '#shC .col{flex:1}#shC h4{margin:0 0 4px;font-size:12px;color:#94a3b8}#shC .it{padding:10px 8px;margin-bottom:4px;background:rgba(255,255,255,.1);border-radius:6px;font-size:13px}';
+      '#shX{position:absolute;right:14px;top:6px;font-size:26px}#shC{position:absolute;left:14px;right:14px;top:48px;bottom:8px;display:flex;gap:10px;align-items:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;overscroll-behavior:contain}#shop{touch-action:pan-y}' +
+      '#shC .col{flex:1}#shC h4{margin:0 0 4px;font-size:12px;color:#94a3b8}#shC .it{padding:9px 8px;margin-bottom:4px;touch-action:manipulation;background:rgba(255,255,255,.1);border-radius:6px;font-size:13px}';
     document.head.appendChild(css);
     const d = document.createElement('div');
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
@@ -1127,7 +1129,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const ty = e.ply ? e.pos.y - 0.25 : e.pos.y + 1.3;
       if (los(ey, new V(e.pos.x, ty, e.pos.z))) { best = e; bd = d; b.aimDy = ty - ey.y; }
     });
-    if (best && !b.target) b.react = (BW[b.wp] && BW[b.wp].melee ? 0.15 : 0.3) + Math.random() * 0.35 + (b.wp === 'awp' ? 0.35 : 0);
+    if (best && !b.target) b.react = (BW[b.wp] && BW[b.wp].melee ? 0.08 : 0.12) + Math.random() * 0.2 + (b.wp === 'awp' ? 0.22 : 0);
     b.target = best;
     if (best) { b.seenT = T; intel[b.team] = { pos: new V(best.pos.x, best.ply ? best.pos.y - player.currentHeight : best.pos.y, best.pos.z), t: T }; }
   }
@@ -1276,13 +1278,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       if (!b.loadout) rollLoadout(b);
       const pos = b.mesh.position;
       b.walk = false; b.react -= dt; b.nextPath -= dt; b.think -= dt;
-      if (b.think <= 0) { b.think = 0.15 + Math.random() * 0.1; perceive(b); }
+      if (b.think <= 0) { b.think = 0.07 + Math.random() * 0.06; perceive(b); }
       const BX = BW[b.wp] || BW.rifle, prim = b.loadout.primary;
       let want = prim;
       if (b.target) {
         const e = b.target, dx = e.pos.x - pos.x, dz = e.pos.z - pos.z, d = Math.hypot(dx, dz);
         b.combatT = T;
-        turnTo(b, Math.atan2(dx, dz), dt, 9);
+        turnTo(b, Math.atan2(dx, dz), dt, 15);
         b.aimPitch += (Math.atan2(b.aimDy || 0, Math.max(d, 1)) - b.aimPitch) * Math.min(1, 8 * dt);     // смотрит вверх/вниз на цель
         if (b.hp < 35 && !b.fled && Math.random() < 0.02) { b.fled = true; b.fleeEnd = T + 3.5; }       // раненый отступает к своим
         if (T < b.fleeEnd) { const sp = SPAWN[b.team][0]; follow(b, new V(sp[0], 0, sp[1]), dt, 6.2); b.crouch = false; }
@@ -1296,11 +1298,11 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
           if (!BX.melee && b.wp !== 'awp' && !b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, pos.y + 0.75); b.walk = true; }
           if (b.react <= 0 && T > b.drawT && T - b.last > BX.int && (!BX.melee || d < 1.9)) {
             b.last = T;
-            const pr = BX.melee ? 0.9 : Math.max(0.08, 0.55 - d * 0.012) * BX.acc * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
+            const pr = BX.melee ? 0.9 : Math.max(0.12, 0.66 - d * 0.012) * BX.acc * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
             const head = Math.random() < 0.12;
             if (Math.random() < pr && los(eye(b), new V(e.pos.x, e.ply ? e.pos.y - 0.25 : e.pos.y + 1.3, e.pos.z))) e.ply ? hurt(BX.dp, b.stat, head, b.wp) : damageBot(e.bot, BX.db, b.team, pos, false, b.stat, head, b.wp);
           }
-          if (BX.melee ? d > 1.5 : (b.wp !== 'awp' && d > 22)) follow(b, e.ply ? new V(e.pos.x, e.pos.y - player.currentHeight, e.pos.z) : e.pos, dt, BX.melee ? 6.5 : 4.5);
+          if (BX.melee ? d > 1.5 : (b.wp !== 'awp' && d > (BX.close ? 7 : 22))) follow(b, e.ply ? new V(e.pos.x, e.pos.y - player.currentHeight, e.pos.z) : e.pos, dt, BX.melee ? 6.5 : 4.5);
         }
       } else {
         b.aimPitch += (0 - b.aimPitch) * Math.min(1, 4 * dt);
@@ -1717,6 +1719,10 @@ window.processShoot = function (now) {
       }
     } else if (hit.face) createBulletHole(hit.point, hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
   };
+  function fixShop() {                              // игра перехватывает касания для камеры — магазину нужен свой скролл
+    const sh = document.getElementById('shop'); if (!sh) return;
+    ['touchstart', 'touchmove', 'touchend'].forEach(ev => sh.addEventListener(ev, e => e.stopPropagation(), { passive: true }));
+  }
   function exitBtn() {                              // кнопка «В меню» в панели настроек — выход из матча обратно в меню
     const panel = document.getElementById('hn-p'); if (!panel) return;
     const b = document.createElement('button'); b.textContent = '← В меню';
@@ -1911,6 +1917,8 @@ window.processShoot = function (now) {
     const prim = b.loadout && b.loadout.primary, slot = ['rush', 'flank', 'flank', 'hold', 'roam'][b.idx % 5];
     let role = Math.random() < 0.55 ? slot : ['rush', 'flank', 'roam', 'hold'][Math.floor(Math.random() * 4)];
     if (prim === 'awp') role = Math.random() < 0.8 ? 'snipe' : 'hold';
+    else if (prim === 'mossberg' || prim === 'm870') role = Math.random() < 0.7 ? 'rush' : 'flank';     // дробовик — вблизи
+    else if (prim === 'm249') role = Math.random() < 0.6 ? 'hold' : 'roam';                           // пулемёт — подавляет с позиции
     b.plan = { role, side: (b.idx % 2 ? 1 : -1) * (Math.random() < 0.25 ? -1 : 1), dest: null, cur: null, holdUntil: 0, giveUp: 0, stage: 0, last: [], face: b.team === 'A' ? Math.PI : 0 };
   }
   function pickDest(b, pos) {
@@ -1986,8 +1994,9 @@ window.processShoot = function (now) {
     document.head.appendChild(st);
     const d = document.createElement('div'); d.id = 'autoload';
     const art = 'url("data:image/svg+xml,' + encodeURIComponent(MAP_ART) + '")';
-    d.innerHTML = '<div class="bg" style="background-image:url(crid.jpg),' + art + '"></div><div class="sh"></div><div class="md">КОМАНДНЫЙ БОЙ</div><div class="nm">CRID</div><div class="sb">5 на 5 · 2 минуты</div>'
+    d.innerHTML = '<div class="bg"></div><div class="sh"></div><div class="md">КОМАНДНЫЙ БОЙ</div><div class="nm">CRID</div><div class="sb">5 на 5 · 2 минуты</div>'
       + '<div class="pl">' + ((_prof && _prof.nick) ? _prof.nick : 'Игрок') + ' · загрузка карты…</div><div class="br"><i id="albar"></i></div><div class="tp">Подсказка: ' + LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)] + '</div>';
+    d.firstChild.style.backgroundImage = 'url(crid.jpg),' + art;                  // фон: твоя картинка crid.jpg, а если её нет — нарисованная карта
     (document.body || document.documentElement).appendChild(d);
     loadFake = 0; loadT = setInterval(() => { loadFake += (0.9 - loadFake) * 0.06; applyLoad(); }, 120);
   }
@@ -1998,5 +2007,11 @@ window.processShoot = function (now) {
     setTimeout(() => { const d = document.getElementById('autoload'); if (d) d.remove(); }, 300);
   }
 
+  try {                                            // если телефон отнял видеопамять — восстанавливаем сцену, а не оставляем чёрный экран
+    if (typeof renderer !== 'undefined' && renderer.domElement) {
+      renderer.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); }, false);
+      renderer.domElement.addEventListener('webglcontextrestored', () => { try { scene.traverse(o => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m) m.needsUpdate = true; }); }); } catch (e) {} }, false);
+    }
+  } catch (e) {}
   if (AUTO) showLoading();                         // экран загрузки показываем сразу, чтобы не мелькал старый стартовый экран
 })();
