@@ -284,20 +284,20 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     alignGun(b);
   }
   // ======================= каталог оружия: доступно ОБЕИМ сторонам =======================
-  const PRIM = {
-    rifle:    { name: 'AK-47',        mag: 30,  res: 90,  int: 110,  spd: 6.2 },
-    awp:      { name: 'AWP',          mag: 5,   res: 20,  int: 1400, spd: 6.2 },
-    m4a4:     { name: 'M4A4',         mag: 30,  res: 90,  int: 90,   spd: 6.2 },
-    m16:      { name: 'M16A4',        mag: 30,  res: 90,  int: 95,   spd: 6.1 },
-    m249:     { name: 'M249',         mag: 100, res: 200, int: 70,   spd: 4.8 },
-    mossberg: { name: 'Mossberg 590', mag: 5,   res: 25,  int: 750,  spd: 6.0, pellets: 8 },
-    m870:     { name: 'M870',         mag: 6,   res: 24,  int: 700,  spd: 6.0, pellets: 8 }
+  const PRIM = {                                   // mag — в магазине, res — запас; price — цена в режиме «Закладка бомбы» (в командном бою всё бесплатно)
+    rifle:    { name: 'AK-47',        mag: 30,  res: 120, int: 110,  spd: 6.2, price: 3000 },
+    awp:      { name: 'AWP',          mag: 5,   res: 30,  int: 1400, spd: 6.2, price: 4000 },
+    m4a4:     { name: 'M4A4',         mag: 30,  res: 120, int: 90,   spd: 6.2, price: 3000 },
+    m16:      { name: 'M16A4',        mag: 30,  res: 120, int: 95,   spd: 6.1, price: 3200 },
+    m249:     { name: 'M249',         mag: 100, res: 200, int: 70,   spd: 4.8, price: 3600 },
+    mossberg: { name: 'Mossberg 590', mag: 7,   res: 42,  int: 750,  spd: 6.0, pellets: 8, price: 1000 },
+    m870:     { name: 'M870',         mag: 7,   res: 42,  int: 700,  spd: 6.0, pellets: 8, price: 1000 }
   };
   const PIST = {
-    usp:    { name: 'USP-S',        mag: 12, res: 36, int: 190, spd: 6.8 },
-    deagle: { name: 'Desert Eagle', mag: 12, res: 36, int: 190, spd: 6.8 },
-    glock:  { name: 'Glock',        mag: 12, res: 36, int: 190, spd: 6.8 },
-    p250:   { name: 'P250',         mag: 13, res: 39, int: 170, spd: 6.8 }
+    usp:    { name: 'USP-S',        mag: 12, res: 72, int: 190, spd: 6.8, price: 200 },
+    deagle: { name: 'Desert Eagle', mag: 7,  res: 42, int: 190, spd: 6.8, price: 700 },
+    glock:  { name: 'Glock',        mag: 17, res: 68, int: 190, spd: 6.8, price: 200 },
+    p250:   { name: 'P250',         mag: 13, res: 52, int: 170, spd: 6.8, price: 400 }
   };
   const KNV = { knife: { name: 'Нож' }, karambit: { name: 'Керамбит' } };
   const PRIM_T = { rifle: 1, awp: 1, m4a4: 1, m16: 1, m249: 1, mossberg: 1, m870: 1 };   // первичные (держатся двумя руками)
@@ -746,7 +746,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   // ---------- оружие: колесо выбора, магазин на 10 секунд, хитмаркер ----------
   const WS = { rifle: { mag: 30, int: 110, name: 'AK-47', spd: 6.2 }, pistol: { mag: 12, int: 190, name: '', spd: 6.8 }, knife: { mag: 0, int: 550, name: 'НОЖ', spd: 7.8 } };   // spd — скорость бега
   const PN = { usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250' };
-  const loadout = { pistol: 'usp', primary: 'rifle', knife: 'knife' }, store = { rifle: { mag: 30, res: 90 }, pistol: { mag: 12, res: 36 } };
+  const loadout = { pistol: 'usp', primary: 'rifle', knife: 'knife' }, store = { rifle: { mag: PRIM.rifle.mag, res: PRIM.rifle.res }, pistol: { mag: PIST.usp.mag, res: PIST.usp.res } };
   const wname = () => curW === 'pistol' ? PIST[loadout.pistol].name : curW === 'rifle' ? PRIM[loadout.primary].name : curW === 'knife' ? KNV[loadout.knife || 'knife'].name : WS[curW].name;
   function equip(slot) {
     unscope();
@@ -762,7 +762,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); document.getElementById('wsw').textContent = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
     else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
   };
-  function resetLoadout() { store.rifle = { mag: 30, res: 90 }; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('rifle'); }
+  function resetLoadout() { store.rifle = { mag: PRIM[loadout.primary].mag, res: PRIM[loadout.primary].res }; store.pistol = { mag: PIST[loadout.pistol].mag, res: PIST[loadout.pistol].res }; curW = 'knife'; equip('rifle'); }
   window.updateUI = function () {
     document.getElementById('hp-val').innerText = Math.round(player.hp);
     document.getElementById('hp-bar-fill').style.width = player.hp + '%';
@@ -1008,32 +1008,35 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     player.vel.y = 3.4; player.onGround = false;
     if (feet >= top - 0.35) { player.pos.x += move.x * 0.9; player.pos.z += move.z * 0.9; }   // перелез на площадку
   }
-  let scopeEl = null, scopeBtn = null;
+  let scopeEl = null, scopeBtn = null, rdotEl = null;
   function mkScope() {
     if (!scopeEl) {
       const css = document.createElement('style');
       css.textContent = '#scope{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;display:none;pointer-events:none;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 0,rgba(0,0,0,0) 30vh,#000 31vh)}' +
         '#scope::before,#scope::after{content:"";position:absolute;background:#000}#scope::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}#scope::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}' +
-        '#scb{position:absolute;right:150px;bottom:120px;z-index:30;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;display:none;align-items:center;justify-content:center;padding:0}';
+        '#scb{position:absolute;right:150px;bottom:120px;z-index:30;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;display:none;align-items:center;justify-content:center;padding:0}' +
+        '#rdot{position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#ff2b2b;box-shadow:0 0 6px 2px rgba(255,40,40,.85);z-index:5;display:none;pointer-events:none}';
       document.head.appendChild(css);
       scopeEl = document.createElement('div'); scopeEl.id = 'scope'; document.body.appendChild(scopeEl);
+      rdotEl = document.createElement('div'); rdotEl.id = 'rdot'; document.body.appendChild(rdotEl);
       scopeBtn = document.createElement('button'); scopeBtn.id = 'scb'; scopeBtn.className = 'interactive-ui'; scopeBtn.textContent = 'ПРИЦЕЛ'; document.body.appendChild(scopeBtn);
       scopeBtn.addEventListener('touchstart', e => { e.preventDefault(); toggleScope(); }, { passive: false });
       scopeBtn.addEventListener('click', toggleScope);
     }
-    scopeBtn.style.display = (started && curW === 'rifle' && loadout.primary === 'awp' && !player.dead) ? 'flex' : 'none';
+    scopeBtn.style.display = (started && curW === 'rifle' && (loadout.primary === 'awp' || loadout.primary === 'm16') && !player.dead) ? 'flex' : 'none';
   }
   function toggleScope() {
     if (scoped) { unscope(); return; }
-    if (!(curW === 'rifle' && loadout.primary === 'awp') || player.dead || player.isReloading) return;
-    scoped = true; lookScale = 0.35; camera.fov = 22; camera.updateProjectionMatrix();
-    scopeEl.style.display = 'block'; const ch = document.getElementById('crosshair'); if (ch) ch.style.display = 'none';
+    const dot = curW === 'rifle' && loadout.primary === 'm16';                                   // M16: оптика с красной точкой по центру
+    if (!(curW === 'rifle' && (loadout.primary === 'awp' || dot)) || player.dead || player.isReloading) return;
+    scoped = true; lookScale = dot ? 0.6 : 0.35; camera.fov = dot ? 42 : 22; camera.updateProjectionMatrix();
+    if (dot) rdotEl.style.display = 'block'; else scopeEl.style.display = 'block'; const ch = document.getElementById('crosshair'); if (ch) ch.style.display = 'none';
     if (window.HW_visible) window.HW_visible(false);
   }
   function unscope() {
     if (!scoped) return;
     scoped = false; lookScale = 1; camera.fov = 75; camera.updateProjectionMatrix();
-    if (scopeEl) scopeEl.style.display = 'none';
+    if (scopeEl) scopeEl.style.display = 'none'; if (rdotEl) rdotEl.style.display = 'none';
     const ch = document.getElementById('crosshair'); if (ch) ch.style.display = '';
     if (window.HW_visible) window.HW_visible(true);
   }
@@ -1686,6 +1689,7 @@ window.processShoot = function (now) {
     if (player.isCrouching) sp *= SPREAD.crouch;
     burst = Math.min(burst + SPREAD.perShot, SPREAD.max);
     if (awp) sp = scoped ? 0.0006 + (moving ? 0.004 : 0) + (player.onGround ? 0 : 0.02) : 0.04 + sp;
+    else if (scoped) sp *= 0.45;                                       // через прицел M16 стрельба точнее
     const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
     raycaster.setFromCamera(new THREE.Vector2(Math.cos(a) * r / camera.aspect, Math.sin(a) * r), camera); raycaster.far = 150;
     const bt = [];
@@ -2005,6 +2009,113 @@ window.processShoot = function (now) {
   function hideLoading() {
     clearInterval(loadT); loadReal = 1; applyLoad();
     setTimeout(() => { const d = document.getElementById('autoload'); if (d) d.remove(); }, 300);
+  }
+
+
+  // ======================= правила режима «Закладка бомбы» (движок раундов и денег; к игре подключается следующим шагом) =======================
+  // Всё, что ты задал, лежит здесь: 25 с закупа, закладка 4 с, разминирование 10 с (5 с с набором сапёра), $800 на старте, до 10 побед, смена сторон после 9-го раунда.
+  // Числа, которых ты не называл, взяты как в CS и помечены «(допущение)» — меняются прямо тут.
+  const BOMB_CFG = {
+    freeze: 25, announceAt: 10,                       // время на закуп; «раунд начинается через 10» показываем в последние 10 с
+    roundTime: 115, bombTime: 40, intermission: 5,    // (допущение) длительность раунда, таймер бомбы, пауза между раундами
+    plantTime: 4, defuseTime: 10, defuseKitTime: 5,
+    winRounds: 10, swapAfter: 9,                      // до 10 побед; стороны меняются после 9 сыгранных раундов
+    startMoney: 800, maxMoney: 16000,
+    reward: { winElim: 3250, winBomb: 3500, winDefuse: 3500, lossBase: 1400, lossStep: 500, lossMax: 3400, plantLoss: 800, kill: 300, killShotgun: 900, killKnife: 1500, killAwp: 100 },   // (допущение) как в CS
+    price: { kit: 400, he: 300, flash: 200, smoke: 300 },                                       // (допущение) цены набора сапёра и гранат
+    limit: { he: 1, flash: 2, smoke: 1 }
+  };
+  function bombCatalog() {                            // цены оружия — из каталога выше
+    const c = { slot: {}, price: Object.assign({}, BOMB_CFG.price) };
+    Object.keys(PRIM).forEach(k => { c.price[k] = PRIM[k].price; c.slot[k] = 'primary'; });
+    Object.keys(PIST).forEach(k => { c.price[k] = PIST[k].price; c.slot[k] = 'pistol'; });
+    ['he', 'flash', 'smoke'].forEach(k => { c.slot[k] = 'grenade'; }); c.slot.kit = 'kit';
+    return c;
+  }
+  function bombCreate(players, cat, over) {           // players: [{ id, team: 'A' | 'B' }], команда A — твоя (сначала спецназ)
+    const C = Object.assign({}, BOMB_CFG, over || {});
+    return { C, cat, round: 0, side: { A: 'CT', B: 'T' }, score: { A: 0, B: 0 }, streak: { A: 0, B: 0 }, phase: 'idle', t: 0, bomb: null, plant: null, defuse: null, dropped: false,
+      winner: null, reason: '', over: false, matchWinner: null, log: [],
+      players: players.map(p => ({ id: p.id, team: p.team, alive: true, money: C.startMoney, kit: false, hasBomb: false, items: {}, nade: { he: 0, flash: 0, smoke: 0 } })) };
+  }
+  const bSide = (m, p) => m.side[p.team];
+  const bPlayer = (m, id) => m.players.find(p => p.id === id);
+  const bAlive = (m, side) => m.players.filter(p => p.alive && bSide(m, p) === side).length;
+  function bombStartRound(m, rng) {
+    rng = rng || Math.random; m.round++;
+    if (m.round === m.C.swapAfter + 1) {                                     // половина матча: стороны меняются, деньги и снаряжение сбрасываются (допущение: как в CS)
+      m.side = { A: m.side.A === 'CT' ? 'T' : 'CT', B: m.side.B === 'CT' ? 'T' : 'CT' }; m.streak = { A: 0, B: 0 }; m.log.push('swap');
+      m.players.forEach(p => { p.money = m.C.startMoney; p.items = {}; p.kit = false; });
+    }
+    m.players.forEach(p => { p.alive = true; p.hasBomb = false; p.nade = { he: 0, flash: 0, smoke: 0 }; });
+    const ts = m.players.filter(p => bSide(m, p) === 'T'); if (ts.length) ts[Math.floor(rng() * ts.length)].hasBomb = true;   // бомба случайному террористу
+    m.phase = 'freeze'; m.t = m.C.freeze; m.bomb = null; m.plant = null; m.defuse = null; m.dropped = false; m.winner = null; m.reason = '';
+  }
+  function bombBuy(m, id, item) {
+    const p = bPlayer(m, id), price = m.cat.price[item], slot = m.cat.slot[item];
+    if (m.phase !== 'freeze') return { ok: false, err: 'Закупаться можно только до начала раунда' };
+    if (!p || !p.alive) return { ok: false, err: 'Игрок недоступен' };
+    if (price === undefined) return { ok: false, err: 'Такого товара нет' };
+    if (item === 'kit' && bSide(m, p) !== 'CT') return { ok: false, err: 'Набор сапёра — только для спецназа' };
+    if (item === 'kit' && p.kit) return { ok: false, err: 'Набор сапёра уже куплен' };
+    if (slot === 'grenade' && p.nade[item] >= m.C.limit[item]) return { ok: false, err: 'Больше этих гранат не унести' };
+    if (p.money < price) return { ok: false, err: 'Не хватает денег' };
+    p.money -= price;
+    if (item === 'kit') p.kit = true; else if (slot === 'grenade') p.nade[item]++; else p.items[slot] = item;
+    return { ok: true, left: p.money };
+  }
+  function bombBeginPlant(m, id, site) {               // site — на какой точке стоит игрок (или null, если не на точке)
+    const p = bPlayer(m, id);
+    if (m.phase !== 'live' || !p || !p.alive || !p.hasBomb || !site || bSide(m, p) !== 'T') return false;
+    m.plant = { id, site, t: 0 }; return true;
+  }
+  function bombCancelPlant(m) { m.plant = null; }
+  function bombBeginDefuse(m, id) {
+    const p = bPlayer(m, id);
+    if (m.phase !== 'planted' || !p || !p.alive || bSide(m, p) !== 'CT') return false;
+    m.defuse = { id, t: 0, need: p.kit ? m.C.defuseKitTime : m.C.defuseTime }; return true;
+  }
+  function bombCancelDefuse(m) { m.defuse = null; }
+  function bombPickup(m, id) { const p = bPlayer(m, id); if (!m.dropped || !p || !p.alive || bSide(m, p) !== 'T') return false; p.hasBomb = true; m.dropped = false; return true; }
+  function bombKillReward(m, weapon) { const r = m.C.reward; return weapon === 'knife' || weapon === 'karambit' ? r.killKnife : (weapon === 'mossberg' || weapon === 'm870') ? r.killShotgun : weapon === 'awp' ? r.killAwp : r.kill; }
+  function bombDied(m, id, killerId, weapon) {
+    const p = bPlayer(m, id); if (!p || !p.alive) return;
+    p.alive = false; p.kit = false;
+    if (p.hasBomb) { p.hasBomb = false; m.dropped = true; }
+    if (m.plant && m.plant.id === id) m.plant = null;
+    if (m.defuse && m.defuse.id === id) m.defuse = null;
+    const k = killerId !== undefined && killerId !== null ? bPlayer(m, killerId) : null;
+    if (k && k.team !== p.team) k.money = Math.min(m.C.maxMoney, k.money + bombKillReward(m, weapon));
+    if (m.phase === 'live') { if (bAlive(m, 'T') === 0) bombEnd(m, 'CT', 'elim'); else if (bAlive(m, 'CT') === 0) bombEnd(m, 'T', 'elim'); }
+    else if (m.phase === 'planted' && bAlive(m, 'CT') === 0) bombEnd(m, 'T', 'elim');          // после закладки: все спецназовцы мертвы — бомба сработает
+  }
+  function bombEnd(m, winSide, reason) {
+    if (m.phase === 'end' || m.phase === 'over') return;
+    const R = m.C.reward, planted = !!m.bomb; m.phase = 'end'; m.t = m.C.intermission; m.winner = winSide; m.reason = reason; m.plant = null; m.defuse = null;
+    const winTeam = m.players.find(p => bSide(m, p) === winSide).team, loseTeam = winTeam === 'A' ? 'B' : 'A';
+    m.score[winTeam]++;
+    const winPay = reason === 'explode' ? R.winBomb : reason === 'defuse' ? R.winDefuse : R.winElim;
+    const lossPay = Math.min(R.lossMax, R.lossBase + R.lossStep * m.streak[loseTeam]);
+    m.players.forEach(p => {
+      let add = 0;
+      if (p.team === winTeam) add = winPay; else { add = lossPay; if (planted && bSide(m, p) === 'T') add += R.plantLoss; }
+      p.money = Math.min(m.C.maxMoney, p.money + add);
+    });
+    m.streak[loseTeam] = Math.min(4, m.streak[loseTeam] + 1); m.streak[winTeam] = Math.max(0, m.streak[winTeam] - 1);
+    if (m.score[winTeam] >= m.C.winRounds) { m.over = true; m.matchWinner = winTeam; }
+    m.log.push('round ' + m.round + ': ' + winSide + ' ' + reason);
+  }
+  function bombTick(m, dt, rng) {
+    if (m.phase === 'freeze') { m.t -= dt; if (m.t <= 0) { m.phase = 'live'; m.t = m.C.roundTime; } }
+    else if (m.phase === 'live') {
+      m.t -= dt;
+      if (m.plant) { m.plant.t += dt; if (m.plant.t >= m.C.plantTime) { const c = bPlayer(m, m.plant.id); m.bomb = { site: m.plant.site, t: m.C.bombTime, by: m.plant.id }; if (c) c.hasBomb = false; m.plant = null; m.phase = 'planted'; m.t = 0; m.log.push('planted ' + m.bomb.site); return; } }
+      if (m.t <= 0) bombEnd(m, 'CT', 'time');
+    } else if (m.phase === 'planted') {
+      m.bomb.t -= dt;
+      if (m.defuse) { m.defuse.t += dt; if (m.defuse.t >= m.defuse.need) { bombEnd(m, 'CT', 'defuse'); return; } }
+      if (m.bomb.t <= 0) bombEnd(m, 'T', 'explode');
+    } else if (m.phase === 'end') { m.t -= dt; if (m.t <= 0) { if (m.over) m.phase = 'over'; else bombStartRound(m, rng); } }
   }
 
   try {                                            // если телефон отнял видеопамять — восстанавливаем сцену, а не оставляем чёрный экран
