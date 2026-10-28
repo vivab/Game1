@@ -1,7 +1,7 @@
 /* hands.js — оружие (АК, 3 пистолета, нож) и свои руки в перчатках.
    Подключать ПОСЛЕ основного <script> в index.html. */
 (function () {
-  const DEG = Math.PI / 180, KEY = 'hands_v16', V = THREE.Vector3;
+  const DEG = Math.PI / 180, KEY = 'hands_v17', V = THREE.Vector3;
   const BIG = 1.35, U = 0.105 * BIG;      // BIG — размер оружия и рук (1 = реальный)
   const mat = (c, r) => new THREE.MeshStandardMaterial({ color: c, roughness: r || 0.7 });
   const SKIN = mat(0xe8a98a, 0.65), GLOVE = mat(0x3b3f46), CUFF = mat(0x2a2d32), PAD = mat(0x555a63);
@@ -40,8 +40,8 @@
     glock:  Object.assign({ file: 'glock.glb', len: 0.3 }, PIS),
     deagle: Object.assign({ file: 'low-poly_desert_eagle.glb', len: 0.27 }, PIS, { ndcX: 0.245 }),
     knife:  { file: 'knife_default_t__cs2.glb', len: 0.46, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] },
-    m4a4:    { file: 'rifle__m4a4_weapon_model_cs2.glb', len: 0.9, fix: 1, robust: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
-    m16:     { file: 'low-poly_m16a4_acog.glb', len: 0.95, fix: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    m4a4:    { file: 'm4a4_low_poly.glb', len: 0.9, fix: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    m16:     { file: 'low-poly_m16a4_acog.glb', len: 0.95, fix: 1, glass: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
     m249:    { file: 'low-poly_m249_saw.glb', len: 1.0, fix: 1, robust: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
     mossberg:{ file: 'low-poly_mossberg_590.glb', len: 0.95, fix: 1, pump: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
     m870:    { file: 'low_poly_shotgun-m870.glb', len: 0.95, fix: 1, pump: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
@@ -50,7 +50,7 @@
   };
   // новые оружия: первичные — как АК (мушка/рука), пистолеты — как USP, нож — как нож
   // настройки рук для новых оружий — твои, подогнанные ползунками
-  Object.assign(DEF, {"m4a4":{"R":{"pose":"pistol","x":0.5,"y":-1.2,"z":0,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.01},"m16":{"R":{"pose":"pistol","x":1.5,"y":-4.9,"z":2.05,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1.8,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.12,"sz":1.64,"oz":-0.4,"wz":-0.3,"gr":180,"wy":0.3,"wx":0.12},"m249":{"R":{"pose":"pistol","x":0.5,"y":-1.2,"z":0,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.01},"mossberg":{"R":{"pose":"pistol","x":1.75,"y":-1.2,"z":-0.55,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1,"z":-0.55,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.01,"sz":0.76,"wz":-0.115,"gr":84,"gp":-90,"wx":0.11,"wy":-0.025},"m870":{"R":{"pose":"pistol","x":1.05,"y":-1.2,"z":0,"pitch":15,"yaw":10,"roll":-85,"k":0.3},"L":{"pose":"cup","x":0.55,"y":-1,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1.3},"f":0,"ox":-0.12,"oy":0.01,"sz":1.26,"wy":-0.07,"wz":0.015,"wx":0.045},"p250":{"R":{"pose":"pistol","x":0.3,"y":-0.55,"z":0.55,"pitch":29,"yaw":-28,"roll":-66,"k":1.3},"L":{"pose":"fist","x":-0.45,"y":-0.95,"z":0.2,"pitch":20,"yaw":-10,"roll":85,"k":0.3},"f":0,"ox":-0.1,"sz":1.7,"oy":0.015,"wz":-0.05,"kp":60,"oz":-0.125,"wy":-0.02},"karambit":{"R":{"pose":"fist","x":0.2,"y":0,"z":0,"pitch":19,"yaw":-17,"roll":-17,"k":0.7},"L":{"pose":"open","x":-4.2,"y":-0.5,"z":-0.5,"pitch":25,"yaw":-20,"roll":0,"k":1},"f":1,"ox":-0.04,"sz":1.08,"oz":-0.07,"wz":-0.07,"kp":4,"ky":71,"kr":107,"wy":-0.005,"wx":0.205}});
+  Object.assign(DEF, {"m4a4":{"R":{"pose":"pistol","x":0.5,"y":-1.2,"z":0,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.01},"m16":{"R":{"pose":"pistol","x":1.5,"y":-4.9,"z":2.05,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1.8,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.12,"sz":1.64,"oz":-0.4,"wz":-0.3,"gr":180,"wy":0.3,"wx":0.12},"m249":{"R":{"pose":"pistol","x":0.5,"y":-1.2,"z":0,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":-0.15,"y":-1,"z":0.5,"pitch":-9,"yaw":-12,"roll":150,"k":1.3},"f":0,"ox":-0.12,"oy":0.01,"wy":0.09},"mossberg":{"R":{"pose":"pistol","x":1.75,"y":-1.2,"z":-0.55,"pitch":15,"yaw":10,"roll":-85,"k":1},"L":{"pose":"cup","x":0.55,"y":-1,"z":-0.55,"pitch":4,"yaw":-18,"roll":150,"k":1},"f":0,"ox":-0.12,"oy":0.01,"sz":0.76,"wz":-0.115,"gr":84,"gp":-90,"wx":0.11,"wy":-0.025},"m870":{"R":{"pose":"pistol","x":1.05,"y":-1.2,"z":0,"pitch":15,"yaw":10,"roll":-85,"k":0.3},"L":{"pose":"cup","x":0.55,"y":-1,"z":0.5,"pitch":4,"yaw":-18,"roll":150,"k":1.3},"f":0,"ox":-0.12,"oy":0.01,"sz":1.26,"wy":-0.07,"wz":0.015,"wx":0.045},"p250":{"R":{"pose":"pistol","x":0.3,"y":-0.55,"z":0.55,"pitch":29,"yaw":-28,"roll":-66,"k":1.3},"L":{"pose":"fist","x":-0.45,"y":-0.95,"z":0.2,"pitch":20,"yaw":-10,"roll":85,"k":0.3},"f":0,"ox":-0.1,"sz":1.7,"oy":0.015,"wz":-0.05,"kp":60,"oz":-0.125,"wy":-0.02},"karambit":{"R":{"pose":"fist","x":0.2,"y":0,"z":0,"pitch":19,"yaw":-17,"roll":-17,"k":0.7},"L":{"pose":"open","x":-4.2,"y":-0.5,"z":-0.5,"pitch":25,"yaw":-20,"roll":0,"k":1},"f":1,"ox":-0.04,"sz":1.08,"oz":-0.07,"wz":-0.07,"kp":4,"ky":71,"kr":107,"wy":-0.005,"wx":0.205}});
   const tune = JSON.parse(JSON.stringify(DEF));
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
@@ -191,6 +191,16 @@
     const m = new THREE.Matrix4().set(right[0], right[1], right[2], 0, up[0], up[1], up[2], 0, back[0], back[1], back[2], 0, 0, 0, 0, 1);
     s.quaternion.setFromRotationMatrix(m); s.updateMatrixWorld(true);
   }
+  function hideGlass(s, len) {                     // прозрачные детали и тонкие плоскости (сетка прицела с цифрами) — не рисуем
+    s.updateMatrixWorld(true);
+    s.traverse(o => {
+      if (!o.isMesh) return;
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      let hide = ms.some(q => q && (q.transparent || q.opacity < 0.99 || q.alphaTest > 0 || /ret|lens|glass|scope|digit|number|text/i.test((q.name || '') + ' ' + (o.name || ''))));
+      if (!hide) { const b = new THREE.Box3().setFromObject(o), d = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((p, q) => p - q); hide = d[0] < 0.004 * len && d[1] > 0.02 * len; }
+      if (hide) o.visible = false;
+    });
+  }
   function loadW(name, cb) {
     const w = W[name];
     if (w.ready) { if (cb) cb(); return; }
@@ -205,7 +215,7 @@
       s.traverse(o => {
         if (!o.isMesh) return;
         (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.4) m.metalness = 0.3; m.side = THREE.DoubleSide;
-        if (name !== 'rifle') { m.metalness = 0; m.roughness = 0.7; if (m.emissive) { m.emissive.set(name === 'awp' ? 0x9a9a9a : w.fix ? 0xb4b4b4 : 0x555555); if (m.map) m.emissiveMap = m.map; } else if (m.color) m.color.setRGB(w.fix ? 2.2 : 1.6, w.fix ? 2.2 : 1.6, w.fix ? 2.2 : 1.6); m.needsUpdate = true; } });
+        if (name !== 'rifle') { m.metalness = 0; m.roughness = 0.7; if (m.emissive) { m.emissive.set(name === 'awp' ? 0x9a9a9a : w.fix ? 0x8c8c8c : 0x555555); if (m.map) m.emissiveMap = m.map; } else if (m.color) { if (w.fix && m.emissive) m.emissive.copy(m.color).multiplyScalar(0.55); else m.color.setRGB(1.6, 1.6, 1.6); } m.needsUpdate = true; } });   // цвет оружия сохраняется
         const p = o.geometry.attributes.position;
         for (let i = 0; i < p.count; i += 2) P.push(new V().fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld));
       });
@@ -213,7 +223,8 @@
       if (name === 'deagle') steelSkin(s);
       w.P = P; w.inner = w.fix ? (() => { const gr = new THREE.Group(); gr.add(s); return gr; })() : s; w.yaw0 = w.yaw !== undefined ? w.yaw : autoYaw(P, w.knife);
       w.wrap = new THREE.Group(); w.pivot = new THREE.Group();
-      w.wrap.add(w.inner); w.pivot.add(w.wrap); follow.add(w.pivot);
+      w.wrap.add(w.inner); w.pivot.add(w.wrap);
+      if (w.glass) hideGlass(s, w.len * BIG); follow.add(w.pivot);
       if (!w.knife) { w.flash = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 6), new THREE.MeshBasicMaterial({ color: 0xffbb00, side: THREE.DoubleSide })); w.flash.rotation.x = -Math.PI / 2; w.flash.visible = false; w.pivot.add(w.flash); }
       w.ready = 1; w.cbs.forEach(f => { if (f) f(); }); place();
     }, undefined, () => { w.loading = 0; console.log('оружие не загрузилось', w.file); });
@@ -328,10 +339,9 @@
     heavy: kf([0, Z], [0.65, UP], [1.4, LEFT], [2.4, LEFT], [3.2, UP], [3.9, Z]),                       // автомат и AWP: так же, как у USP — смотрим левую сторону
     // нож (как в Block Strike): рука остаётся на одном уровне, нож ложится ребром, затем клинок встаёт вертикально и всё возвращается; левая рука неподвижна
     knife: kf([0, [0, 0, 0, 0, 0]], [0.55, [0, 0.05, -0.12, 0.1, -1.15]], [1.3, [-0.02, 0.06, 0, -1.8, 0]], [2.1, [-0.02, 0.06, 0, -1.75, 0]], [3.0, [0, 0, 0, 0, 0]]),   // как в Block Strike, рука остаётся на уровне: нож ложится ребром → клинок встаёт вертикально → пауза → возврат. [локоть вниз, локоть влево, сгиб кисти, крен кисти (минус — острие вверх), вращение ножа]
-    // керамбит по кадрам Block Strike: рука поднимается → нож уходит за кулак (виден только кольцо) → вылетает вправо к камере (крупно) → разворачивается клинком влево и висит (чуть покачивается) → обратно вправо крупно → снова за кулак → рука опускается.
-    // колонки: [крен в плоскости экрана, поворот вокруг вертикали через кольцо (+ клинок назад, − к камере), подъём руки, ближе к камере, поворот ножа вокруг оси, наклон руки]
-    kar: kf([0, [0, 0, 0, 0, 0, 0]], [0.4, [0.2, 0.9, 0.2, 0.03, 0, -0.15]], [0.6, [0.3, 1.55, 0.28, 0.04, 0, -0.25]], [1.05, [0.1, -0.8, 0.28, 0.1, 0, -0.1]], [1.65, [0, -3.14, 0.2, 0.02, 0, 0]],
-      [2.15, [0.12, -3.0, 0.2, 0.02, 0.15, 0.05]], [2.55, [-0.12, -3.3, 0.18, 0.02, -0.1, 0.1]], [2.95, [0.05, -3.14, 0.2, 0.02, 0.1, 0]], [3.5, [0.1, -0.8, 0.28, 0.1, 0, -0.1]], [4.0, [0.3, 1.55, 0.28, 0.04, 0, -0.25]], [4.7, [0, 0, 0, 0, 0, 0]]),
+    // керамбит: рука с пальцами поднимается, нож крутится вокруг пальца (два оборота против часовой, плавно разгон и торможение), рука опускается
+    // колонки: [оборот в плоскости экрана, поворот вокруг вертикали, подъём руки, ближе к камере, поворот ножа вокруг оси, наклон руки]
+    kar: kf([0, [0, 0, 0, 0, 0, 0]], [0.55, [0, 0, 0.32, 0.06, 0, -0.4]], [3.05, [12.566, 0, 0.32, 0.06, 0, -0.4]], [3.35, [12.566, 0, 0.32, 0.06, 0, -0.4]], [4.05, [12.566, 0, 0, 0, 0, 0]]),
     rel: {            // перезарядка (время 0..1 от длительности)
       rifle: kf([0, Z], [0.18, [0.02, -0.1, 0, -0.45, 0, 0.35, 0]], [0.6, [0.02, -0.1, 0, -0.45, 0.05, 0.4, 0]], [0.8, [0, -0.08, 0.03, -0.38, 0, 0.3, 0]], [0.88, [0, -0.04, -0.01, -0.15, 0, 0.1, 0]], [1, Z]),
       pistol: kf([0, Z], [0.2, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.62, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.82, [0, -0.05, 0.02, -0.2, 0, 0.2, 0]], [1, Z]),
