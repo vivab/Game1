@@ -672,7 +672,9 @@ function modeModal() {
     h('span', { class: 'mi' }, ico('team')), h('div', null, h('b', { text: 'Командный бой' }), h('span', { text: '5×5 · 2 минуты · карта Crid' })), h('span', { class: 'ck' }, ico('check')));
   const go = h('button', { class: 'btn gold', style: 'min-width:200px;min-height:52px;font-size:20px', text: 'ИГРАТЬ', onclick: () => { P.mode = 'tdm'; save(); closeModal(); startLoadScreen(); } });
   if (!sel) go.setAttribute('disabled', '');
-  modal('Выбор режима', [card, h('div', { style: 'color:var(--mute);font-size:13px', text: 'Выбери режим и нажми «Играть». Другие режимы появятся позже.' })], [go]);
+  modal('Выбор режима', [card,
+    h('button', { class: 'mode', disabled: true, style: 'opacity:.5;cursor:default', 'aria-label': 'Закладка бомбы — скоро' }, h('span', { class: 'mi' }, ico('team')), h('div', null, h('b', { text: 'Закладка бомбы' }), h('span', { text: 'Dust2 · раунды, деньги, бомба — скоро' })), h('span', { class: 'ck' })),
+    h('div', { style: 'color:var(--mute);font-size:13px', text: 'Выбери режим и нажми «Играть». Другие режимы появятся позже.' })], [go]);
 }
 
 /* ---------- настройки и тестовые кнопки ---------- */
