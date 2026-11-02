@@ -9,6 +9,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const _prof = (() => { try { return JSON.parse(localStorage.getItem('profile_v1')) || {}; } catch (e) { return {}; } })();   // профиль из меню
   const me = { name: _prof.nick || 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: _prof.id || (10000000 + Math.floor(Math.random() * 89999999)) }; stats.push(me);
   const MS = { hits: 0, headHits: 0, headKills: 0, wk: {} };            // статистика игрока за матч: попадания, хедшоты, убийства по оружию
+  const BOMB = /[?&]mode=bomb/.test(location.search);
+  let bm = null, bLk = false;
   let AUTO = false, AUTODONE = false;                                    // автозапуск матча из меню (?play=1)
   if (/[?&]play=1/.test(location.search)) AUTO = true;                  // пришли из меню
   let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
@@ -583,9 +585,9 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function respawnPlayer() {
     unscope();
-    const s = SPAWN.A[Math.floor(Math.random() * 5)];
+    const s = (BOMB && bm && bm.side.A === 'T' ? SPAWN.B : SPAWN.A)[Math.floor(Math.random() * 5)];
     player.pos.set(s[0], 1.6, s[1]); player.vel.set(0, 0, 0); player.hp = 100; player.dead = false;
-    resetLoadout(); openShop(); cameraYaw = 0; cameraPitch = 0;
+    resetLoadout(); openShop(); cameraYaw = (BOMB && bm && bm.side.A === 'T') ? Math.PI : 0; cameraPitch = 0;
     mine.clear(); took.clear(); gave.clear(); const kc = document.getElementById('kcard'); if (kc) kc.style.display = 'none';
     document.getElementById('msg').textContent = ''; updateUI();
   }
@@ -674,7 +676,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     try {                                                              // место среди своей команды по убийствам — для наград в меню
       const team = stats.filter(x => x.team === 'A'), place = 1 + team.filter(x => x !== me && (x.kills > me.kills || (x.kills === me.kills && x.deaths < me.deaths))).length;
       localStorage.setItem('lastMatch', JSON.stringify({ ts: Date.now(), place, kills: me.kills, deaths: me.deaths, assists: me.assists, headKills: MS.headKills, hits: MS.hits, headHits: MS.headHits, wk: MS.wk, win: score.A > score.B ? 1 : score.A < score.B ? -1 : 0, applied: false, level: _prof.level || 1,
-        rows: stats.map(x => ({ n: x.name, t: x.team, k: x.kills, a: x.assists, d: x.deaths, p: x.ping, me: x === me ? 1 : 0 })), sc: { A: score.A, B: score.B }, map: 'Crid', mode: 'Командный бой' }));
+        rows: stats.map(x => ({ n: x.name, t: x.team, k: x.kills, a: x.assists, d: x.deaths, p: x.ping, me: x === me ? 1 : 0 })), sc: { A: score.A, B: score.B }, map: 'Crid', mode: BOMB ? 'Закладка бомбы' : 'Командный бой' }));
     } catch (e) {}
     const tab = document.getElementById('tab');
     tab.style.display = 'flex';
@@ -749,6 +751,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const loadout = { pistol: 'usp', primary: 'rifle', knife: 'knife' }, store = { rifle: { mag: PRIM.rifle.mag, res: PRIM.rifle.res }, pistol: { mag: PIST.usp.mag, res: PIST.usp.res } };
   const wname = () => curW === 'pistol' ? PIST[loadout.pistol].name : curW === 'rifle' ? PRIM[loadout.primary].name : curW === 'knife' ? KNV[loadout.knife || 'knife'].name : WS[curW].name;
   function equip(slot) {
+    if (BOMB && bm && slot === 'rifle' && !bPlayer(bm, 'P').items.primary) return;
     unscope();
     if (store[curW]) { store[curW].mag = player.ammoInMag; store[curW].res = player.reserveAmmo; }
     curW = slot;
@@ -762,7 +765,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); document.getElementById('wsw').textContent = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
     else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
   };
-  function resetLoadout() { store.rifle = { mag: PRIM[loadout.primary].mag, res: PRIM[loadout.primary].res }; store.pistol = { mag: PIST[loadout.pistol].mag, res: PIST[loadout.pistol].res }; curW = 'knife'; equip('rifle'); }
+  function resetLoadout() {
+    if (BOMB && bm) return bombResetLoadout(); store.rifle = { mag: PRIM[loadout.primary].mag, res: PRIM[loadout.primary].res }; store.pistol = { mag: PIST[loadout.pistol].mag, res: PIST[loadout.pistol].res }; curW = 'knife'; equip('rifle'); }
   window.updateUI = function () {
     document.getElementById('hp-val').innerText = Math.round(player.hp);
     document.getElementById('hp-bar-fill').style.width = player.hp + '%';
@@ -798,7 +802,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     el.style.color = kill ? '#ef4444' : '#fff'; el.style.opacity = 1;
     clearTimeout(hmT); hmT = setTimeout(() => { el.style.opacity = 0; }, kill ? 320 : 150);
   }
-  function openShop() { shopEnd = performance.now() + 10000; }
+  function openShop() { shopEnd = performance.now() + (BOMB && bm ? Math.max(0.5, bm.t) * 1000 + 300 : 10000); }
   function shopTick() {
     const cart = document.getElementById('cart'), shop = document.getElementById('shop');
     if (!cart) return;
@@ -898,7 +902,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 
   // ---------- стрельба с разбросом ----------
   window.processShoot = function (now) {
-    if (!started || over || player.dead || player.isReloading) return;
+    if (!started || over || player.dead || player.isReloading || bLk) return;
     if (now - player.lastShootTime < player.shootInterval) return;
     if (curW === 'knife') { knifeHit(now); return; }
     if (player.ammoInMag <= 0) { reloadAmmo(); return; }
@@ -908,7 +912,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     // разброс: стоя — средний, сидя — меньше, бег — больше, прыжок — сильно больше, очередь накапливает
     burst = Math.max(0, burst - (now - lastShot) / 1000 * SPREAD.recover); lastShot = now;
     let s = SPREAD.base + burst;
-    if (Math.hypot(moveJoystick.x, moveJoystick.y) > 0.1) s += SPREAD.move;
+    if (Math.hypot((bLk ? 0 : moveJoystick.x), (bLk ? 0 : moveJoystick.y)) > 0.1) s += SPREAD.move;
     if (!player.onGround) s += SPREAD.air;
     if (player.isCrouching) s *= SPREAD.crouch;
     burst = Math.min(burst + SPREAD.perShot, SPREAD.max);
@@ -944,7 +948,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
 
   window.setupControls = function () {
-    document.getElementById('start-btn').addEventListener('click', () => { if (!mapOK) return; document.getElementById('start-overlay').style.display = 'none'; started = true; respawnPlayer(); openShop(); });
+    document.getElementById('start-btn').addEventListener('click', () => { if (!mapOK) return; document.getElementById('start-overlay').style.display = 'none'; started = true; if (BOMB) bombBegin(); else { respawnPlayer(); openShop(); } });
     if (/[?&]play=1/.test(location.search)) { AUTO = true; showLoading(); }   // пришли из меню: без стартового экрана, сразу в бой, когда загрузится карта
     mapBtn();
     initMatch(); loadModels(); loadMap();
@@ -1108,15 +1112,16 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     m.head.rotation.x = -m.upper.rotation.x * 0.8 - BOT.head - ap * 0.7;
     alignGun(b);
   }
-  function rollLoadout(b) {                         // у бота: автомат или AWP, пистолет и нож
+  function rollLoadout(b) {
+    if (BOMB && bm) return bombBotLoadout(b);                         // у бота: автомат или AWP, пистолет и нож
     const PRI_POOL = ['rifle', 'rifle', 'rifle', 'awp', 'm4a4', 'm4a4', 'm16', 'm249', 'mossberg', 'm870'], PIS_POOL = ['usp', 'deagle', 'glock', 'p250'];
     b.loadout = { primary: PRI_POOL[Math.floor(Math.random() * PRI_POOL.length)], pistol: PIS_POOL[Math.floor(Math.random() * PIS_POOL.length)] };
     b.fled = false; b.fleeEnd = 0; b.switchT = 0; b.drawT = 0; b.holdUntil = 0; b.stillT = 0; b.aimPitch = 0;
     if (b.mc) setBotWeapon(b, b.loadout.primary);
   }
   function spawnAt(b) {
-    const s = SPAWN[b.team][b.idx % 5];                                   // каждый на своём месте, не друг в друге
-    b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = b.team === 'A' ? Math.PI : 0;
+    const reg = BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team, s = SPAWN[reg][b.idx % 5];                                   // каждый на своём месте, не друг в друге
+    b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = reg === 'A' ? Math.PI : 0;
     b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false; b.plan = null; b.stuck = 0; b.sx = undefined; b.sT = 0; b.ghostUntil = 0; b.noPath = 0; b.nudge = null;
     rollLoadout(b);
   }
@@ -1167,7 +1172,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (who === me) { const r = gave.get(o.stat) || { dmg: 0, hits: 0 }; r.dmg += dmg; r.hits++; gave.set(o.stat, r); if (wt !== 'knife') { MS.hits++; if (head) MS.headHits++; } }
     intel[o.team] = { pos: new V(from.x, 0, from.z), t: T };
     if (o.hp <= 0) {
-      o.dead = true; o.mesh.visible = false; o.respawn = 3; score[team]++; o.stat.deaths++; o.ls = null;
+      o.dead = true; o.mesh.visible = false; o.respawn = BOMB ? 1e9 : 3; if (!BOMB) score[team]++; o.stat.deaths++; o.ls = null; if (BOMB) bombOnDeath('b' + bots.indexOf(o), who, wt);
       if (who) { feed(who, o.stat, wt, head); who.kills++; o.dmg.forEach(a => { if (a !== who && a.team === who.team) a.assists++; }); }
       if (who === me) { const w = wt || 'rifle'; MS.wk[w] = (MS.wk[w] || 0) + 1; if (head) MS.headKills++; }
       if (byPlayer) { player.score++; updateUI(); }
@@ -1179,7 +1184,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (who) { mine.add(who); const r = took.get(who) || { dmg: 0, hits: 0 }; r.dmg += d; r.hits++; took.set(who, r); }
     const h = document.getElementById('hurt'); h.style.opacity = 1; setTimeout(() => { h.style.opacity = 0; }, 80);
     if (player.hp <= 0) {
-      player.dead = true; respawnIn = 3; score.B++; me.deaths++; unscope();
+      player.dead = true; respawnIn = BOMB ? 1e9 : 3; if (!BOMB) score.B++; me.deaths++; unscope(); if (BOMB) bombOnDeath('P', typeof who !== 'undefined' ? who : null, typeof wt !== 'undefined' ? wt : null);
       if (who) { feed(who, me, wt, head); showCard(who); who.kills++; mine.forEach(a => { if (a !== who) a.assists++; }); }
       document.getElementById('msg').textContent = 'ВЫ УБИТЫ';
     }
@@ -1217,7 +1222,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     }, ms);
   };
   window.processShoot = function (now) {
-    if (!started || over || player.dead || player.isReloading) return;
+    if (!started || over || player.dead || player.isReloading || bLk) return;
     if (now - player.lastShootTime < player.shootInterval) return;
     if (curW === 'knife') { knifeHit(now); return; }
     if (player.ammoInMag <= 0) { reloadAmmo(); return; }
@@ -1227,7 +1232,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     recoilPitch += awp ? 0.06 : 0.022; recoilYaw += (Math.random() - 0.5) * (awp ? 0.02 : 0.012); weaponContainer.position.z = 0.05;
     // разброс: стоя — средний, сидя — меньше, бег — больше, прыжок — сильно больше; AWP без прицела очень неточна
     burst = Math.max(0, burst - (now - lastShot) / 1000 * SPREAD.recover); lastShot = now;
-    const moving = Math.hypot(moveJoystick.x, moveJoystick.y) > 0.1;
+    const moving = Math.hypot((bLk ? 0 : moveJoystick.x), (bLk ? 0 : moveJoystick.y)) > 0.1;
     let sp = SPREAD.base + burst;
     if (moving) sp += SPREAD.move;
     if (!player.onGround) sp += SPREAD.air;
@@ -1274,11 +1279,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   // ---- мышление ботов ----
   window.updateBots = function (dt) {
     if (!started || over) return;
-    T += dt; timeLeft -= dt; pathBudget = 1; fr++;
-    if (timeLeft <= 0) endMatch();
+    T += dt; if (!BOMB) timeLeft -= dt; pathBudget = 1; fr++;
+    if (BOMB) bombFrame(dt); else if (timeLeft <= 0) endMatch();
+    const bFreeze = BOMB && bm && bm.phase !== 'live' && bm.phase !== 'planted';
     bots.forEach(b => {
       if (b.dead) { b.respawn -= dt; if (b.respawn <= 0) spawnAt(b); return; }
       if (!b.loadout) rollLoadout(b);
+        if (bFreeze) { b.walk = false; return; }
       const pos = b.mesh.position;
       b.walk = false; b.react -= dt; b.nextPath -= dt; b.think -= dt;
       if (b.think <= 0) { b.think = 0.07 + Math.random() * 0.06; perceive(b); }
@@ -1315,9 +1322,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
           b.crouch = false; follow(b, it.pos, dt, 5.5 * mul);                    // идти проверять место вместе с командой
           if (Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < 3.5) b.chk = it.t;
         } else {
-          if (!b.plan) assignPlan(b);
-          const pl = b.plan;
-          if (T < pl.holdUntil) {                                                // держит позицию, поглядывая по сторонам
+          const bz = BOMB && bm && bombBotMove(b, pos, dt, mul);
+          if (!bz && !b.plan) assignPlan(b);
+          const pl = b.plan || { holdUntil: 0, dest: null, role: 'roam', giveUp: 0, last: [], stage: 0, face: 0 };
+          if (bz) { } else if (T < pl.holdUntil) {                                                // держит позицию, поглядывая по сторонам
             b.crouch = pl.role !== 'rush' && Math.sin(T * 0.3 + b.idx * 3) > 0.5;
             turnTo(b, pl.face + Math.sin(T * 0.8 + b.idx * 2) * 0.9, dt, 3);
           } else {
@@ -1352,9 +1360,11 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const far = (pos.x - player.pos.x) * (pos.x - player.pos.x) + (pos.z - player.pos.z) * (pos.z - player.pos.z) > 1600;
       if (b.mc && (!far || (fr + b.idx) % 2 === 0)) mcAnim(b, sw, dt);        // дальних ботов анимируем через кадр
     });
+    if (BOMB) bombHud(); else {
     const t = Math.max(0, Math.ceil(timeLeft));
     document.getElementById('sa').textContent = score.A; document.getElementById('sb').textContent = score.B;
     document.getElementById('st').textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
+    }
   };
 
 
@@ -1651,7 +1661,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     player.ammoInMag--; player.lastShootTime = now; updateUI();
     if (window.HW_fire) window.HW_fire(loadout.primary);
     recoilPitch += 0.05; recoilYaw += (Math.random() - 0.5) * 0.03; weaponContainer.position.z = 0.07; lastShot = now;
-    const moving = Math.hypot(moveJoystick.x, moveJoystick.y) > 0.1;
+    const moving = Math.hypot((bLk ? 0 : moveJoystick.x), (bLk ? 0 : moveJoystick.y)) > 0.1;
     let s = 0.075 + (moving ? 0.03 : 0) + (player.onGround ? 0 : 0.03);
     if (player.isCrouching) s *= 0.85;
     const og0 = camera.position.clone();
@@ -1672,7 +1682,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     }
   }
 window.processShoot = function (now) {
-    if (!started || over || player.dead || player.isReloading) return;
+    if (!started || over || player.dead || player.isReloading || bLk) return;
     if (now - player.lastShootTime < player.shootInterval) return;
     if (curW === 'knife') { knifeHit(now); return; }
     if (player.ammoInMag <= 0) { reloadAmmo(); return; }
@@ -1682,7 +1692,7 @@ window.processShoot = function (now) {
     if (window.HW_fire) window.HW_fire(curW === 'rifle' ? loadout.primary : curW);
     recoilPitch += awp ? 0.06 : 0.022; recoilYaw += (Math.random() - 0.5) * (awp ? 0.02 : 0.012); weaponContainer.position.z = 0.05;
     burst = Math.max(0, burst - (now - lastShot) / 1000 * SPREAD.recover); lastShot = now;
-    const moving = Math.hypot(moveJoystick.x, moveJoystick.y) > 0.1;
+    const moving = Math.hypot((bLk ? 0 : moveJoystick.x), (bLk ? 0 : moveJoystick.y)) > 0.1;
     let sp = SPREAD.base + burst;
     if (moving) sp += SPREAD.move;
     if (!player.onGround) sp += SPREAD.air;
@@ -1998,7 +2008,7 @@ window.processShoot = function (now) {
     document.head.appendChild(st);
     const d = document.createElement('div'); d.id = 'autoload';
     const art = 'url("data:image/svg+xml,' + encodeURIComponent(MAP_ART) + '")';
-    d.innerHTML = '<div class="bg"></div><div class="sh"></div><div class="md">КОМАНДНЫЙ БОЙ</div><div class="nm">CRID</div><div class="sb">5 на 5 · 2 минуты</div>'
+    d.innerHTML = '<div class="bg"></div><div class="sh"></div><div class="md">' + (BOMB ? 'ЗАКЛАДКА БОМБЫ' : 'КОМАНДНЫЙ БОЙ') + '</div><div class="nm">CRID</div><div class="sb">' + (BOMB ? '5 на 5 · до 10 побед в раундах' : '5 на 5 · 2 минуты') + '</div>'
       + '<div class="pl">' + ((_prof && _prof.nick) ? _prof.nick : 'Игрок') + ' · загрузка карты…</div><div class="br"><i id="albar"></i></div><div class="tp">Подсказка: ' + LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)] + '</div>';
     d.firstChild.style.backgroundImage = 'url(crid.jpg),' + art;                  // фон: твоя картинка crid.jpg, а если её нет — нарисованная карта
     (document.body || document.documentElement).appendChild(d);
@@ -2116,6 +2126,303 @@ window.processShoot = function (now) {
       if (m.defuse) { m.defuse.t += dt; if (m.defuse.t >= m.defuse.need) { bombEnd(m, 'CT', 'defuse'); return; } }
       if (m.bomb.t <= 0) bombEnd(m, 'T', 'explode');
     } else if (m.phase === 'end') { m.t -= dt; if (m.t <= 0) { if (m.over) m.phase = 'over'; else bombStartRound(m, rng); } }
+  }
+
+
+  let bSites = [], bBomb = null, bRoundSeen = 0, bHud = null, bBannerT = 0, bEnded = false, bHeld = false, bPrevCrouch = false, bPose = false, bDropPos = null, bToastT = 0;
+  const bMe = () => bPlayer(bm, 'P');
+  const bDist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  const bId = x => {
+    if (x === me || x === 'P') return 'P';
+    const i = bots.findIndex(b => b === x || b.stat === x);
+    return i >= 0 ? 'b' + i : null;
+  };
+  const bPos = id => {
+    if (id === 'P') return { x: player.pos.x, y: player.pos.y - player.currentHeight, z: player.pos.z };
+    const q = bots[+id.slice(1)].mesh.position;
+    return { x: q.x, y: q.y, z: q.z };
+  };
+  function bombPickSites(pois, spawnA) {
+    const cand = pois.filter(p => p.dA > 0.12 && p.dA < 0.6 && !p.high);
+    let a = null, b = null, best = 18;
+    for (let i = 0; i < cand.length; i++) for (let j = i + 1; j < cand.length; j++) {
+      const d = Math.hypot(cand[i].x - cand[j].x, cand[i].z - cand[j].z);
+      if (d > best) { best = d; a = cand[i]; b = cand[j]; }
+    }
+    if (!a) {
+      const s0 = spawnA[0], s4 = spawnA[spawnA.length - 1];
+      a = { x: s0[0] - 10, y: 0, z: s0[1] - 14 };
+      b = { x: s4[0] + 10, y: 0, z: s4[1] - 14 };
+    }
+    if (a.x > b.x) { const t = a; a = b; b = t; }
+    return [{ id: 'A', x: a.x, y: a.y, z: a.z, r: 5.5 }, { id: 'B', x: b.x, y: b.y, z: b.z, r: 5.5 }];
+  }
+  const bombSiteAt = (x, z, y) => bSites.find(s => Math.hypot(x - s.x, z - s.z) < s.r && Math.abs(y - s.y) < 2.6) || null;
+  function bombMakeSites() {
+    bSites = bombPickSites(POIS, SPAWN.A);
+    bSites.forEach(s => {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(s.r - 0.3, s.r, 56), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(s.r, 56), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+      [ring, disc].forEach(m => { m.rotation.x = -Math.PI / 2; m.position.set(s.x, s.y + 0.07, s.z); scene.add(m); });
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 128;
+      const c2 = cv.getContext('2d');
+      c2.fillStyle = '#ffd24a'; c2.font = '700 96px sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText(s.id, 64, 70);
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
+      sp.scale.set(3, 3, 1); sp.position.set(s.x, s.y + 3.2, s.z); scene.add(sp);
+    });
+  }
+  function bombHudInit() {
+    if (bHud) return;
+    const st = document.createElement('style');
+    st.textContent = '#bmoney{position:fixed;left:14px;top:176px;z-index:30;padding:6px 12px;background:rgba(15,20,26,.75);border:1px solid rgba(255,255,255,.18);border-radius:8px;color:#f2b632;font:700 20px sans-serif;pointer-events:none}'
+      + '#bmoney small{display:block;color:#aab4bd;font:600 11px sans-serif;margin-top:1px}'
+      + '#bhud{position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:30;padding:4px 14px;background:rgba(15,20,26,.7);border-radius:8px;color:#fff;font:700 14px sans-serif;pointer-events:none;white-space:nowrap}'
+      + '#bbanner{position:fixed;left:50%;top:34%;transform:translate(-50%,-50%);z-index:31;padding:12px 26px;background:rgba(12,16,22,.84);border:2px solid #f2b632;border-radius:10px;color:#fff;font:800 22px sans-serif;text-align:center;white-space:pre-line;display:none;pointer-events:none}'
+      + '#btoast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:33;padding:8px 16px;background:rgba(20,26,34,.92);border-radius:8px;color:#fff;font:700 14px sans-serif;display:none;pointer-events:none}'
+      + '#bact{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:32;min-width:230px;padding:14px 18px;border-radius:12px;border:2px solid #f2b632;background:rgba(20,26,34,.92);color:#fff;font:800 17px sans-serif;text-align:center;display:none;touch-action:none;overflow:hidden;-webkit-user-select:none;user-select:none}'
+      + '#bact i{position:absolute;left:0;bottom:0;height:5px;width:0;background:#f2b632}';
+    document.head.appendChild(st);
+    const mk = (id, cls) => { const d = document.createElement('div'); d.id = id; if (cls) d.className = cls; document.body.appendChild(d); return d; };
+    bHud = { money: mk('bmoney'), status: mk('bhud'), banner: mk('bbanner'), toast: mk('btoast') };
+    const btn = mk('bact', 'interactive-ui');
+    btn.innerHTML = '<span></span><i></i>';
+    bHud.act = btn; bHud.actText = btn.firstChild; bHud.actBar = btn.lastChild;
+    const down = e => { e.preventDefault(); e.stopPropagation(); bHeld = true; };
+    const up = e => { e.preventDefault(); e.stopPropagation(); bHeld = false; };
+    ['pointerdown'].forEach(n => btn.addEventListener(n, down));
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => btn.addEventListener(n, up));
+    ['touchstart', 'touchmove', 'touchend'].forEach(n => btn.addEventListener(n, e => e.stopPropagation(), { passive: true }));
+    const shC = document.getElementById('shC');
+    if (shC) {
+      const col = document.createElement('div');
+      col.className = 'col';
+      col.innerHTML = '<h4>Снаряжение</h4><div class="it" data-d="kit"></div>';
+      shC.appendChild(col);
+      shC.addEventListener('click', bombShopClick, true);
+    }
+  }
+  function bombToast(msg) {
+    if (!bHud) return;
+    bHud.toast.textContent = msg; bHud.toast.style.display = 'block'; bToastT = performance.now() + 1600;
+  }
+  function bombBanner(text, ms) {
+    if (!bHud) return;
+    bHud.banner.textContent = text; bHud.banner.style.display = 'block'; bBannerT = performance.now() + ms;
+  }
+  function bombShopLabels() {
+    const side = bSide(bm, bMe());
+    document.querySelectorAll('#shC .it').forEach(it => {
+      const k = it.dataset.p || it.dataset.r || it.dataset.d;
+      if (!k) return;
+      const name = PIST[k] ? PIST[k].name : PRIM[k] ? PRIM[k].name : 'Режим сапера';
+      it.textContent = name + '  $' + bm.cat.price[k];
+      if (k === 'kit') it.style.display = side === 'CT' ? '' : 'none';
+    });
+  }
+  function bombShopClick(e) {
+    if (!BOMB || !bm) return;
+    const it = e.target.closest ? e.target.closest('.it') : null;
+    if (!it || !(it.dataset.p || it.dataset.r || it.dataset.d)) return;
+    e.stopPropagation(); e.preventDefault();
+    const k = it.dataset.p || it.dataset.r || it.dataset.d, res = bombBuy(bm, 'P', k);
+    if (!res.ok) { bombToast(res.err); return; }
+    if (PIST[k]) { loadout.pistol = k; store.pistol = { mag: PIST[k].mag, res: PIST[k].res }; curW = 'knife'; equip('pistol'); }
+    else if (PRIM[k]) { loadout.primary = k; store.rifle = { mag: PRIM[k].mag, res: PRIM[k].res }; curW = 'knife'; equip('rifle'); }
+    bombToast('Куплено: ' + (PIST[k] ? PIST[k].name : PRIM[k] ? PRIM[k].name : 'Режим сапера'));
+    updateUI(); bombShopLabels();
+  }
+  function bombResetLoadout() {
+    const p = bMe(), side = bSide(bm, p), pist = p.items.pistol || (side === 'CT' ? 'usp' : 'glock');
+    loadout.pistol = pist; store.pistol = { mag: PIST[pist].mag, res: PIST[pist].res };
+    if (p.items.primary) { loadout.primary = p.items.primary; store.rifle = { mag: PRIM[p.items.primary].mag, res: PRIM[p.items.primary].res }; }
+    else store.rifle = { mag: 0, res: 0 };
+    curW = 'knife'; equip(p.items.primary ? 'rifle' : 'pistol');
+    bombShopLabels();
+  }
+  function bombBotLoadout(b) {
+    const id = 'b' + bots.indexOf(b), p = bPlayer(bm, id), side = bSide(bm, p), pist = p.items.pistol || (side === 'CT' ? 'usp' : 'glock');
+    b.loadout = { primary: p.items.primary || pist, pistol: pist };
+    b.fled = false; b.fleeEnd = 0; b.switchT = 0; b.drawT = 0; b.holdUntil = 0; b.stillT = 0; b.aimPitch = 0;
+    if (b.mc) setBotWeapon(b, b.loadout.primary);
+  }
+  function bombBotBuy(m, id, rng) {
+    const p = bPlayer(m, id), side = bSide(m, p), r = rng(), buy = k => bombBuy(m, id, k).ok;
+    if (!p.items.primary) {
+      if (p.money >= 4000 && r < 0.2) buy('awp');
+      else if (p.money >= 3600 && r < 0.12) buy('m249');
+      else if (p.money >= 3200 && side === 'CT' && r < 0.4) buy('m16');
+      else if (p.money >= 3000) buy(side === 'CT' ? 'm4a4' : 'rifle');
+      else if (p.money >= 1000 && r < 0.45) buy(r < 0.22 ? 'mossberg' : 'm870');
+    }
+    if (!p.items.primary && !p.items.pistol) {
+      if (p.money >= 700 && r < 0.35) buy('deagle');
+      else if (p.money >= 400 && r < 0.6) buy('p250');
+    }
+    if (side === 'CT' && p.money >= 400 && rng() < 0.5) buy('kit');
+  }
+  function bombBegin() {
+    const ps = [{ id: 'P', team: 'A' }];
+    bots.forEach((b, i) => ps.push({ id: 'b' + i, team: b.team }));
+    bm = bombCreate(ps, bombCatalog());
+    bombMakeSites(); bombHudInit();
+    bombStartRound(bm); bombRoundSetup();
+  }
+  function bombRoundSetup() {
+    bRoundSeen = bm.round; bEnded = false; bHeld = false; bDropPos = null; bm.tSite = Math.random() < 0.5 ? 'A' : 'B';
+    bots.forEach((b, i) => bombBotBuy(bm, 'b' + i, Math.random));
+    respawnPlayer();
+    bots.forEach((b, i) => {
+      spawnAt(b);
+      const p = bPlayer(bm, 'b' + i), side = bSide(bm, p);
+      b.siteGoal = side === 'T' ? (p.hasBomb || Math.random() < 0.7 ? bm.tSite : (bm.tSite === 'A' ? 'B' : 'A')) : (i % 2 ? 'A' : 'B');
+      b.gAng = (i * 1.7) % 6.28; b.gRad = 1 + (i % 3) * 1.6;
+    });
+    bombShopLabels();
+    const side = bSide(bm, bMe());
+    bombBanner((bm.round === bm.C.swapAfter + 1 ? 'Смена сторон\n' : '') + 'Раунд ' + bm.round + ' · вы ' + (side === 'CT' ? 'спецназ' : 'террорист'), 2600);
+  }
+  function bombOnDeath(vid, killerStat, weapon) {
+    if (!bm) return;
+    const p = bPlayer(bm, vid);
+    if (p) { if (p.hasBomb) bDropPos = bPos(vid); p.items = {}; }
+    bombDied(bm, vid, bId(killerStat), weapon);
+  }
+  function bombFlash() {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:40;background:#fff;opacity:.95;pointer-events:none;transition:opacity 1.4s';
+    document.body.appendChild(d);
+    requestAnimationFrame(() => { d.style.opacity = '0'; });
+    setTimeout(() => d.remove(), 1600);
+  }
+  function bombPhase(before) {
+    if (before === 'freeze' && bm.phase === 'live') { shopEnd = 0; bombBanner('Раунд ' + bm.round + ' начался', 1800); }
+    else if (before === 'live' && bm.phase === 'planted') {
+      bm.bomb.pos = bPos(bm.bomb.by); bDropPos = null;
+      bombBanner('Бомба заложена · точка ' + bm.bomb.site, 2400);
+    } else if (bm.phase === 'end') {
+      if (bm.reason === 'explode') bombFlash();
+      const why = { elim: bm.winner === 'CT' ? 'Террористы уничтожены' : 'Спецназ уничтожен', time: 'Время вышло', defuse: 'Бомба обезврежена', explode: 'Бомба взорвалась' }[bm.reason];
+      bombBanner((bm.winner === 'CT' ? 'Победа спецназа' : 'Победа террористов') + '\n' + why + (bm.over ? '\nМатч окончен' : ''), 4200);
+    }
+  }
+  function bombPlayerAct() {
+    const p = bMe();
+    let label = null, kind = null, site = null;
+    if (!player.dead) {
+      const pos = bPos('P'), side = bSide(bm, p);
+      if (bm.phase === 'live' && side === 'T' && p.hasBomb) { site = bombSiteAt(pos.x, pos.z, pos.y); if (site) { kind = 'plant'; label = 'ЗАЛОЖИТЬ БОМБУ · точка ' + site.id; } }
+      if (bm.phase === 'planted' && side === 'CT' && bm.bomb.pos && bDist(pos, bm.bomb.pos) < 2.4) { kind = 'defuse'; label = 'РАЗМИНИРОВАТЬ' + (p.kit ? ' (сапёр)' : ''); }
+      if (bm.phase === 'live' && side === 'T' && bm.dropped && !p.hasBomb && bDropPos && bDist(pos, bDropPos) < 1.8) bombPickup(bm, 'P');
+      const planting = bm.plant && bm.plant.id === 'P', defusing = bm.defuse && bm.defuse.id === 'P';
+      if (kind === 'plant' && bHeld && !bm.plant) bombBeginPlant(bm, 'P', site.id);
+      if (kind === 'defuse' && bHeld && !bm.defuse) bombBeginDefuse(bm, 'P');
+      if (planting && (!bHeld || !site)) bombCancelPlant(bm);
+      if (defusing && (!bHeld || kind !== 'defuse')) bombCancelDefuse(bm);
+    }
+    const planting = !!(bm.plant && bm.plant.id === 'P'), defusing = !!(bm.defuse && bm.defuse.id === 'P');
+    if (planting && !bPose) { bPose = true; bPrevCrouch = player.isCrouching; }
+    if (planting) player.isCrouching = true;
+    if (!planting && bPose) { bPose = false; player.isCrouching = bPrevCrouch; }
+    bHud.act.style.display = kind ? 'block' : 'none';
+    if (kind) {
+      bHud.actText.textContent = label;
+      const prog = planting ? bm.plant.t / bm.C.plantTime : defusing ? bm.defuse.t / bm.defuse.need : 0;
+      bHud.actBar.style.width = Math.min(100, prog * 100) + '%';
+    }
+  }
+  function bombBotsAct() {
+    bots.forEach((b, i) => {
+      const id = 'b' + i, p = bPlayer(bm, id);
+      if (!p || !p.alive) return;
+      const side = bSide(bm, p), pos = b.mesh.position;
+      if (bm.phase === 'live' && side === 'T') {
+        if (p.hasBomb && !bm.plant && !b.target) { const s = bombSiteAt(pos.x, pos.z, pos.y); if (s) bombBeginPlant(bm, id, s.id); }
+        if (bm.dropped && !p.hasBomb && bDropPos && bDist(pos, bDropPos) < 1.6) bombPickup(bm, id);
+        if (bm.plant && bm.plant.id === id && b.target) bombCancelPlant(bm);
+      }
+      if (bm.phase === 'planted' && side === 'CT') {
+        if (!bm.defuse && bm.bomb.pos && bDist(pos, bm.bomb.pos) < 2.2 && !b.target) bombBeginDefuse(bm, id);
+        if (bm.defuse && bm.defuse.id === id && b.target) bombCancelDefuse(bm);
+      }
+    });
+  }
+  const bGuard = (b, c, r) => new V(c.x + Math.cos(b.gAng) * r, c.y, c.z + Math.sin(b.gAng) * r);
+  function bombBotMove(b, pos, dt, mul) {
+    const id = 'b' + bots.indexOf(b), p = bPlayer(bm, id);
+    if (!p || !p.alive) return false;
+    if (bm.phase !== 'live' && bm.phase !== 'planted') return true;
+    const planting = bm.plant && bm.plant.id === id, defusing = bm.defuse && bm.defuse.id === id;
+    if (planting || defusing) { b.walk = false; b.crouch = !!planting; return true; }
+    const side = bSide(bm, p), site = bSites.find(s => s.id === b.siteGoal) || bSites[0];
+    let goal = null, stop = 1.8;
+    if (side === 'T') {
+      if (bm.phase === 'live') {
+        if (p.hasBomb) { goal = new V(site.x, site.y, site.z); stop = 1.2; }
+        else if (bm.dropped && bDropPos) goal = new V(bDropPos.x, bDropPos.y, bDropPos.z);
+        else goal = bGuard(b, site, 2 + b.gRad);
+      } else if (bm.bomb && bm.bomb.pos) goal = bGuard(b, bm.bomb.pos, 4 + b.gRad);
+    } else if (bm.phase === 'live') goal = bGuard(b, site, 2.5 + b.gRad);
+    else if (bm.bomb && bm.bomb.pos) {
+      const cts = bots.map((x, i) => ({ x, id: 'b' + i })).filter(o => { const q = bPlayer(bm, o.id); return q && q.alive && bSide(bm, q) === 'CT'; })
+        .sort((a, c) => bDist(a.x.mesh.position, bm.bomb.pos) - bDist(c.x.mesh.position, bm.bomb.pos));
+      if (cts.length && cts[0].id === id) { goal = new V(bm.bomb.pos.x, bm.bomb.pos.y, bm.bomb.pos.z); stop = 1.3; }
+      else goal = bGuard(b, bm.bomb.pos, 6 + b.gRad);
+    }
+    if (!goal) return false;
+    b.crouch = false;
+    if (Math.hypot(goal.x - pos.x, goal.z - pos.z) > stop) follow(b, goal, dt, 5 * mul);
+    else b.walk = false;
+    return true;
+  }
+  function bombMesh() {
+    let pos = null, planted = false;
+    if (bm.phase === 'planted' && bm.bomb && bm.bomb.pos) { pos = bm.bomb.pos; planted = true; }
+    else if (bm.dropped && bDropPos && bm.phase === 'live') pos = bDropPos;
+    if (!pos) { if (bBomb) bBomb.visible = false; return; }
+    if (!bBomb) {
+      bBomb = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.18, 0.34), new THREE.MeshLambertMaterial({ color: 0x2a2f2a }));
+      body.position.y = 0.09;
+      const led = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2020 }));
+      led.position.set(0.15, 0.21, 0);
+      bBomb.add(body); bBomb.add(led); bBomb.userData.led = led;
+      scene.add(bBomb);
+    }
+    bBomb.visible = true; bBomb.position.set(pos.x, pos.y, pos.z);
+    const rate = planted ? 2 + (bm.C.bombTime - bm.bomb.t) / 6 : 1;
+    bBomb.userData.led.visible = planted ? (T * rate) % 1 < 0.5 : true;
+  }
+  function bombHud() {
+    if (!bm || !bHud) return;
+    const p = bMe(), side = bSide(bm, p), now = performance.now();
+    const fmt = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+    document.getElementById('sa').textContent = bm.score.A;
+    document.getElementById('sb').textContent = bm.score.B;
+    document.getElementById('st').textContent = fmt(bm.phase === 'planted' ? bm.bomb.t : bm.phase === 'end' || bm.phase === 'over' ? 0 : bm.t);
+    bHud.money.innerHTML = '$' + p.money + '<small>' + (side === 'CT' ? 'Спецназ' : 'Террористы') + (p.hasBomb ? ' · бомба у вас' : '') + (p.kit ? ' · сапёр' : '') + '</small>';
+    let txt = '';
+    if (bm.phase === 'freeze') txt = bm.t <= bm.C.announceAt ? 'Раунд начинается через ' + Math.ceil(bm.t) : 'Закупка · ' + fmt(bm.t);
+    else if (bm.phase === 'live') txt = 'Раунд ' + bm.round + ' · ' + (side === 'T' ? 'заложи бомбу' : 'не дай заложить бомбу');
+    else if (bm.phase === 'planted') txt = 'Бомба · точка ' + bm.bomb.site + ' · взрыв через ' + Math.ceil(bm.bomb.t);
+    else txt = 'Раунд ' + bm.round + ' завершён';
+    bHud.status.textContent = txt;
+    bHud.status.style.color = bm.phase === 'planted' ? '#ff6b5e' : '#fff';
+    bLk = bm.phase === 'freeze' || !!(bm.plant && bm.plant.id === 'P') || !!(bm.defuse && bm.defuse.id === 'P');
+    if (bBannerT && now > bBannerT) { bHud.banner.style.display = 'none'; bBannerT = 0; }
+    if (bToastT && now > bToastT) { bHud.toast.style.display = 'none'; bToastT = 0; }
+  }
+  function bombFrame(dt) {
+    if (!bm || over) return;
+    if (bm.round !== bRoundSeen && bm.phase === 'freeze') bombRoundSetup();
+    const before = bm.phase;
+    bombPlayerAct();
+    bombBotsAct();
+    bombTick(bm, dt, Math.random);
+    if (bm.phase !== before) bombPhase(before);
+    bombHud();
+    bombMesh();
+    if (bm.phase === 'over' && !bEnded) { bEnded = true; score.A = bm.score.A; score.B = bm.score.B; endMatch(); }
   }
 
   try {                                            // если телефон отнял видеопамять — восстанавливаем сцену, а не оставляем чёрный экран
