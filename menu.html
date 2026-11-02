@@ -667,14 +667,13 @@ function profileModal() {
 
 /* ---------- выбор режима и запуск ---------- */
 function modeModal() {
-  let sel = P.mode === 'tdm';
-  const card = h('button', { class: 'mode' + (sel ? ' sel' : ''), onclick: () => { card.classList.add('sel'); go.removeAttribute('disabled'); } },
-    h('span', { class: 'mi' }, ico('team')), h('div', null, h('b', { text: 'Командный бой' }), h('span', { text: '5×5 · 2 минуты · карта Crid' })), h('span', { class: 'ck' }, ico('check')));
-  const go = h('button', { class: 'btn gold', style: 'min-width:200px;min-height:52px;font-size:20px', text: 'ИГРАТЬ', onclick: () => { P.mode = 'tdm'; save(); closeModal(); startLoadScreen(); } });
+  let sel = P.mode === 'tdm' || P.mode === 'bomb' ? P.mode : null;
+  const defs = [['tdm', 'Командный бой', '5×5 · 2 минуты · карта Crid'], ['bomb', 'Закладка бомбы', '5×5 · до 10 побед · деньги, закупка, бомба · карта Crid']];
+  const go = h('button', { class: 'btn gold', style: 'min-width:200px;min-height:52px;font-size:20px', text: 'Играть', onclick: () => { P.mode = sel; save(); closeModal(); startLoadScreen(); } });
   if (!sel) go.setAttribute('disabled', '');
-  modal('Выбор режима', [card,
-    h('button', { class: 'mode', disabled: true, style: 'opacity:.5;cursor:default', 'aria-label': 'Закладка бомбы — скоро' }, h('span', { class: 'mi' }, ico('team')), h('div', null, h('b', { text: 'Закладка бомбы' }), h('span', { text: 'Dust2 · раунды, деньги, бомба — скоро' })), h('span', { class: 'ck' })),
-    h('div', { style: 'color:var(--mute);font-size:13px', text: 'Выбери режим и нажми «Играть». Другие режимы появятся позже.' })], [go]);
+  const cards = defs.map(d => h('button', { class: 'mode' + (sel === d[0] ? ' sel' : ''), onclick: () => { sel = d[0]; cards.forEach((x, k) => x.classList.toggle('sel', defs[k][0] === sel)); go.removeAttribute('disabled'); } },
+    h('span', { class: 'mi' }, ico('team')), h('div', null, h('b', { text: d[1] }), h('span', { text: d[2] })), h('span', { class: 'ck' }, ico('check'))));
+  modal('Выбор режима', cards.concat([h('div', { style: 'color:var(--mute);font-size:13px', text: 'Выбери режим и нажми «Играть».' })]), [go]);
 }
 
 /* ---------- настройки и тестовые кнопки ---------- */
@@ -971,11 +970,11 @@ function startLoadScreen() {
   if ($('#load')) return;
   const d = h('div', { id: 'load', class: 'loadscr' });
   d.style.backgroundImage = mapArt();
-  d.append(h('div', { class: 'ls-sh' }), h('div', { class: 'ls-md', text: 'КОМАНДНЫЙ БОЙ' }), h('div', { class: 'ls-nm', text: 'CRID' }), h('div', { class: 'ls-sb', text: '5 на 5 · 2 минуты' }),
+  d.append(h('div', { class: 'ls-sh' }), h('div', { class: 'ls-md', text: P.mode === 'bomb' ? 'Закладка бомбы' : 'КОМАНДНЫЙ БОЙ' }), h('div', { class: 'ls-nm', text: 'CRID' }), h('div', { class: 'ls-sb', text: P.mode === 'bomb' ? '5 на 5 · до 10 побед в раундах' : '5 на 5 · 2 минуты' }),
     h('div', { class: 'ls-pl', text: P.nick + ' · подключение…' }), h('div', { class: 'ls-br' }, h('i', { id: 'lsBar' })), h('div', { class: 'ls-tp', text: 'Подсказка: ' + LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)] }));
   document.body.append(d);
   requestAnimationFrame(() => { const b = $('#lsBar'); if (b) b.style.width = '55%'; });
-  setTimeout(() => { location.href = GAME_URL; }, 700);
+  setTimeout(() => { location.href = GAME_URL + (P.mode === 'bomb' ? '&mode=bomb' : ''); }, 700);
 }
 
 /* =====================================================================
