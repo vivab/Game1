@@ -223,25 +223,35 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function skins(team) {
     if (SKINS[team]) return SKINS[team];
-    const C = SK[team], skin = '#f1c27d', hair = '#3b2a1a';
+    const ct = team === 'A', skin = '#e0ac69';
+    const U = ct
+      ? { jac: '#1a2a4a', jacL: '#2a4272', jacD: '#0f1a30', pnt: '#152238', pntL: '#21345a', bal: '#5b6068', helm: '#1b2230', glove: '#0b0b0b' }
+      : { jac: '#2e4a2b', jacL: '#436a3d', jacD: '#1b2c19', pnt: '#3a2a1c', pntL: '#503a26', bal: '#131313', helm: null, glove: null };
     const M = t => new THREE.MeshLambertMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.55 });
-    const bal = team === 'B', blk = '#141414';
     const hf = ptex(8, 8, f => {
-      if (bal) { f(blk, 0, 0, 8, 8); f(skin, 1, 3, 6, 2); f('#ffffff', 1, 4, 2, 1); f('#ffffff', 5, 4, 2, 1); f('#2b3a8a', 2, 4, 1, 1); f('#2b3a8a', 5, 4, 1, 1); }   // чёрная балаклава, прорезь для глаз
-      else { f(skin, 0, 0, 8, 8); f(hair, 0, 0, 8, 2); f(hair, 0, 2, 1, 1); f(hair, 7, 2, 1, 1); f('#ffffff', 1, 4, 2, 1); f('#ffffff', 5, 4, 2, 1); f('#2b3a8a', 2, 4, 1, 1); f('#2b3a8a', 5, 4, 1, 1); f(blk, 0, 5, 8, 3); }   // чёрная маска на лице
+      f(U.bal, 0, 0, 8, 8);
+      if (U.helm) { f(U.helm, 0, 0, 8, 2); f('#2b3649', 0, 2, 8, 1); }
+      f(skin, 1, 3, 6, 2);
+      f('#ffffff', 1, 3, 2, 1); f('#ffffff', 5, 3, 2, 1); f('#1b2b4f', 2, 3, 1, 1); f('#1b2b4f', 5, 3, 1, 1);
+      f(ct ? '#474c54' : '#0a0a0a', 2, 6, 4, 1);
     });
-    const hh = ptex(8, 8, f => f(bal ? blk : hair, 0, 0, 8, 8)), hs = ptex(8, 8, f => { if (bal) f(blk, 0, 0, 8, 8); else { f(skin, 0, 0, 8, 8); f(hair, 0, 0, 8, 3); f(hair, 5, 3, 3, 5); } }), hd = ptex(8, 8, f => f(bal ? blk : skin, 0, 0, 8, 8));
-    const tf = ptex(8, 12, f => { f(C.top, 0, 0, 8, 12); f(C.vest, 0, 0, 8, 8); f(C.top, 3, 1, 2, 7); f('#c9a26b', 2, 0, 4, 1); f('#f5e6c8', 3, 3, 1, 1); f('#f5e6c8', 4, 5, 1, 1); });
-    const tb = ptex(8, 12, f => { f(C.top, 0, 0, 8, 12); f(C.vest, 0, 0, 8, 2); }), ts = ptex(4, 12, f => { f(C.top, 0, 0, 4, 12); f(C.vest, 0, 0, 4, 2); });
-    const tt = ptex(8, 4, f => f(C.vest, 0, 0, 8, 4)), tbm = ptex(8, 4, f => f(C.pants, 0, 0, 8, 4));
-    const au = ptex(4, 6, f => { f(C.top, 0, 0, 4, 6); f('#f08c3a', 0, 5, 4, 1); });
-    const af = ptex(4, 6, f => { f('#e8c690', 0, 0, 4, 1); f('#111111', 0, 1, 4, 1); f('#e8c690', 0, 2, 4, 1); f('#111111', 0, 3, 4, 1); f(skin, 0, 4, 4, 2); });
-    const at = ptex(4, 4, f => f(C.top, 0, 0, 4, 4)), ab = ptex(4, 4, f => f(skin, 0, 0, 4, 4));
-    const ls = ptex(4, 12, f => { f(C.pants, 0, 0, 4, 12); f('#f2f2f2', 0, 8, 4, 1); f('#0b0b0b', 0, 10, 4, 2); });
-    const lt = ptex(4, 4, f => f(C.pants, 0, 0, 4, 4)), lb = ptex(4, 4, f => f('#0b0b0b', 0, 0, 4, 4));
-    return (SKINS[team] = {      // порядок граней: +x, -x, верх, низ, перед (+z), зад
-      head: [M(hs), M(hs), M(hh), M(hd), M(hf), M(hh)], torso: [M(ts), M(ts), M(tt), M(tbm), M(tf), M(tb)],
-      armU: [M(au), M(au), M(at), M(at), M(au), M(au)], armF: [M(af), M(af), M(at), M(ab), M(af), M(af)], leg: [M(ls), M(ls), M(lt), M(lb), M(ls), M(ls)]
+    const hs = ptex(8, 8, f => { f(U.bal, 0, 0, 8, 8); if (U.helm) f(U.helm, 0, 0, 8, 3); });
+    const ht = ptex(8, 8, f => f(U.helm || U.bal, 0, 0, 8, 8));
+    const hd = ptex(8, 8, f => f(U.bal, 0, 0, 8, 8));
+    const pocket = (f, x, y) => { f(U.jacL, x, y, 2, 3); f(U.jac, x, y + 1, 2, 2); f(U.jacD, x, y + 3, 2, 1); f('#9aa1ab', x, y + 1, 1, 1); };
+    const tf = ptex(8, 12, f => { f(U.jac, 0, 0, 8, 12); f(U.jacD, 3, 0, 1, 10); f(U.jacL, 4, 0, 1, 10); pocket(f, 0, 3); pocket(f, 6, 3); f('#0c0c0c', 0, 10, 8, 1); f(U.pnt, 0, 11, 8, 1); });
+    const tb = ptex(8, 12, f => { f(U.jac, 0, 0, 8, 12); f(U.jacD, 0, 4, 8, 1); f('#0c0c0c', 0, 10, 8, 1); f(U.pnt, 0, 11, 8, 1); });
+    const ts = ptex(4, 12, f => { f(U.jac, 0, 0, 4, 12); f(U.jacD, 0, 0, 4, 1); f('#0c0c0c', 0, 10, 4, 1); f(U.pnt, 0, 11, 4, 1); });
+    const tt = ptex(8, 4, f => f(U.jac, 0, 0, 8, 4)), tbm = ptex(8, 4, f => f(U.pnt, 0, 0, 8, 4));
+    const au = ptex(4, 6, f => { f(U.jac, 0, 0, 4, 6); f(U.jacD, 0, 5, 4, 1); f(U.jacL, 0, 0, 1, 5); });
+    const af = ptex(4, 6, f => { f(U.jac, 0, 0, 4, 6); f(U.jacD, 0, 3, 4, 1); f(U.glove || skin, 0, 4, 4, 2); });
+    const at = ptex(4, 4, f => f(U.jac, 0, 0, 4, 4)), ab = ptex(4, 4, f => f(U.glove || skin, 0, 0, 4, 4));
+    const ls = ptex(4, 12, f => { f(U.pnt, 0, 0, 4, 12); f(U.pntL, 1, 2, 2, 3); f(U.pnt, 1, 3, 2, 1); f('#1a1a1a', 0, 9, 4, 1); f('#0b0b0b', 0, 10, 4, 2); });
+    const lt = ptex(4, 4, f => f(U.pnt, 0, 0, 4, 4)), lb = ptex(4, 4, f => f('#0b0b0b', 0, 0, 4, 4));
+    return (SKINS[team] = {
+      head: [M(hs), M(hs), M(ht), M(hd), M(hf), M(hs)], torso: [M(ts), M(ts), M(tt), M(tbm), M(tf), M(tb)],
+      armU: [M(au), M(au), M(at), M(at), M(au), M(au)], armF: [M(af), M(af), M(at), M(ab), M(af), M(af)], leg: [M(ls), M(ls), M(lt), M(lb), M(ls), M(ls)],
+      cap: ct ? new THREE.MeshLambertMaterial({ color: 0x1b2230, emissive: 0x1b2230, emissiveIntensity: 0.5 }) : null
     });
   }
   function makeMC(team) {
@@ -250,7 +260,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const pv = (x, y, z) => { const p = new THREE.Group(); p.position.set(x * S, y * S, z * S); return p; };
     const legL = pv(2, 12, 0), legR = pv(-2, 12, 0), upper = pv(0, 12, 0), head = pv(0, 12, 0), armL = pv(6, 12, 0), armR = pv(-6, 12, 0);
     legL.add(mk(4, 12, 4, K.leg, 0, -6, 0)); legR.add(mk(4, 12, 4, K.leg, 0, -6, 0));
-    upper.add(mk(8, 12, 4, K.torso, 0, 6, 0)); head.add(mk(8, 8, 8, K.head, 0, 4, 0)); upper.add(head);
+    upper.add(mk(8, 12, 4, K.torso, 0, 6, 0)); head.add(mk(8, 8, 8, K.head, 0, 4, 0)); if (K.cap) { head.add(mk(9, 2.4, 9, K.cap, 0, 8.4, 0)); head.add(mk(9, 1.6, 2, K.cap, 0, 6.6, 4.6)); } upper.add(head);
     [armL, armR].forEach(a => {                       // плечо + локоть + предплечье
       a.add(mk(4, 6, 4, K.armU, 0, -3, 0)); a.rotation.order = 'YXZ';
       const el = pv(0, -6, 0); el.add(mk(4, 6, 4, K.armF, 0, -3, 0));
@@ -301,7 +311,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     glock:  { name: 'Glock',        mag: 17, res: 68, int: 190, spd: 6.8, price: 200 },
     p250:   { name: 'P250',         mag: 13, res: 52, int: 170, spd: 6.8, price: 400 }
   };
-  const KNV = { knife: { name: 'Нож' }, karambit: { name: 'Керамбит' } };
+  const KNV = { m9: { name: 'M9 Bayonet' }, knife: { name: 'Нож' }, karambit: { name: 'Керамбит' } };
   const PRIM_T = { rifle: 1, awp: 1, m4a4: 1, m16: 1, m249: 1, mossberg: 1, m870: 1 };   // первичные (держатся двумя руками)
   const GUNS = {};                                 // загруженные модели оружия для ботов
   const BW = {      // оружие ботов: интервал выстрела, урон по игроку / по боту, меткость, дальность
@@ -313,12 +323,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     m4a4: { int: 0.13, dp: 8, db: 11, acc: 1, range: 45 }, m16: { int: 0.15, dp: 9, db: 12, acc: 1, range: 48 },
     m249: { int: 0.07, dp: 7, db: 9, acc: 0.7, range: 45 }, mossberg: { int: 0.9, dp: 26, db: 30, acc: 0.85, range: 16, close: 1 },
     m870: { int: 0.85, dp: 24, db: 28, acc: 0.85, range: 16, close: 1 }, p250: { int: 0.3, dp: 11, db: 14, acc: 0.9, range: 28 } });
-  const BWN = { rifle: 'AK-47', awp: 'AWP', m4a4: 'M4A4', m16: 'M16A4', m249: 'M249', mossberg: 'Mossberg 590', m870: 'M870', usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250', knife: 'Нож', karambit: 'Керамбит' };
+  const BWN = { rifle: 'AK-47', awp: 'AWP', m4a4: 'M4A4', m16: 'M16A4', m249: 'M249', mossberg: 'Mossberg 590', m870: 'M870', usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250', m9: 'M9 Bayonet', knife: 'Нож', karambit: 'Керамбит' };
   const POSE_PISTOL = { rp: -1.25, ry: 0.42, re: -0.2, lp: -1.25, ly: -0.42, le: -0.2 }, POSE_KNIFE = { rp: -0.7, ry: 0.15, re: -1.1, lp: -0.2, ly: -0.1, le: -0.5 };
   const rollWeapon = () => 'rifle';     // реальный набор оружия бот получает в rollLoadout
   function blockGun(type) {                         // простое оружие из блоков для ботов (дуло смотрит в +Z)
     const g = new THREE.Group(), bx = (w, h, d, c, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); g.add(o); };
-    if (type === 'knife' || type === 'karambit') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, type === 'karambit' ? 0.14 : 0.2, 0xd0d4da, 0, 0, 0.14); }
+    if (type === 'knife' || type === 'karambit' || type === 'm9') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, type === 'karambit' ? 0.14 : 0.2, 0xd0d4da, 0, 0, 0.14); }
     else if (type === 'usp' || type === 'deagle' || type === 'glock' || type === 'p250') {
       const L = { usp: 0.24, deagle: 0.28, glock: 0.22, p250: 0.23 }[type], col = { usp: 0x2b2b2b, deagle: 0xc8ccd2, glock: 0x1f1f22, p250: 0x3a3d44 }[type];
       bx(0.04, 0.05, L, col, 0, 0.03, L / 2 - 0.05); bx(0.035, 0.1, 0.05, 0x222222, 0, -0.03, -0.02);
@@ -347,7 +357,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function dress(b) {
     if (b.mc) return;
-    b.mc = makeMC(b.team); b.inner.add(b.mc.group); b.vis.visible = false;
+    b.mc = makeMC(BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team); b.inner.add(b.mc.group); b.vis.visible = false;
     setBotWeapon(b, rollWeapon());
   }
   const repose = b => { if (b.mc) { poseMC(b); alignGun(b); } };
@@ -802,7 +812,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     el.style.color = kill ? '#ef4444' : '#fff'; el.style.opacity = 1;
     clearTimeout(hmT); hmT = setTimeout(() => { el.style.opacity = 0; }, kill ? 320 : 150);
   }
-  function openShop() { shopEnd = performance.now() + (BOMB && bm ? Math.max(0.5, bm.t) * 1000 + 300 : 10000); }
+  function openShop() { shopEnd = performance.now() + (BOMB && bm ? (Math.max(0.5, bm.t) + bm.C.shopAfter) * 1000 + 300 : 10000); }
   function shopTick() {
     const cart = document.getElementById('cart'), shop = document.getElementById('shop');
     if (!cart) return;
@@ -853,7 +863,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
       '<div id="wheel"><div id="wk" style="margin-left:-105px"><span>Нож</span></div><div id="wp" style="margin-left:35px"><span>Пистолет</span></div><div id="wr" style="margin-top:47px"><span>Автомат</span></div></div>' +
       '<button id="cart" class="interactive-ui">🛒</button><button id="wsw" class="interactive-ui">AK-47</button>' +
-      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div><div class="it" data-p="p250">P250</div></div><div class="col"><h4>Винтовки и дробовики</h4><div class="it" data-r="rifle">AK-47</div><div class="it" data-r="awp">AWP</div><div class="it" data-r="m4a4">M4A4</div><div class="it" data-r="m16">M16A4</div><div class="it" data-r="m249">M249</div><div class="it" data-r="mossberg">Mossberg 590</div><div class="it" data-r="m870">M870</div></div><div class="col"><h4>Ножи</h4><div class="it" data-k="knife">Нож</div><div class="it" data-k="karambit">Керамбит</div></div></div></div>';
+      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div><div class="it" data-p="p250">P250</div></div><div class="col"><h4>Винтовки и дробовики</h4><div class="it" data-r="rifle">AK-47</div><div class="it" data-r="awp">AWP</div><div class="it" data-r="m4a4">M4A4</div><div class="it" data-r="m16">M16A4</div><div class="it" data-r="m249">M249</div><div class="it" data-r="mossberg">Mossberg 590</div><div class="it" data-r="m870">M870</div></div><div class="col"><h4>Ножи</h4><div class="it" data-k="knife">Нож</div><div class="it" data-k="m9">M9 Bayonet</div></div></div></div>';
     document.body.appendChild(d);
     const $ = id => document.getElementById(id), shop = $('shop'), cart = $('cart');
     const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
@@ -1017,7 +1027,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (!scopeEl) {
       const css = document.createElement('style');
       css.textContent = '#scope{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;display:none;pointer-events:none;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 0,rgba(0,0,0,0) 30vh,#000 31vh)}' +
-        '#scope::before,#scope::after{content:"";position:absolute;background:#000}#scope::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}#scope::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}' +
+        '#scope.red::before,#scope.red::after{display:none}#scope::before,#scope::after{content:"";position:absolute;background:#000}#scope::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}#scope::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}' +
         '#scb{position:absolute;right:150px;bottom:120px;z-index:30;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;display:none;align-items:center;justify-content:center;padding:0}' +
         '#rdot{position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#ff2b2b;box-shadow:0 0 6px 2px rgba(255,40,40,.85);z-index:5;display:none;pointer-events:none}';
       document.head.appendChild(css);
@@ -1033,8 +1043,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (scoped) { unscope(); return; }
     const dot = curW === 'rifle' && loadout.primary === 'm16';                                   // M16: оптика с красной точкой по центру
     if (!(curW === 'rifle' && (loadout.primary === 'awp' || dot)) || player.dead || player.isReloading) return;
-    scoped = true; lookScale = dot ? 0.6 : 0.35; camera.fov = dot ? 42 : 22; camera.updateProjectionMatrix();
-    if (dot) rdotEl.style.display = 'block'; else scopeEl.style.display = 'block'; const ch = document.getElementById('crosshair'); if (ch) ch.style.display = 'none';
+    scoped = true; lookScale = dot ? 0.6 : 0.35; camera.fov = dot ? 34 : 22; camera.updateProjectionMatrix();
+    scopeEl.className = dot ? 'red' : ''; scopeEl.style.display = 'block'; if (dot) rdotEl.style.display = 'block'; const ch = document.getElementById('crosshair'); if (ch) ch.style.display = 'none';
     if (window.HW_visible) window.HW_visible(false);
   }
   function unscope() {
@@ -1122,6 +1132,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function spawnAt(b) {
     const reg = BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team, s = SPAWN[reg][b.idx % 5];                                   // каждый на своём месте, не друг в друге
     b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = reg === 'A' ? Math.PI : 0;
+    if (!b.tr) rollTraits(b);
     b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false; b.plan = null; b.stuck = 0; b.sx = undefined; b.sT = 0; b.ghostUntil = 0; b.noPath = 0; b.nudge = null;
     rollLoadout(b);
   }
@@ -1137,7 +1148,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const ty = e.ply ? e.pos.y - 0.25 : e.pos.y + 1.3;
       if (los(ey, new V(e.pos.x, ty, e.pos.z))) { best = e; bd = d; b.aimDy = ty - ey.y; }
     });
-    if (best && !b.target) b.react = (BW[b.wp] && BW[b.wp].melee ? 0.08 : 0.12) + Math.random() * 0.2 + (b.wp === 'awp' ? 0.22 : 0);
+    if (best && !b.target) b.react = ((BW[b.wp] && BW[b.wp].melee ? 0.08 : 0.12) + Math.random() * 0.2 + (b.wp === 'awp' ? 0.22 : 0)) * (b.tr ? b.tr.react : 1);
     b.target = best;
     if (best) { b.seenT = T; intel[b.team] = { pos: new V(best.pos.x, best.ply ? best.pos.y - player.currentHeight : best.pos.y, best.pos.z), t: T }; }
   }
@@ -1296,29 +1307,29 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
         b.combatT = T;
         turnTo(b, Math.atan2(dx, dz), dt, 15);
         b.aimPitch += (Math.atan2(b.aimDy || 0, Math.max(d, 1)) - b.aimPitch) * Math.min(1, 8 * dt);     // смотрит вверх/вниз на цель
-        if (b.hp < 35 && !b.fled && Math.random() < 0.02) { b.fled = true; b.fleeEnd = T + 3.5; }       // раненый отступает к своим
-        if (T < b.fleeEnd) { const sp = SPAWN[b.team][0]; follow(b, new V(sp[0], 0, sp[1]), dt, 6.2); b.crouch = false; }
+        if (b.hp < (b.tr ? b.tr.nerve : 35) && !b.fled && Math.random() < 0.02 + (b.tr ? (1 - b.tr.aggr) * 0.05 : 0)) { b.fled = true; b.fleeEnd = T + 3.5; }       // раненый отступает к своим
+        if (T < b.fleeEnd) { const sp = SPAWN[BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team][0]; follow(b, new V(sp[0], 0, sp[1]), dt, 6.2); b.crouch = false; }
         else {
           b.mt -= dt;
           if (b.mt <= 0) {
-            b.mt = 0.5 + Math.random() * 1.1; b.sdir = Math.random() < 0.5 ? -1 : 1;
-            b.crouch = !BX.melee && b.wp !== 'awp' && d > 14 && Math.random() < 0.45;
-            if (!b.crouch && b.jy === 0 && Math.random() < (T - (b.hitT || -9) < 1.2 ? 0.3 : 0.1)) b.vy = 5.5;
+            b.mt = (0.5 + Math.random() * 1.1) * (b.tr ? 1.4 - b.tr.aggr * 0.6 : 1); b.sdir = Math.random() < 0.5 ? -1 : 1;
+            b.crouch = !BX.melee && b.wp !== 'awp' && d > 14 && Math.random() < (b.tr ? 0.1 + (1 - b.tr.aggr) * 0.5 : 0.45);
+            if (!b.crouch && b.jy === 0 && Math.random() < (b.tr ? b.tr.jump : 0.1) + (T - (b.hitT || -9) < 1.2 ? 0.2 : 0)) b.vy = 5.5;
           }
-          if (!BX.melee && b.wp !== 'awp' && !b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * dt; pos.z += dx / d * b.sdir * 2.6 * dt; resolve(pos, 0.4, pos.y + 0.75); b.walk = true; }
+          if (!BX.melee && b.wp !== 'awp' && !b.crouch && d > 5) { pos.x += -dz / d * b.sdir * 2.6 * (b.tr ? b.tr.strafe : 1) * dt; pos.z += dx / d * b.sdir * 2.6 * (b.tr ? b.tr.strafe : 1) * dt; resolve(pos, 0.4, pos.y + 0.75); b.walk = true; }
           if (b.react <= 0 && T > b.drawT && T - b.last > BX.int && (!BX.melee || d < 1.9)) {
             b.last = T;
-            const pr = BX.melee ? 0.9 : Math.max(0.12, 0.66 - d * 0.012) * BX.acc * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
+            const pr = BX.melee ? 0.9 : Math.max(0.12, 0.66 - d * 0.012) * BX.acc * (b.tr ? b.tr.aim : 1) * (d > BX.range ? 0.3 : 1) * (b.crouch ? 1.25 : 1) * (b.jy > 0 ? 0.4 : 1) * (b.walk ? 0.8 : 1);
             const head = Math.random() < 0.12;
             if (Math.random() < pr && los(eye(b), new V(e.pos.x, e.ply ? e.pos.y - 0.25 : e.pos.y + 1.3, e.pos.z))) e.ply ? hurt(BX.dp, b.stat, head, b.wp) : damageBot(e.bot, BX.db, b.team, pos, false, b.stat, head, b.wp);
           }
-          if (BX.melee ? d > 1.5 : (b.wp !== 'awp' && d > (BX.close ? 7 : 22))) follow(b, e.ply ? new V(e.pos.x, e.pos.y - player.currentHeight, e.pos.z) : e.pos, dt, BX.melee ? 6.5 : 4.5);
+          if (BX.melee ? d > 1.5 : (b.wp !== 'awp' && d > (BX.close ? 7 : (b.tr ? (b.tr.style === 'hold' ? 13 : 22 * (1.25 - 0.6 * b.tr.aggr) * (b.tr.style === 'push' ? 0.7 : 1)) : 22)))) follow(b, e.ply ? new V(e.pos.x, e.pos.y - player.currentHeight, e.pos.z) : e.pos, dt, BX.melee ? 6.5 : 4.5);
         }
       } else {
         b.aimPitch += (0 - b.aimPitch) * Math.min(1, 4 * dt);
         const mul = b.wp === 'knife' ? 1.28 : b.wp === 'awp' ? 0.85 : 1;       // с ножом бегут быстрее
         const it = intel[b.team];
-        if (it && T - it.t < 10 && b.chk !== it.t && Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < ((b.plan && (b.plan.role === 'hold' || b.plan.role === 'snipe')) ? 18 : 40)) {
+        if (it && T - it.t < 10 && b.chk !== it.t && Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < ((b.plan && (b.plan.role === 'hold' || b.plan.role === 'snipe')) ? 18 : 40) * (b.tr ? 0.5 + b.tr.aggr : 1)) {
           b.crouch = false; follow(b, it.pos, dt, 5.5 * mul);                    // идти проверять место вместе с командой
           if (Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z) < 3.5) b.chk = it.t;
         } else {
@@ -2022,11 +2033,16 @@ window.processShoot = function (now) {
   }
 
 
+
+  function rollTraits(b) {
+    const r = Math.random, s = r();
+    b.tr = { aim: 0.82 + r() * 0.36, react: 0.75 + r() * 0.7, aggr: r(), strafe: 0.4 + r() * 1.1, nerve: 18 + r() * 34, jump: r() * 0.25, style: s < 0.25 ? 'push' : s < 0.6 ? 'hold' : 'mix', delay: 0 };
+  }
   // ======================= правила режима «Закладка бомбы» (движок раундов и денег; к игре подключается следующим шагом) =======================
   // Всё, что ты задал, лежит здесь: 25 с закупа, закладка 4 с, разминирование 10 с (5 с с набором сапёра), $800 на старте, до 10 побед, смена сторон после 9-го раунда.
   // Числа, которых ты не называл, взяты как в CS и помечены «(допущение)» — меняются прямо тут.
   const BOMB_CFG = {
-    freeze: 25, announceAt: 10,                       // время на закуп; «раунд начинается через 10» показываем в последние 10 с
+    freeze: 10, announceAt: 10, shopAfter: 20,                       // время на закуп; «раунд начинается через 10» показываем в последние 10 с
     roundTime: 115, bombTime: 40, intermission: 5,    // (допущение) длительность раунда, таймер бомбы, пауза между раундами
     plantTime: 4, defuseTime: 10, defuseKitTime: 5,
     winRounds: 10, swapAfter: 9,                      // до 10 побед; стороны меняются после 9 сыгранных раундов
@@ -2059,11 +2075,11 @@ window.processShoot = function (now) {
     }
     m.players.forEach(p => { p.alive = true; p.hasBomb = false; p.nade = { he: 0, flash: 0, smoke: 0 }; });
     const ts = m.players.filter(p => bSide(m, p) === 'T'); if (ts.length) ts[Math.floor(rng() * ts.length)].hasBomb = true;   // бомба случайному террористу
-    m.phase = 'freeze'; m.t = m.C.freeze; m.bomb = null; m.plant = null; m.defuse = null; m.dropped = false; m.winner = null; m.reason = '';
+    m.phase = 'freeze'; m.t = m.C.freeze; m.elapsed = 0; m.bomb = null; m.plant = null; m.defuse = null; m.dropped = false; m.winner = null; m.reason = '';
   }
   function bombBuy(m, id, item) {
     const p = bPlayer(m, id), price = m.cat.price[item], slot = m.cat.slot[item];
-    if (m.phase !== 'freeze') return { ok: false, err: 'Закупаться можно только до начала раунда' };
+    if (m.phase !== 'freeze' && !((m.phase === 'live' || m.phase === 'planted') && m.elapsed < m.C.shopAfter)) return { ok: false, err: 'Магазин закрыт' };
     if (!p || !p.alive) return { ok: false, err: 'Игрок недоступен' };
     if (price === undefined) return { ok: false, err: 'Такого товара нет' };
     if (item === 'kit' && bSide(m, p) !== 'CT') return { ok: false, err: 'Набор сапёра — только для спецназа' };
@@ -2087,7 +2103,7 @@ window.processShoot = function (now) {
   }
   function bombCancelDefuse(m) { m.defuse = null; }
   function bombPickup(m, id) { const p = bPlayer(m, id); if (!m.dropped || !p || !p.alive || bSide(m, p) !== 'T') return false; p.hasBomb = true; m.dropped = false; return true; }
-  function bombKillReward(m, weapon) { const r = m.C.reward; return weapon === 'knife' || weapon === 'karambit' ? r.killKnife : (weapon === 'mossberg' || weapon === 'm870') ? r.killShotgun : weapon === 'awp' ? r.killAwp : r.kill; }
+  function bombKillReward(m, weapon) { const r = m.C.reward; return weapon === 'knife' || weapon === 'karambit' || weapon === 'm9' ? r.killKnife : (weapon === 'mossberg' || weapon === 'm870') ? r.killShotgun : weapon === 'awp' ? r.killAwp : r.kill; }
   function bombDied(m, id, killerId, weapon) {
     const p = bPlayer(m, id); if (!p || !p.alive) return;
     p.alive = false; p.kit = false;
@@ -2116,6 +2132,7 @@ window.processShoot = function (now) {
     m.log.push('round ' + m.round + ': ' + winSide + ' ' + reason);
   }
   function bombTick(m, dt, rng) {
+    if (m.phase === 'live' || m.phase === 'planted') m.elapsed += dt;
     if (m.phase === 'freeze') { m.t -= dt; if (m.t <= 0) { m.phase = 'live'; m.t = m.C.roundTime; } }
     else if (m.phase === 'live') {
       m.t -= dt;
@@ -2271,12 +2288,15 @@ window.processShoot = function (now) {
   function bombRoundSetup() {
     bRoundSeen = bm.round; bEnded = false; bHeld = false; bDropPos = null; bm.tSite = Math.random() < 0.5 ? 'A' : 'B';
     bots.forEach((b, i) => bombBotBuy(bm, 'b' + i, Math.random));
+    if (bm.round === bm.C.swapAfter + 1) bots.forEach(b => { if (b.mc) { b.inner.remove(b.mc.group); b.mc = null; } dress(b); });
     respawnPlayer();
     bots.forEach((b, i) => {
       spawnAt(b);
       const p = bPlayer(bm, 'b' + i), side = bSide(bm, p);
       b.siteGoal = side === 'T' ? (p.hasBomb || Math.random() < 0.7 ? bm.tSite : (bm.tSite === 'A' ? 'B' : 'A')) : (i % 2 ? 'A' : 'B');
       b.gAng = (i * 1.7) % 6.28; b.gRad = 1 + (i % 3) * 1.6;
+      if (!b.tr) rollTraits(b);
+      b.tr.delay = (side === 'T' && b.tr.style === 'hold' && Math.random() < 0.6) ? 6 + Math.random() * 14 : 0;
     });
     bombShopLabels();
     const side = bSide(bm, bMe());
@@ -2296,7 +2316,7 @@ window.processShoot = function (now) {
     setTimeout(() => d.remove(), 1600);
   }
   function bombPhase(before) {
-    if (before === 'freeze' && bm.phase === 'live') { shopEnd = 0; bombBanner('Раунд ' + bm.round + ' начался', 1800); }
+    if (before === 'freeze' && bm.phase === 'live') { shopEnd = performance.now() + bm.C.shopAfter * 1000; bombBanner('Раунд ' + bm.round + ' начался', 1800); }
     else if (before === 'live' && bm.phase === 'planted') {
       bm.bomb.pos = bPos(bm.bomb.by); bDropPos = null;
       bombBanner('Бомба заложена · точка ' + bm.bomb.site, 2400);
@@ -2356,13 +2376,14 @@ window.processShoot = function (now) {
     if (planting || defusing) { b.walk = false; b.crouch = !!planting; return true; }
     const side = bSide(bm, p), site = bSites.find(s => s.id === b.siteGoal) || bSites[0];
     let goal = null, stop = 1.8;
+    if (side === 'T' && bm.phase === 'live' && !p.hasBomb && b.tr && bm.elapsed < b.tr.delay) { b.walk = false; return true; }
     if (side === 'T') {
       if (bm.phase === 'live') {
         if (p.hasBomb) { goal = new V(site.x, site.y, site.z); stop = 1.2; }
         else if (bm.dropped && bDropPos) goal = new V(bDropPos.x, bDropPos.y, bDropPos.z);
         else goal = bGuard(b, site, 2 + b.gRad);
       } else if (bm.bomb && bm.bomb.pos) goal = bGuard(b, bm.bomb.pos, 4 + b.gRad);
-    } else if (bm.phase === 'live') goal = bGuard(b, site, 2.5 + b.gRad);
+    } else if (bm.phase === 'live') goal = bGuard(b, site, 2.5 + b.gRad + (b.tr && b.tr.style === 'push' ? 8 : 0));
     else if (bm.bomb && bm.bomb.pos) {
       const cts = bots.map((x, i) => ({ x, id: 'b' + i })).filter(o => { const q = bPlayer(bm, o.id); return q && q.alive && bSide(bm, q) === 'CT'; })
         .sort((a, c) => bDist(a.x.mesh.position, bm.bomb.pos) - bDist(c.x.mesh.position, bm.bomb.pos));
@@ -2397,8 +2418,9 @@ window.processShoot = function (now) {
     if (!bm || !bHud) return;
     const p = bMe(), side = bSide(bm, p), now = performance.now();
     const fmt = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
-    document.getElementById('sa').textContent = bm.score.A;
-    document.getElementById('sb').textContent = bm.score.B;
+    const ctTeam = bm.side.A === 'CT' ? 'A' : 'B', tTeam = ctTeam === 'A' ? 'B' : 'A';
+    document.getElementById('sa').textContent = bm.score[ctTeam];
+    document.getElementById('sb').textContent = bm.score[tTeam];
     document.getElementById('st').textContent = fmt(bm.phase === 'planted' ? bm.bomb.t : bm.phase === 'end' || bm.phase === 'over' ? 0 : bm.t);
     bHud.money.innerHTML = '$' + p.money + '<small>' + (side === 'CT' ? 'Спецназ' : 'Террористы') + (p.hasBomb ? ' · бомба у вас' : '') + (p.kit ? ' · сапёр' : '') + '</small>';
     let txt = '';
