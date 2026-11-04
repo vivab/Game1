@@ -282,6 +282,16 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
   .pcard{max-width:30%}.xpbar{width:90px}.cur{padding-right:7px;font-size:14px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.ced{position:fixed;inset:0;z-index:200;background:#0b0f14;touch-action:none;-webkit-user-select:none;user-select:none}
+.ced-stage{position:absolute;inset:0;overflow:hidden;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:5vw 5vw}
+.ced-b{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(190,60,60,.4);color:#fff;display:flex;align-items:center;justify-content:center;font:800 11px sans-serif;text-align:center;touch-action:none;z-index:2}
+.ced-b.on{border-color:#f2b632;box-shadow:0 0 0 3px rgba(242,182,50,.35)}
+.ced-ghost{position:absolute;transform:translate(-50%,-50%);border:1px dashed rgba(255,255,255,.2);color:rgba(255,255,255,.3);font:600 10px sans-serif;display:flex;align-items:center;justify-content:center;pointer-events:none;border-radius:8px}
+.ced-bar{position:absolute;left:0;right:0;top:0;display:flex;gap:10px;align-items:center;padding:8px 14px;background:rgba(10,14,20,.92);z-index:4;color:#fff}
+.ced-hint{color:var(--mute);font-size:12px}
+.ced-panel{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:16px;padding:6px 14px;background:rgba(10,14,20,.94);border:1px solid rgba(255,255,255,.14);border-radius:10px;z-index:4;color:#fff;font:600 13px sans-serif;align-items:center;min-width:60vw}
+.ced-panel .field{flex:1;margin:0}
+.ced-rot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 18px;background:rgba(10,14,20,.95);border:1px solid #f2b632;border-radius:10px;color:#fff;font:700 14px sans-serif;text-align:center;z-index:5;max-width:80vw}
 </style>
 </head>
 <body>
@@ -677,11 +687,52 @@ function modeModal() {
 }
 
 /* ---------- настройки и тестовые кнопки ---------- */
+const CTRL_KEY = 'ctrl_v1';
+const CTRL_BTNS = [
+  { id: 'btn-fire', label: 'Огонь', x: 0.89, y: 0.44, d: 0.127 },
+  { id: 'btn-jump', label: 'Прыжок', x: 0.761, y: 0.804, d: 0.079 },
+  { id: 'btn-crouch', label: 'Присед', x: 0.669, y: 0.804, d: 0.079 },
+  { id: 'btn-reload', label: 'R', x: 0.951, y: 0.132, d: 0.058 },
+  { id: 'cart', label: 'Магазин', x: 0.054, y: 0.846, d: 0.059 }
+];
+const CTRL_GHOSTS = [
+  ['Здоровье', 0.167, 0.239, 0.278, 0.333, 0], ['Счёт', 0.5, 0.081, 0.21, 0.12, 0], ['Мини-карта', 0.899, 0.265, 0.145, 0, 1],
+  ['Патроны', 0.891, 0.803, 0.149, 0.206, 0], ['Джойстик', 0.14, 0.7, 0.2, 0, 1], ['Оружие', 0.645, 0.549, 0.079, 0, 1],
+  ['Настр.', 0.673, 0.099, 0.052, 0, 1], ['Меню', 0.79, 0.138, 0.05, 0, 1]
+];
+const ctrlLoad = () => {
+  let c = {};
+  try { c = JSON.parse(localStorage.getItem(CTRL_KEY)) || {}; } catch (e) {}
+  return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
+};
+const ctrlSave = c => {
+  const o = { sens: c.sens, ads: c.ads, invY: c.invY, btn: {} };
+  Object.keys(c.btn).forEach(k => {
+    const s = c.btn[k];
+    if (s && typeof s.x === 'number' && typeof s.y === 'number') o.btn[k] = { x: +s.x.toFixed(4), y: +s.y.toFixed(4), s: s.s ? +(+s.s).toFixed(3) : 1 };
+  });
+  try { localStorage.setItem(CTRL_KEY, JSON.stringify(o)); } catch (e) {}
+};
+function rangeRow(label, min, max, step, value, show, on) {
+  const out = h('b', { text: show(value) });
+  const inp = document.createElement('input');
+  inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = value; inp.style.width = '100%';
+  inp.addEventListener('input', () => { out.textContent = show(+inp.value); on(+inp.value); });
+  return { row: h('div', { class: 'field' }, h('div', { style: 'display:flex;justify-content:space-between;gap:12px' }, h('span', { text: label }), out), inp), inp, out };
+}
 function settingsModal() {
-  const simBtn = (place, label) => h('button', { class: 'btn', text: label, onclick: () => { closeModal(); simulateMatch(place); } });
-  modal('Настройки и тест', [
-    h('div', { style: 'color:var(--mute);font-size:13px', text: 'Эти кнопки нужны, чтобы проверить меню без настоящего матча.' }),
-    h('div', { class: 'field' }, 'Имитировать матч и показать награды', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, simBtn(1, '1 место'), simBtn(3, '3 место'), simBtn(5, '5 место'), simBtn(2, '0 убийств'))),
+  const c = ctrlLoad();
+  const pct = v => Math.round(v * 100) + '%';
+  const inv = document.createElement('input');
+  inv.type = 'checkbox'; inv.checked = c.invY;
+  inv.addEventListener('change', () => { c.invY = inv.checked; ctrlSave(c); });
+  modal('Настройки', [
+    h('div', { class: 'field' }, h('b', { text: 'Управление' })),
+    rangeRow('Чувствительность камеры', 0.3, 2.5, 0.05, c.sens, pct, v => { c.sens = v; ctrlSave(c); }).row,
+    rangeRow('Чувствительность в прицеле', 0.3, 2, 0.05, c.ads, pct, v => { c.ads = v; ctrlSave(c); }).row,
+    h('label', { class: 'field', style: 'display:flex;align-items:center;gap:10px' }, inv, h('span', { text: 'Инвертировать вертикаль' })),
+    h('div', { class: 'field' }, h('b', { text: 'Интерфейс' }), h('button', { class: 'btn', text: 'Настроить кнопки', onclick: () => { closeModal(); ctrlEditor(); } })),
+    h('div', { style: 'color:var(--mute);font-size:12px;margin-top:6px', text: 'Для тестов' }),
     h('div', { class: 'field' }, 'Добавить', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
       h('button', { class: 'btn', text: '+1000 серебра', onclick: () => { P.silver += 1000; save(); refreshBalances(); toast('+1000 серебра'); } }),
       h('button', { class: 'btn', text: '+100 золота', onclick: () => { P.gold += 100; save(); refreshBalances(); toast('+100 золота'); } }),
@@ -689,19 +740,46 @@ function settingsModal() {
     h('div', { class: 'field' }, 'Данные', h('button', { class: 'btn red', text: 'Сбросить весь профиль', onclick: () => confirmBox('Сбросить профиль?', 'Ник, уровень, инвентарь и статистика будут удалены.', 'Сбросить', () => { P = newProfile(); save(); try { localStorage.removeItem('lastMatch'); } catch (e) {} stack = []; renderMain(); showScreen('main'); toast('Профиль сброшен'); }, true) }))
   ], null);
 }
-function simulateMatch(place) {
-  const pool = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'].sort(() => Math.random() - 0.5);
-  const zero = place === 2, myPlace = zero ? 5 : place, ri = n => Math.floor(Math.random() * n);
-  const kills = zero ? 0 : Math.max(1, 14 - myPlace * 2 + ri(3));
-  const row = (n, t, k, me) => ({ n, t, k, a: ri(5), d: 1 + ri(8), p: 35 + ri(110), me: me ? 1 : 0 });
-  const rows = [row(P.nick, 'A', kills, true)];
-  for (let i = 0; i < 4; i++) rows.push(row(pool[i], 'A', i < myPlace - 1 ? kills + 1 + ri(4) : Math.max(0, kills - 1 - ri(4)), false));
-  for (let i = 0; i < 5; i++) rows.push(row(pool[4 + i], 'B', ri(13), false));
-  const sum = t => rows.filter(r => r.t === t).reduce((a, r) => a + r.k, 0), sA = sum('A'), sB = sum('B');
-  const my = rows[0];
-  showRewards({ place: myPlace, kills, deaths: my.d, assists: my.a, headKills: Math.floor(kills * 0.4), hits: kills * 4 + 6, headHits: Math.floor(kills * 1.6),
-    wk: kills ? { rifle: Math.ceil(kills * 0.6), usp: Math.floor(kills * 0.2), awp: Math.floor(kills * 0.1), knife: Math.floor(kills * 0.1) } : {},
-    win: sA > sB ? 1 : sA < sB ? -1 : 0, rows, sc: { A: sA, B: sB }, map: 'Crid', mode: 'Командный бой', level: P.level, sim: true });
+function ctrlEditor() {
+  const c = ctrlLoad();
+  const pct = v => Math.round(v * 100) + '%';
+  const stage = h('div', { class: 'ced-stage' });
+  const root = h('div', { class: 'ced' }, stage);
+  const els = {};
+  let sel = CTRL_BTNS[0];
+  const cfg = id => c.btn[id] || (c.btn[id] = {});
+  const eff = b => { const s = c.btn[b.id] || {}; return { x: typeof s.x === 'number' ? s.x : b.x, y: typeof s.y === 'number' ? s.y : b.y, s: s.s || 1 }; };
+  const place = b => { const e = eff(b), el = els[b.id], d = b.d * e.s * 100; el.style.left = e.x * 100 + '%'; el.style.top = e.y * 100 + '%'; el.style.width = d + 'vw'; el.style.height = d + 'vw'; };
+  const pin = b => { const s = cfg(b.id), e = eff(b); s.x = e.x; s.y = e.y; s.s = e.s; return s; };
+  CTRL_GHOSTS.forEach(g => {
+    const gh = h('div', { class: 'ced-ghost', text: g[0] });
+    gh.style.left = g[1] * 100 + '%'; gh.style.top = g[2] * 100 + '%'; gh.style.width = g[3] * 100 + 'vw'; gh.style.height = g[5] ? g[3] * 100 + 'vw' : g[4] * 100 + 'vh';
+    if (g[5]) gh.style.borderRadius = '50%';
+    stage.append(gh);
+  });
+  const size = rangeRow('Размер выбранной кнопки', 0.5, 1.8, 0.05, 1, pct, v => { const s = pin(sel); s.s = v; place(sel); ctrlSave(c); });
+  const all = rangeRow('Размер всех кнопок', 0.5, 1.8, 0.05, 1, pct, v => { CTRL_BTNS.forEach(b => { pin(b).s = v; place(b); }); size.inp.value = v; size.out.textContent = pct(v); ctrlSave(c); });
+  const nameEl = h('b', { text: '' });
+  const choose = b => { sel = b; Object.keys(els).forEach(k => els[k].classList.toggle('on', k === b.id)); const v = eff(b).s; size.inp.value = v; size.out.textContent = pct(v); nameEl.textContent = b.label; };
+  CTRL_BTNS.forEach(b => {
+    const el = h('div', { class: 'ced-b', text: b.label });
+    els[b.id] = el; stage.append(el); place(b);
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); choose(b);
+      const r = stage.getBoundingClientRect();
+      try { el.setPointerCapture(e.pointerId); } catch (x) {}
+      const move = ev => { const s = pin(b); s.x = Math.max(0.03, Math.min(0.97, (ev.clientX - r.left) / r.width)); s.y = Math.max(0.12, Math.min(0.95, (ev.clientY - r.top) / r.height)); place(b); };
+      const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up); ctrlSave(c); };
+      el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    });
+  });
+  const reset = () => { c.btn = {}; CTRL_BTNS.forEach(place); choose(sel); all.inp.value = 1; all.out.textContent = '100%'; ctrlSave(c); };
+  stage.append(h('div', { class: 'ced-bar' }, h('b', { text: 'Настройка кнопок' }), h('span', { class: 'ced-hint', text: 'Перетаскивай кнопки пальцем. Нажми на кнопку, чтобы изменить её размер.' }), h('span', { style: 'flex:1' }),
+    h('button', { class: 'btn', text: 'Сбросить', onclick: reset }), h('button', { class: 'btn gold', text: 'Готово', onclick: () => { ctrlSave(c); root.remove(); } })));
+  stage.append(h('div', { class: 'ced-panel' }, nameEl, size.row, all.row));
+  if (innerHeight > innerWidth) stage.append(h('div', { class: 'ced-rot', text: 'Поверни телефон горизонтально: так кнопки встанут так же, как в игре' }));
+  document.body.append(root);
+  choose(CTRL_BTNS[0]);
 }
 
 /* =====================================================================
