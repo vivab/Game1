@@ -14,11 +14,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const CTRL = (() => {
     let c = {};
     try { c = JSON.parse(localStorage.getItem('ctrl_v1')) || {}; } catch (e) {}
-    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
+    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
   })();
+  const CTRL_ALIAS = { gear: ['btn-settings', 'settings-btn', 'btn-gear', 'gear-btn', 'gear', 'settings', 'btn-set'] };
+  const ctrlEl = id => document.getElementById(id) || (CTRL_ALIAS[id] || []).map(a => document.getElementById(a)).find(Boolean) || null;
   function applyControls() {
     Object.keys(CTRL.btn).forEach(id => {
-      const s = CTRL.btn[id], el = document.getElementById(id);
+      const s = CTRL.btn[id], el = ctrlEl(id);
       if (!el || !s || typeof s.x !== 'number' || typeof s.y !== 'number') return;
       el.style.position = 'fixed'; el.style.left = (s.x * 100) + 'vw'; el.style.top = (s.y * 100) + 'vh';
       el.style.right = 'auto'; el.style.bottom = 'auto'; el.style.margin = '0';
@@ -27,6 +29,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   applyControls();
   window.addEventListener('load', applyControls);
+  setInterval(applyControls, 1000);
   let AUTO = false, AUTODONE = false;                                    // автозапуск матча из меню (?play=1)
   if (/[?&]play=1/.test(location.search)) AUTO = true;                  // пришли из меню
   let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
@@ -327,7 +330,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     glock:  { name: 'Glock',        mag: 17, res: 68, int: 190, spd: 6.8, price: 200 },
     p250:   { name: 'P250',         mag: 13, res: 52, int: 170, spd: 6.8, price: 400 }
   };
-  const KNV = { m9: { name: 'M9 Bayonet' }, knife: { name: 'Нож' }, karambit: { name: 'Керамбит' } };
+  const KNV = { m9: { name: 'M9 Bayonet' }, m9cb: { name: 'M9 Bayonet | Cherry Burgundy' }, knife: { name: 'Нож' }, karambit: { name: 'Керамбит' } };
   const PRIM_T = { rifle: 1, awp: 1, m4a4: 1, m16: 1, m249: 1, mossberg: 1, m870: 1 };   // первичные (держатся двумя руками)
   const GUNS = {};                                 // загруженные модели оружия для ботов
   const BW = {      // оружие ботов: интервал выстрела, урон по игроку / по боту, меткость, дальность
@@ -339,12 +342,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     m4a4: { int: 0.13, dp: 8, db: 11, acc: 1, range: 45 }, m16: { int: 0.15, dp: 9, db: 12, acc: 1, range: 48 },
     m249: { int: 0.07, dp: 7, db: 9, acc: 0.7, range: 45 }, mossberg: { int: 0.9, dp: 26, db: 30, acc: 0.85, range: 16, close: 1 },
     m870: { int: 0.85, dp: 24, db: 28, acc: 0.85, range: 16, close: 1 }, p250: { int: 0.3, dp: 11, db: 14, acc: 0.9, range: 28 } });
-  const BWN = { rifle: 'AK-47', awp: 'AWP', m4a4: 'M4A4', m16: 'M16A4', m249: 'M249', mossberg: 'Mossberg 590', m870: 'M870', usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250', m9: 'M9 Bayonet', knife: 'Нож', karambit: 'Керамбит' };
+  const BWN = { rifle: 'AK-47', awp: 'AWP', m4a4: 'M4A4', m16: 'M16A4', m249: 'M249', mossberg: 'Mossberg 590', m870: 'M870', usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250', m9: 'M9 Bayonet', m9cb: 'M9 Bayonet | Cherry Burgundy', knife: 'Нож', karambit: 'Керамбит' };
   const POSE_PISTOL = { rp: -1.25, ry: 0.42, re: -0.2, lp: -1.25, ly: -0.42, le: -0.2 }, POSE_KNIFE = { rp: -0.7, ry: 0.15, re: -1.1, lp: -0.2, ly: -0.1, le: -0.5 };
   const rollWeapon = () => 'rifle';     // реальный набор оружия бот получает в rollLoadout
   function blockGun(type) {                         // простое оружие из блоков для ботов (дуло смотрит в +Z)
     const g = new THREE.Group(), bx = (w, h, d, c, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); o.position.set(x, y, z); g.add(o); };
-    if (type === 'knife' || type === 'karambit' || type === 'm9') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, type === 'karambit' ? 0.14 : 0.2, 0xd0d4da, 0, 0, 0.14); }
+    if (type === 'knife' || type === 'karambit' || type === 'm9' || type === 'm9cb') { bx(0.025, 0.025, 0.12, 0x222222, 0, 0, 0); bx(0.012, 0.045, type === 'karambit' ? 0.14 : 0.2, 0xd0d4da, 0, 0, 0.14); }
     else if (type === 'usp' || type === 'deagle' || type === 'glock' || type === 'p250') {
       const L = { usp: 0.24, deagle: 0.28, glock: 0.22, p250: 0.23 }[type], col = { usp: 0x2b2b2b, deagle: 0xc8ccd2, glock: 0x1f1f22, p250: 0x3a3d44 }[type];
       bx(0.04, 0.05, L, col, 0, 0.03, L / 2 - 0.05); bx(0.035, 0.1, 0.05, 0x222222, 0, -0.03, -0.02);
@@ -879,7 +882,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
       '<div id="wheel"><div id="wk" style="margin-left:-105px"><span>Нож</span></div><div id="wp" style="margin-left:35px"><span>Пистолет</span></div><div id="wr" style="margin-top:47px"><span>Автомат</span></div></div>' +
       '<button id="cart" class="interactive-ui">🛒</button><button id="wsw" class="interactive-ui">AK-47</button>' +
-      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div><div class="it" data-p="p250">P250</div></div><div class="col"><h4>Винтовки и дробовики</h4><div class="it" data-r="rifle">AK-47</div><div class="it" data-r="awp">AWP</div><div class="it" data-r="m4a4">M4A4</div><div class="it" data-r="m16">M16A4</div><div class="it" data-r="m249">M249</div><div class="it" data-r="mossberg">Mossberg 590</div><div class="it" data-r="m870">M870</div></div><div class="col"><h4>Ножи</h4><div class="it" data-k="knife">Нож</div><div class="it" data-k="m9">M9 Bayonet</div></div></div></div>';
+      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div><div class="it" data-p="p250">P250</div></div><div class="col"><h4>Винтовки и дробовики</h4><div class="it" data-r="rifle">AK-47</div><div class="it" data-r="awp">AWP</div><div class="it" data-r="m4a4">M4A4</div><div class="it" data-r="m16">M16A4</div><div class="it" data-r="m249">M249</div><div class="it" data-r="mossberg">Mossberg 590</div><div class="it" data-r="m870">M870</div></div><div class="col"><h4>Ножи</h4><div class="it" data-k="knife">Нож</div><div class="it" data-k="m9">M9 Bayonet</div><div class="it" data-k="m9cb">M9 Bayonet | Cherry Burgundy</div></div></div></div>';
     document.body.appendChild(d);
     const $ = id => document.getElementById(id), shop = $('shop'), cart = $('cart');
     const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
@@ -2119,7 +2122,7 @@ window.processShoot = function (now) {
   }
   function bombCancelDefuse(m) { m.defuse = null; }
   function bombPickup(m, id) { const p = bPlayer(m, id); if (!m.dropped || !p || !p.alive || bSide(m, p) !== 'T') return false; p.hasBomb = true; m.dropped = false; return true; }
-  function bombKillReward(m, weapon) { const r = m.C.reward; return weapon === 'knife' || weapon === 'karambit' || weapon === 'm9' ? r.killKnife : (weapon === 'mossberg' || weapon === 'm870') ? r.killShotgun : weapon === 'awp' ? r.killAwp : r.kill; }
+  function bombKillReward(m, weapon) { const r = m.C.reward; return weapon === 'knife' || weapon === 'karambit' || weapon === 'm9' || weapon === 'm9cb' ? r.killKnife : (weapon === 'mossberg' || weapon === 'm870') ? r.killShotgun : weapon === 'awp' ? r.killAwp : r.kill; }
   function bombDied(m, id, killerId, weapon) {
     const p = bPlayer(m, id); if (!p || !p.alive) return;
     p.alive = false; p.kit = false;
