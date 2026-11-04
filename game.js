@@ -11,6 +11,22 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const MS = { hits: 0, headHits: 0, headKills: 0, wk: {} };            // статистика игрока за матч: попадания, хедшоты, убийства по оружию
   const BOMB = /[?&]mode=bomb/.test(location.search);
   let bm = null, bLk = false;
+  const CTRL = (() => {
+    let c = {};
+    try { c = JSON.parse(localStorage.getItem('ctrl_v1')) || {}; } catch (e) {}
+    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
+  })();
+  function applyControls() {
+    Object.keys(CTRL.btn).forEach(id => {
+      const s = CTRL.btn[id], el = document.getElementById(id);
+      if (!el || !s || typeof s.x !== 'number' || typeof s.y !== 'number') return;
+      el.style.position = 'fixed'; el.style.left = (s.x * 100) + 'vw'; el.style.top = (s.y * 100) + 'vh';
+      el.style.right = 'auto'; el.style.bottom = 'auto'; el.style.margin = '0';
+      el.style.transform = 'translate(-50%,-50%) scale(' + (s.s || 1) + ')';
+    });
+  }
+  applyControls();
+  window.addEventListener('load', applyControls);
   let AUTO = false, AUTODONE = false;                                    // автозапуск матча из меню (?play=1)
   if (/[?&]play=1/.test(location.search)) AUTO = true;                  // пришли из меню
   let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
@@ -225,7 +241,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (SKINS[team]) return SKINS[team];
     const ct = team === 'A', skin = '#e0ac69';
     const U = ct
-      ? { jac: '#1a2a4a', jacL: '#2a4272', jacD: '#0f1a30', pnt: '#152238', pntL: '#21345a', bal: '#5b6068', helm: '#1b2230', glove: '#0b0b0b' }
+      ? { jac: '#1a2a4a', jacL: '#2a4272', jacD: '#0f1a30', pnt: '#152238', pntL: '#21345a', bal: '#5b6068', helm: null, glove: '#0b0b0b' }
       : { jac: '#2e4a2b', jacL: '#436a3d', jacD: '#1b2c19', pnt: '#3a2a1c', pntL: '#503a26', bal: '#131313', helm: null, glove: null };
     const M = t => new THREE.MeshLambertMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.55 });
     const hf = ptex(8, 8, f => {
@@ -251,7 +267,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     return (SKINS[team] = {
       head: [M(hs), M(hs), M(ht), M(hd), M(hf), M(hs)], torso: [M(ts), M(ts), M(tt), M(tbm), M(tf), M(tb)],
       armU: [M(au), M(au), M(at), M(at), M(au), M(au)], armF: [M(af), M(af), M(at), M(ab), M(af), M(af)], leg: [M(ls), M(ls), M(lt), M(lb), M(ls), M(ls)],
-      cap: ct ? new THREE.MeshLambertMaterial({ color: 0x1b2230, emissive: 0x1b2230, emissiveIntensity: 0.5 }) : null
+      cap: null
     });
   }
   function makeMC(team) {
@@ -981,8 +997,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     }, { passive: false });
     window.addEventListener('touchmove', e => {
       for (const t of e.changedTouches) if (t.identifier === lookId || t.identifier === fireId) {
-        cameraYaw -= (t.clientX - lx) * 0.0045 * lookScale;
-        cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch - (t.clientY - ly) * 0.0045 * lookScale));
+        cameraYaw -= (t.clientX - lx) * 0.0045 * CTRL.sens * (scoped ? CTRL.ads : 1) * lookScale;
+        cameraPitch = Math.max(-1.4, Math.min(1.4, cameraPitch - (t.clientY - ly) * 0.0045 * CTRL.sens * (scoped ? CTRL.ads : 1) * (CTRL.invY ? -1 : 1) * lookScale));
         lx = t.clientX; ly = t.clientY;
       }
     }, { passive: false });
