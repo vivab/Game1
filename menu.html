@@ -285,6 +285,7 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 .ced{position:fixed;inset:0;z-index:200;background:#0b0f14;touch-action:none;-webkit-user-select:none;user-select:none}
 .ced-stage{position:absolute;inset:0;overflow:hidden;background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:5vw 5vw}
 .ced-b{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(190,60,60,.4);color:#fff;display:flex;align-items:center;justify-content:center;font:800 11px sans-serif;text-align:center;touch-action:none;z-index:2}
+.ced-b.rect{border-radius:12px}
 .ced-b.on{border-color:#f2b632;box-shadow:0 0 0 3px rgba(242,182,50,.35)}
 .ced-ghost{position:absolute;transform:translate(-50%,-50%);border:1px dashed rgba(255,255,255,.2);color:rgba(255,255,255,.3);font:600 10px sans-serif;display:flex;align-items:center;justify-content:center;pointer-events:none;border-radius:8px}
 .ced-bar{position:absolute;left:0;right:0;top:0;display:flex;gap:10px;align-items:center;padding:8px 14px;background:rgba(10,14,20,.92);z-index:4;color:#fff}
@@ -693,20 +694,24 @@ const CTRL_BTNS = [
   { id: 'btn-jump', label: 'Прыжок', x: 0.761, y: 0.804, d: 0.079 },
   { id: 'btn-crouch', label: 'Присед', x: 0.669, y: 0.804, d: 0.079 },
   { id: 'btn-reload', label: 'R', x: 0.951, y: 0.132, d: 0.058 },
-  { id: 'cart', label: 'Магазин', x: 0.054, y: 0.846, d: 0.059 }
+  { id: 'wsw', label: 'Оружие', x: 0.645, y: 0.549, d: 0.079 },
+  { id: 'ammo-panel', label: 'Патроны', x: 0.891, y: 0.803, d: 0.149, ar: 0.515 },
+  { id: 'cart', label: 'Магазин', x: 0.054, y: 0.846, d: 0.059 },
+  { id: 'sbtn', label: 'Таблица', x: 0.79, y: 0.138, d: 0.05 },
+  { id: 'gear', label: 'Настр.', x: 0.673, y: 0.099, d: 0.052 },
+  { id: 'scb', label: 'Прицел', x: 0.789, y: 0.62, d: 0.066 },
+  { id: 'bact', label: 'Бомба', x: 0.5, y: 0.7, d: 0.27, ar: 0.19 }
 ];
 const CTRL_GHOSTS = [
-  ['Здоровье', 0.167, 0.239, 0.278, 0.333, 0], ['Счёт', 0.5, 0.081, 0.21, 0.12, 0], ['Мини-карта', 0.899, 0.265, 0.145, 0, 1],
-  ['Патроны', 0.891, 0.803, 0.149, 0.206, 0], ['Джойстик', 0.14, 0.7, 0.2, 0, 1], ['Оружие', 0.645, 0.549, 0.079, 0, 1],
-  ['Настр.', 0.673, 0.099, 0.052, 0, 1], ['Меню', 0.79, 0.138, 0.05, 0, 1]
+  ['Здоровье', 0.167, 0.239, 0.278, 0.333, 0], ['Счёт', 0.5, 0.081, 0.21, 0.12, 0], ['Мини-карта', 0.899, 0.265, 0.145, 0, 1], ['Джойстик', 0.14, 0.7, 0.2, 0, 1]
 ];
 const ctrlLoad = () => {
   let c = {};
   try { c = JSON.parse(localStorage.getItem(CTRL_KEY)) || {}; } catch (e) {}
-  return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
+  return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
 };
 const ctrlSave = c => {
-  const o = { sens: c.sens, ads: c.ads, invY: c.invY, btn: {} };
+  const o = { sens: c.sens, ads: c.ads, invY: c.invY, vm: c.vm, vg: c.vg, btn: {} };
   Object.keys(c.btn).forEach(k => {
     const s = c.btn[k];
     if (s && typeof s.x === 'number' && typeof s.y === 'number') o.btn[k] = { x: +s.x.toFixed(4), y: +s.y.toFixed(4), s: s.s ? +(+s.s).toFixed(3) : 1 };
@@ -720,6 +725,13 @@ function rangeRow(label, min, max, step, value, show, on) {
   inp.addEventListener('input', () => { out.textContent = show(+inp.value); on(+inp.value); });
   return { row: h('div', { class: 'field' }, h('div', { style: 'display:flex;justify-content:space-between;gap:12px' }, h('span', { text: label }), out), inp), inp, out };
 }
+function stepRow(label, value, on) {
+  let v = value;
+  const out = h('b', { text: Math.round(v * 100) + '%' });
+  const set = n => { v = Math.max(0, Math.min(1, Math.round(n * 10) / 10)); out.textContent = Math.round(v * 100) + '%'; on(v); };
+  return h('div', { class: 'field', style: 'display:flex;align-items:center;justify-content:space-between;gap:12px' }, h('span', { text: label }),
+    h('span', { style: 'display:flex;align-items:center;gap:10px' }, h('button', { class: 'btn', text: '−', onclick: () => set(v - 0.1) }), out, h('button', { class: 'btn', text: '+', onclick: () => set(v + 0.1) })));
+}
 function settingsModal() {
   const c = ctrlLoad();
   const pct = v => Math.round(v * 100) + '%';
@@ -731,6 +743,9 @@ function settingsModal() {
     rangeRow('Чувствительность камеры', 0.3, 2.5, 0.05, c.sens, pct, v => { c.sens = v; ctrlSave(c); }).row,
     rangeRow('Чувствительность в прицеле', 0.3, 2, 0.05, c.ads, pct, v => { c.ads = v; ctrlSave(c); }).row,
     h('label', { class: 'field', style: 'display:flex;align-items:center;gap:10px' }, inv, h('span', { text: 'Инвертировать вертикаль' })),
+    h('div', { class: 'field' }, h('b', { text: 'Звук' })),
+    stepRow('Звук в меню', c.vm, v => { c.vm = v; ctrlSave(c); }),
+    stepRow('Звук в игре', c.vg, v => { c.vg = v; ctrlSave(c); }),
     h('div', { class: 'field' }, h('b', { text: 'Интерфейс' }), h('button', { class: 'btn', text: 'Настроить кнопки', onclick: () => { closeModal(); ctrlEditor(); } })),
     h('div', { style: 'color:var(--mute);font-size:12px;margin-top:6px', text: 'Для тестов' }),
     h('div', { class: 'field' }, 'Добавить', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
@@ -749,7 +764,7 @@ function ctrlEditor() {
   let sel = CTRL_BTNS[0];
   const cfg = id => c.btn[id] || (c.btn[id] = {});
   const eff = b => { const s = c.btn[b.id] || {}; return { x: typeof s.x === 'number' ? s.x : b.x, y: typeof s.y === 'number' ? s.y : b.y, s: s.s || 1 }; };
-  const place = b => { const e = eff(b), el = els[b.id], d = b.d * e.s * 100; el.style.left = e.x * 100 + '%'; el.style.top = e.y * 100 + '%'; el.style.width = d + 'vw'; el.style.height = d + 'vw'; };
+  const place = b => { const e = eff(b), el = els[b.id]; el.style.left = e.x * 100 + '%'; el.style.top = e.y * 100 + '%'; el.style.width = b.d * e.s * 100 + 'vw'; el.style.height = (b.ar ? b.d * b.ar : b.d) * e.s * 100 + 'vw'; };
   const pin = b => { const s = cfg(b.id), e = eff(b); s.x = e.x; s.y = e.y; s.s = e.s; return s; };
   CTRL_GHOSTS.forEach(g => {
     const gh = h('div', { class: 'ced-ghost', text: g[0] });
@@ -762,7 +777,7 @@ function ctrlEditor() {
   const nameEl = h('b', { text: '' });
   const choose = b => { sel = b; Object.keys(els).forEach(k => els[k].classList.toggle('on', k === b.id)); const v = eff(b).s; size.inp.value = v; size.out.textContent = pct(v); nameEl.textContent = b.label; };
   CTRL_BTNS.forEach(b => {
-    const el = h('div', { class: 'ced-b', text: b.label });
+    const el = h('div', { class: 'ced-b' + (b.ar ? ' rect' : ''), text: b.label });
     els[b.id] = el; stage.append(el); place(b);
     el.addEventListener('pointerdown', e => {
       e.preventDefault(); choose(b);
