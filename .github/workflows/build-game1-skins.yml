@@ -1,0 +1,43 @@
+name: Build approved Game1 weapon skins
+on:
+  push:
+    paths:
+      - 'tools/game1_skin_sources.b85'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install 'numpy==2.3.5' 'Pillow==12.3.0' 'trimesh==4.11.1'
+      - name: Rebuild five original GLBs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64,zlib
+          rows=Path('tools/game1_skin_sources.b85').read_text().splitlines()
+          assert len(rows)==2
+          for fname,row in zip(['_build_ak.py','_build_m4.py'],rows):
+              Path(fname).write_bytes(zlib.decompress(base64.b85decode(row)))
+          PY
+          python _build_ak.py
+          python _build_m4.py
+          for n in ak47_sport ak47_blackview m4a4_standard m4a4_toxic m4a4_blaster; do
+            test -s "skins/$n.glb" || exit 1
+          done
+          ls -l skins/{ak47_sport,ak47_blackview,m4a4_standard,m4a4_toxic,m4a4_blaster}.glb
+      - name: Commit skin files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add skins/{ak47_sport,ak47_blackview,m4a4_standard,m4a4_toxic,m4a4_blaster}.glb
+          git diff --cached --quiet || git commit -m "Add five AK-47 and M4A4 skin models"
+          git push
