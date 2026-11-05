@@ -1,0 +1,35 @@
+name: Add AWP Skill
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/add-awp-skill.yml
+permissions:
+  contents: write
+jobs:
+  add-skin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install generator dependencies
+        run: python -m pip install 'numpy==2.3.5' 'trimesh==4.11.1'
+      - name: Rebuild exact approved GLB
+        run: |
+          python - <<'PY'
+          import base64, zlib
+          payload = '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'
+          source = zlib.decompress(base64.b64decode(payload)).decode('utf-8')
+          exec(compile(source, '<awp-skill>', 'exec'))
+          PY
+      - name: Verify exact file
+        run: echo 'bc7d60037411409213a35329a2c90fd816bbfbeb066148ffb20dac8331f2dfb3  skins/awp_skill.glb' | sha256sum -c -
+      - name: Commit to Game1
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add skins/awp_skill.glb
+          git commit -m "Add AWP Skill skin"
+          git push origin HEAD:main
