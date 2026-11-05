@@ -293,6 +293,26 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 .ced-panel{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:flex;gap:16px;padding:6px 14px;background:rgba(10,14,20,.94);border:1px solid rgba(255,255,255,.14);border-radius:10px;z-index:4;color:#fff;font:600 13px sans-serif;align-items:center;min-width:60vw}
 .ced-panel .field{flex:1;margin:0}
 .ced-rot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 18px;background:rgba(10,14,20,.95);border:1px solid #f2b632;border-radius:10px;color:#fff;font:700 14px sans-serif;text-align:center;z-index:5;max-width:80vw}
+#s-main{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr)!important;gap:4px!important}
+#s-main .top{display:flex!important;align-items:center;gap:10px;min-height:0;grid-column:1!important;grid-row:1!important;padding:6px 10px 0}
+#s-main .pcard{flex:0 1 auto;min-width:0;max-width:30%;padding:0;margin:0;background:none;border:0;box-shadow:none;display:flex;align-items:baseline;gap:6px;text-align:left;white-space:nowrap;overflow:hidden;color:#fff}
+#s-main .pcard .nick{font:700 15px sans-serif;overflow:hidden;text-overflow:ellipsis}
+#s-main .pcard .lv{font:700 12px sans-serif;color:var(--gold,#f2b632)}
+#s-main .pcard .rk{font:600 11px sans-serif;color:var(--mute,#8b97a2)}
+#s-main .pcard .rk:empty{display:none}
+#s-main .side{display:flex!important;flex-direction:row!important;gap:4px;flex:none;position:static!important;grid-column:auto!important;grid-row:auto!important;padding:0;margin:0}
+#s-main .navbtn{position:relative;flex:none;width:52px;height:44px;padding:2px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#e8edf2}
+#s-main .navbtn .ic{width:19px;height:19px}
+#s-main .navbtn em{font:600 8.5px/1 sans-serif;font-style:normal;color:var(--mute,#8b97a2)}
+#s-main .navbtn .bd{position:absolute;top:1px;right:2px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--gold,#f2b632);color:#1a1405;font:700 9px/14px sans-serif;text-align:center}
+#s-main .navbtn .bd:empty{display:none}
+#s-main .bal{margin-left:auto}
+#s-main .stage{grid-column:1!important;grid-row:2!important}
+#s-main .right{display:none!important}
+#s-main .play{position:fixed;right:calc(var(--sr,0px) + 14px);bottom:calc(var(--sb,0px) + 14px);z-index:6;height:48px;min-width:170px;margin:0}
+.item.on{box-shadow:0 0 0 2px var(--gold,#f2b632) inset}
+.ced-grip{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#f2b632;touch-action:none;flex:none;cursor:grab}
+.ced-panel.min .field,.ced-panel.min b{display:none}
 </style>
 </head>
 <body>
@@ -321,22 +341,24 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
   <section class="screen on" id="s-main">
     <header class="top">
       <button class="pcard" id="pcard" aria-label="Профиль"></button>
-      <button class="play" id="btnPlay"><svg class="ic"><use href="#i-play"/></svg><span>ИГРАТЬ</span></button>
+      <nav class="side">
+        <button class="navbtn" id="navInv" aria-label="Инвентарь"><svg class="ic"><use href="#i-inv"/></svg><em>Инвентарь</em><span class="bd" id="invCount"></span></button>
+        <button class="navbtn" id="navMarket" aria-label="Рынок"><svg class="ic"><use href="#i-market"/></svg><em>Рынок</em></button>
+        <button class="navbtn" id="navFr" aria-label="Друзья"><svg class="ic"><use href="#i-users"/></svg><em>Друзья</em><span class="bd" id="frBd"></span></button>
+        <button class="navbtn" id="navSt" aria-label="Статистика"><svg class="ic"><use href="#i-stat"/></svg><em>Статистика</em></button>
+        <button class="navbtn" id="btnGear" aria-label="Настройки"><svg class="ic"><use href="#i-gear"/></svg><em>Настройки</em></button>
+      </nav>
       <div class="bal">
         <span class="cur c" title="Серебро"><i>C</i><b id="balC">0</b></span>
         <span class="cur g" title="Золото"><i>G</i><b id="balG">0</b></span>
-        <button class="iconbtn" id="btnGear" aria-label="Настройки"><svg class="ic"><use href="#i-gear"/></svg></button>
       </div>
     </header>
-    <nav class="side">
-      <button class="navbtn" id="navInv"><svg class="ic"><use href="#i-inv"/></svg>Инвентарь<span class="tag" id="invCount"></span></button>
-      <button class="navbtn" id="navMarket"><svg class="ic"><use href="#i-market"/></svg>Рынок<span class="tag">скоро</span></button>
-    </nav>
     <main class="stage">
       <div id="stageWrap"><canvas id="c3d"></canvas></div>
       <div class="fallback" id="fallback">Не удалось загрузить 3D-модель</div>
       <div class="modechip" id="modeChip">Командный бой<small>5×5</small></div>
     </main>
+    <button class="play" id="btnPlay"><svg class="ic"><use href="#i-play"/></svg><span>ИГРАТЬ</span></button>
     <aside class="right">
       <section class="card friends">
         <div class="hd"><svg class="ic"><use href="#i-users"/></svg>Друзья<span class="cnt" id="frCnt">0</span><span class="sp"></span><button class="go" id="frOpen" aria-label="Управление друзьями"><svg class="ic"><use href="#i-next"/></svg></button></div>
@@ -405,18 +427,33 @@ const RARITY = [
   { id: 'rare',    name: 'Редкий',      color: '#3f95d6', w: 25 },
   { id: 'special', name: 'Особый',      color: '#2f55b8', w: 12 },
   { id: 'epic',    name: 'Эпический',   color: '#7a1fb5', w: 5.5 },
+  { id: 'mythic', name: 'Мифический', color: '#e0316c', w: 2.2 },
   { id: 'legend',  name: 'Легендарный', color: '#b4207a', w: 2 },
   { id: 'secret',  name: 'Тайный',      color: '#c0262b', w: 0.5 }
 ];
 const KNIFE_R = { id: 'knife', name: 'Нож', color: '#e8b83a' };
-const WEAPONS = { rifle: 'AK-47', awp: 'AWP', usp: 'USP-S', glock: 'Glock', deagle: 'Desert Eagle', knife: 'Нож' };
+const WEAPONS = { rifle: 'AK-47', awp: 'AWP', usp: 'USP-S', glock: 'Glock', deagle: 'Desert Eagle', p250: 'P250', knife: 'Нож' };
 
+const SKINS = [
+  { id: 'glock_camo', weapon: 'glock', name: 'Camouflage', rarity: 'common' },
+  { id: 'usp_print', weapon: 'usp', name: 'Print', rarity: 'rare' },
+  { id: 'usp_pink', weapon: 'usp', name: 'PinkStrike', rarity: 'mythic' },
+  { id: 'deagle_mecha', weapon: 'deagle', name: 'Mecha', rarity: 'rare' },
+  { id: 'deagle_ocean', weapon: 'deagle', name: 'Ocean', rarity: 'epic' },
+  { id: 'p250_classic', weapon: 'p250', name: 'Classic', rarity: 'common' }
+];
+const skinById = id => SKINS.find(k => k.id === id) || null;
+const skinTitle = k => (WEAPONS[k.weapon] || k.weapon) + ' | ' + k.name;
+const hasSkins = r => SKINS.some(k => k.rarity === r.id);
+const skinPick = (rarityId, rng) => { const pool = SKINS.filter(k => k.rarity === rarityId); return pool.length ? pool[Math.floor(rng() * pool.length)].id : null; };
+const gunSVG = (w, c) => '<svg viewBox="0 0 120 80" width="100%" height="100%"><rect x="14" y="24" width="88" height="16" rx="3" fill="' + c + '"/><rect x="82" y="40" width="14" height="5" rx="1" fill="' + c + '" opacity=".75"/><polygon points="36,40 64,40 58,68 40,68" fill="' + c + '" opacity=".9"/><rect x="22" y="28" width="52" height="3" fill="#0b0f14" opacity=".35"/></svg>';
 const rndInt = (a, b, rng) => a + Math.floor(rng() * (b - a + 1));
 const rarityById = id => id === 'knife' ? KNIFE_R : (RARITY.find(r => r.id === id) || RARITY[0]);
 function pickRarity(rng) {
-  let x = rng() * RARITY.reduce((s, r) => s + r.w, 0);
-  for (const r of RARITY) { x -= r.w; if (x < 0) return r; }
-  return RARITY[0];
+  const pool = RARITY.filter(hasSkins), list = pool.length ? pool : RARITY;
+  let x = rng() * list.reduce((s, r) => s + r.w, 0);
+  for (const r of list) { x -= r.w; if (x < 0) return r; }
+  return list[0];
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 function addItem(p, it) { p.items.push(Object.assign({ uid: uid() }, it)); }
@@ -427,7 +464,8 @@ function rollXp(place, kills, rng) {
 }
 function skinDrop(rng) {
   if (rng() < CFG.knifeInSkinDrop) return { type: 'skin', rarity: 'knife', knife: true };
-  return { type: 'skin', rarity: pickRarity(rng).id, knife: false };
+  const rr = pickRarity(rng).id;
+  return { type: 'skin', rarity: rr, knife: false, sid: skinPick(rr, rng) };
 }
 function rollDrop(place, rng) {
   const r = rng() * 100;
@@ -459,7 +497,7 @@ function applyMatch(p, m, rng) {             // применяет резуль�
   const xp = rollXp(m.place, m.kills, rng), ups = gainXp(p, xp), drop = rollDrop(m.place, rng);
   if (drop.type === 'silver') p.silver += drop.amount;
   else if (drop.type === 'box') addItem(p, { type: 'box', kind: drop.kind });
-  else addItem(p, { type: 'skin', rarity: drop.rarity, knife: !!drop.knife });
+  else addItem(p, { type: 'skin', rarity: drop.rarity, knife: !!drop.knife, sid: drop.sid || null });
   ups.forEach(u => { p.silver += u.silver; if (u.box) addItem(p, { type: 'box', kind: u.box }); });
   const s = p.stats;
   s.kills += m.kills || 0; s.deaths += m.deaths || 0; s.assists += m.assists || 0;
@@ -470,7 +508,8 @@ function applyMatch(p, m, rng) {             // применяет резуль�
 }
 function openBoxRoll(rng) {                  // что выпадает из ящика (скины пока без названий — показываем «?»)
   if (rng() < CFG.knifeInBox) return { type: 'skin', rarity: 'knife', knife: true };
-  return { type: 'skin', rarity: pickRarity(rng).id, knife: false };
+  const rr = pickRarity(rng).id;
+  return { type: 'skin', rarity: rr, knife: false, sid: skinPick(rr, rng) };
 }
 const ID_KEY = 'id_counter_v1', DEMO_IDS = ['41830027', '58120934', '70391845', '33920718', '82045519'];
 function nextId() {                          // ID по порядку: 0000001, 0000002… (пока без сервера — счётчик на этом устройстве; с онлайном выдавать будет сервер)
@@ -481,7 +520,7 @@ function nextId() {                          // ID по порядку: 0000001,
 function profileDefaults() {
   return {
     id: '', nick: 'Игрок', avatar: 0, avatarImg: null,
-    level: 1, xp: 0, silver: CFG.startSilver, gold: 0, items: [], mode: null, friends: [],
+    level: 1, xp: 0, silver: CFG.startSilver, gold: 0, items: [], equip: {}, mode: null, friends: [],
     stats: { kills: 0, deaths: 0, assists: 0, headKills: 0, hits: 0, headHits: 0, matches: 0, wins: 0, wk: {} }
   };
 }
@@ -504,6 +543,7 @@ function load() {
   for (const k in base) if (p[k] === undefined) p[k] = base[k];
   p.stats = Object.assign({}, base.stats, p.stats); p.stats.wk = p.stats.wk || {};
   if (!Array.isArray(p.items)) p.items = [];
+  if (!p.equip || typeof p.equip !== 'object') p.equip = {};
   p.friends = (Array.isArray(p.friends) ? p.friends : []).filter(f => DEMO_IDS.indexOf(f.id) < 0);       // тестовых друзей больше нет
   if (!/^\d{7}$/.test(p.id)) p.id = nextId();                                                           // старый случайный ID заменяем на порядковый
   else { try { const n = parseInt(p.id, 10), c = parseInt(localStorage.getItem(ID_KEY) || '0', 10) || 0; if (n > c) localStorage.setItem(ID_KEY, String(n)); } catch (e) {} }
@@ -582,9 +622,22 @@ function itemCard(it) {
     const b = CFG.boxes[it.kind] || CFG.boxes.wood;
     return h('button', { class: 'item', onclick: () => push(vCrate(it.kind, it.uid)) }, h('div', { class: 'art', html: boxSVG(it.kind) }), h('div', { class: 'lab', text: b.name }));
   }
-  const r = rarityById(it.rarity);
+  const r = rarityById(it.rarity), sk = skinById(it.sid);
+  if (sk) { const on = P.equip[sk.weapon] === sk.id; return h('button', { class: 'item skin' + (on ? ' on' : ''), style: '--rc:' + r.color, onclick: () => skinModal(it) }, h('div', { class: 'art', html: gunSVG(sk.weapon, r.color) }), h('div', { class: 'lab', text: skinTitle(sk) + (on ? ' ✓' : '') })); }
   return h('button', { class: 'item skin', style: '--rc:' + r.color, onclick: () => toast('Скин «?» · ' + r.name + ' — название появится вместе с коллекцией') },
     h('div', { class: 'art' }, h('span', { class: 'q', text: '?' })), h('div', { class: 'lab', text: it.knife ? 'Нож ?' : 'Скин ?' }));
+}
+function skinModal(it) {
+  const sk = skinById(it.sid), r = rarityById(it.rarity), on = P.equip[sk.weapon] === sk.id;
+  const act = h('button', { class: 'btn gold', text: on ? 'Снять' : 'Надеть', onclick: () => {
+    if (on) delete P.equip[sk.weapon]; else P.equip[sk.weapon] = sk.id;
+    save(); closeModal(); renderTop(); toast(on ? 'Скин снят' : 'Надет: ' + skinTitle(sk));
+  } });
+  modal(skinTitle(sk), [
+    h('div', { class: 'revealq', style: '--rc:' + r.color, html: gunSVG(sk.weapon, r.color) }),
+    h('div', { style: 'text-align:center' }, h('div', { style: 'color:' + r.color + ';font-weight:700', text: r.name }),
+      h('div', { style: 'color:var(--mute);font-size:13px;margin-top:6px', text: 'Скин для ' + WEAPONS[sk.weapon] + '. Появится в руках и в игре.' }))
+  ], [act, h('button', { class: 'btn', text: 'Закрыть', onclick: closeModal })]);
 }
 function ghostTile(r) { return h('div', { class: 'tile', style: '--rc:' + r.color }, h('span', { class: 'q', text: '?' }), h('i')); }
 
@@ -791,7 +844,19 @@ function ctrlEditor() {
   const reset = () => { c.btn = {}; CTRL_BTNS.forEach(place); choose(sel); all.inp.value = 1; all.out.textContent = '100%'; ctrlSave(c); };
   stage.append(h('div', { class: 'ced-bar' }, h('b', { text: 'Настройка кнопок' }), h('span', { class: 'ced-hint', text: 'Перетаскивай кнопки пальцем. Нажми на кнопку, чтобы изменить её размер.' }), h('span', { style: 'flex:1' }),
     h('button', { class: 'btn', text: 'Сбросить', onclick: reset }), h('button', { class: 'btn gold', text: 'Готово', onclick: () => { ctrlSave(c); root.remove(); } })));
-  stage.append(h('div', { class: 'ced-panel' }, nameEl, size.row, all.row));
+  const grip = h('div', { class: 'ced-grip', text: '⠿' }), fold = h('button', { class: 'btn', text: '−', style: 'min-width:34px;padding:4px 8px' });
+  const panel = h('div', { class: 'ced-panel' }, grip, nameEl, size.row, all.row, fold);
+  fold.addEventListener('click', () => { panel.cls.has('min') ? panel.cls.delete('min') : panel.cls.add('min'); panel.className = 'ced-panel' + (panel.cls.has('min') ? ' min' : ''); fold.textContent = panel.cls.has('min') ? '+' : '−'; });
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const r0 = panel.getBoundingClientRect(), dx = e.clientX - r0.left, dy = e.clientY - r0.top;
+    panel.style.transform = 'none'; panel.style.bottom = 'auto'; panel.style.left = r0.left + 'px'; panel.style.top = r0.top + 'px';
+    try { grip.setPointerCapture(e.pointerId); } catch (x) {}
+    const move = ev => { panel.style.left = Math.max(0, Math.min(innerWidth - r0.width, ev.clientX - dx)) + 'px'; panel.style.top = Math.max(0, Math.min(innerHeight - r0.height, ev.clientY - dy)) + 'px'; };
+    const up = () => { grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up); };
+    grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  });
+  stage.append(panel);
   if (innerHeight > innerWidth) stage.append(h('div', { class: 'ced-rot', text: 'Поверни телефон горизонтально: так кнопки встанут так же, как в игре' }));
   document.body.append(root);
   choose(CTRL_BTNS[0]);
@@ -807,15 +872,13 @@ function refreshBalances() {
 }
 function renderMain() {
   const pc = $('#pcard'); pc.replaceChildren();
-  pc.append(avatarFor(P, 46, 'av'),
-    h('div', { class: 'meta' }, h('div', { class: 'nick' }, P.nick, medalEl(P.level)), h('div', { class: 'pid', text: 'ID: ' + P.id }), h('div', { class: 'xpbar' }, h('i', { style: 'width:' + xpPct() + '%' }))),
-    h('span', { class: 'lvl', text: String(P.level) }));
+  pc.append(h('span', { class: 'nick', text: P.nick }), h('span', { class: 'lv', text: 'Ур. ' + P.level }), h('span', { class: 'rk', text: '' }));
   refreshBalances();
-  $('#invCount').textContent = P.items.length ? 'предметов: ' + P.items.length : 'пусто';
+  $('#invCount').textContent = P.items.length ? String(P.items.length) : '';
   $('#modeChip').replaceChildren('Командный бой', h('small', { text: '5×5' }));
   // друзья
   const fl = $('#frList'); fl.replaceChildren();
-  $('#frCnt').textContent = String(P.friends.length);
+  $('#frCnt').textContent = String(P.friends.length); $('#frBd').textContent = P.friends.length ? String(P.friends.length) : '';
   P.friends.forEach(f => fl.append(friendRow(f, false)));
   if (!P.friends.length) fl.append(h('div', { style: 'padding:14px;color:var(--mute);font-size:13px', text: 'Друзей пока нет. Добавь по ID — кнопка со стрелкой выше.' }));
   // мини-статистика
@@ -882,7 +945,7 @@ function openBox(boxUid, strip, track) {
   if (spinning) return;
   const idx = P.items.findIndex(i => i.uid === boxUid); if (idx < 0) return;
   const res = openBoxRoll(Math.random), r = rarityById(res.rarity);
-  P.items.splice(idx, 1); addItem(P, { type: 'skin', rarity: res.rarity, knife: !!res.knife }); save();
+  P.items.splice(idx, 1); addItem(P, { type: 'skin', rarity: res.rarity, knife: !!res.knife, sid: res.sid || null }); save();
   spinning = true; $('#subBack').style.pointerEvents = 'none';
   const N = 42, stop = 34, tw = 88, gap = 8; track.replaceChildren();
   for (let i = 0; i < N; i++) track.append(ghostTile(i === stop ? r : (Math.random() < 0.08 ? KNIFE_R : pickRarity(Math.random))));
@@ -895,9 +958,10 @@ function openBox(boxUid, strip, track) {
   setTimeout(fin, 4800);
 }
 function revealSkin(res, r) {
+  const rs = skinById(res.sid);
   modal('Вам выпало', [
-    h('div', { class: 'revealq', style: '--rc:' + r.color }, ghostTile(r)),
-    h('div', { style: 'text-align:center' }, h('b', { style: 'font:400 20px var(--head)', text: res.knife ? 'Нож «?»' : 'Скин «?»' }), h('div', { style: 'color:' + r.color + ';font-weight:700;margin-top:2px', text: r.name }),
+    h('div', { class: 'revealq', style: '--rc:' + r.color }, rs ? h('div', { class: 'tile', style: '--rc:' + r.color, html: gunSVG(rs.weapon, r.color) }) : ghostTile(r)),
+    h('div', { style: 'text-align:center' }, h('b', { style: 'font:400 20px var(--head)', text: rs ? skinTitle(rs) : (res.knife ? 'Нож «?»' : 'Скин «?»') }), h('div', { style: 'color:' + r.color + ';font-weight:700;margin-top:2px', text: r.name }),
       h('div', { style: 'color:var(--mute);font-size:13px;margin-top:6px', text: 'Предмет добавлен в инвентарь. Название появится вместе с коллекцией.' }))
   ], [h('button', { class: 'btn gold', text: 'Забрать', onclick: closeModal })], () => { stack.pop(); renderTop(); });   // после закрытия возвращаемся на экран, откуда открывали
 }
@@ -1012,7 +1076,7 @@ function rewardCard(name, avNode, d, me) {
   let art, label, col = '';
   if (d.type === 'silver') { art = h('div', { class: 'ra' }, h('span', { html: COIN_SVG, style: 'display:contents' })); label = String(d.amount); }
   else if (d.type === 'box') { art = h('div', { class: 'ra bx', html: boxSVG(d.kind) }); label = 'Ящик'; }
-  else { art = h('div', { class: 'ra' }, h('span', { class: 'q', text: '?' })); label = d.knife ? 'Нож ?' : 'Скин ?'; col = rarityById(d.rarity).color; }
+  else { const sk = skinById(d.sid); col = rarityById(d.rarity).color; art = sk ? h('div', { class: 'ra', html: gunSVG(sk.weapon, col) }) : h('div', { class: 'ra' }, h('span', { class: 'q', text: '?' })); label = sk ? skinTitle(sk) : (d.knife ? 'Нож ?' : 'Скин ?'); }
   return h('div', { class: 'rc2' + (me ? ' me' : '') }, h('div', { class: 'rh' }, avNode, h('span', { text: name })), art,
     h('div', { class: 'rb', style: col ? '--rcol:' + col : '' }, h('span', { text: label })));
 }
@@ -1182,6 +1246,8 @@ function init() {
   $('#navInv').addEventListener('click', () => push(vInventory()));
   $('#navMarket').addEventListener('click', () => push(vMarket()));
   $('#frOpen').addEventListener('click', () => push(vFriends()));
+$('#navFr').addEventListener('click', () => push(vFriends()));
+$('#navSt').addEventListener('click', () => push(vStats()));
   $('#stOpen').addEventListener('click', () => push(vStats()));
   $('#subBack').addEventListener('click', back);
   $('#tabStat').addEventListener('click', () => { if (RES) { RES.tab = RES.tab === 'stat' ? 'res' : 'stat'; renderResult(); } });
