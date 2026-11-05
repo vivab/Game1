@@ -16,6 +16,15 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     try { c = JSON.parse(localStorage.getItem('ctrl_v1')) || {}; } catch (e) {}
     return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
   })();
+  const SKIN_OF = { glock_camo: 'glock', usp_print: 'usp', usp_pink: 'usp', deagle_mecha: 'deagle', deagle_ocean: 'deagle', p250_classic: 'p250' };
+  const EQ = (() => { try { const p = JSON.parse(localStorage.getItem('profile_v1')) || {}; return p.equip && typeof p.equip === 'object' ? p.equip : {}; } catch (e) { return {}; } })();
+  const skinKey = n => (EQ[n] && SKIN_OF[EQ[n]] === n ? EQ[n] : n);
+  const WSW_ICON = {
+    knife: '<svg viewBox="0 0 40 24" width="34" height="22"><path d="M2 14 L26 8 L38 11 L26 15 L8 17 Z" fill="#fff"/><rect x="2" y="13" width="9" height="5" rx="1" fill="#9fb0c0"/></svg>',
+    pistol: '<svg viewBox="0 0 40 24" width="30" height="22"><rect x="6" y="4" width="28" height="7" rx="2" fill="#fff"/><polygon points="12,11 21,11 19,21 13,21" fill="#fff" opacity=".9"/></svg>',
+    rifle: '<svg viewBox="0 0 40 24" width="36" height="22"><path d="M1 11h9l3-3h14l4 3h8v3H20l-2 7h-5l1-7H6l-5-2z" fill="#fff"/></svg>'
+  };
+  function wswIcon() { const sw = document.getElementById('wsw'); if (sw) sw.innerHTML = WSW_ICON[curW] || WSW_ICON.rifle; }
   const CTRL_ALIAS = { gear: ['btn-settings', 'settings-btn', 'btn-gear', 'gear-btn', 'gear', 'settings', 'btn-set'] };
   const ctrlEl = id => document.getElementById(id) || (CTRL_ALIAS[id] || []).map(a => document.getElementById(a)).find(Boolean) || null;
   function applyControls() {
@@ -786,12 +795,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     curW = slot;
     const w = slot === 'rifle' ? PRIM[loadout.primary] : slot === 'pistol' ? PIST[loadout.pistol] : WS[slot], st = store[slot] || { mag: 0, res: 0 };
     player.maxMag = w.mag; player.ammoInMag = st.mag; player.reserveAmmo = st.res; player.shootInterval = w.int; player.isReloading = false;
-    document.getElementById('weapon-name').innerText = wname(); updateUI();
-    const sw = document.getElementById('wsw'); if (sw) sw.textContent = wname();
-    if (window.HW_set) window.HW_set(slot === 'pistol' ? loadout.pistol : slot === 'rifle' ? loadout.primary : slot === 'knife' ? (loadout.knife || 'knife') : slot);
+    document.getElementById('weapon-name').innerText = ''; updateUI();
+    wswIcon();
+    if (window.HW_set) window.HW_set(slot === 'pistol' ? skinKey(loadout.pistol) : slot === 'rifle' ? loadout.primary : slot === 'knife' ? (loadout.knife || 'knife') : slot);
   }
   window.GAME_SET = n => {                          // переключение из ⚙ тоже меняет оружие в игре (нож бьёт, а не стреляет)
-    if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); document.getElementById('wsw').textContent = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
+    if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = ''; wswIcon(); if (window.HW_set) window.HW_set(skinKey(n)); } else equip('pistol'); }
     else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
   };
   function resetLoadout() {
@@ -810,7 +819,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       if (curW !== w) return;
       const take = Math.min(player.maxMag - player.ammoInMag, player.reserveAmmo);
       player.ammoInMag += take; player.reserveAmmo -= take; player.isReloading = false;
-      document.getElementById('weapon-name').innerText = wname(); updateUI();
+      document.getElementById('weapon-name').innerText = ''; updateUI();
     }, w === 'pistol' ? 1200 : 1500);
   };
   function knifeHit(now) {
@@ -1248,7 +1257,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       if (curW !== w) return;
       const take = Math.min(player.maxMag - player.ammoInMag, player.reserveAmmo);
       player.ammoInMag += take; player.reserveAmmo -= take; player.isReloading = false;
-      document.getElementById('weapon-name').innerText = wname(); updateUI();
+      document.getElementById('weapon-name').innerText = ''; updateUI();
     }, ms);
   };
   window.processShoot = function (now) {
