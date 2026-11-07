@@ -295,24 +295,43 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 .ced-rot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 18px;background:rgba(10,14,20,.95);border:1px solid #f2b632;border-radius:10px;color:#fff;font:700 14px sans-serif;text-align:center;z-index:5;max-width:80vw}
 #s-main{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr)!important;gap:4px!important}
 #s-main .top{display:flex!important;align-items:center;gap:10px;min-height:0;grid-column:1!important;grid-row:1!important;padding:6px 10px 0}
-#s-main .pcard{flex:0 1 auto;min-width:0;max-width:30%;padding:0;margin:0;background:none;border:0;box-shadow:none;display:flex;align-items:baseline;gap:6px;text-align:left;white-space:nowrap;overflow:hidden;color:#fff}
-#s-main .pcard .nick{font:700 15px sans-serif;overflow:hidden;text-overflow:ellipsis}
-#s-main .pcard .lv{font:700 12px sans-serif;color:var(--gold,#f2b632)}
-#s-main .pcard .rk{font:600 11px sans-serif;color:var(--mute,#8b97a2)}
-#s-main .pcard .rk:empty{display:none}
-#s-main .side{display:flex!important;flex-direction:row!important;gap:4px;flex:none;position:static!important;grid-column:auto!important;grid-row:auto!important;padding:0;margin:0}
-#s-main .navbtn{position:relative;flex:none;width:52px;height:44px;padding:2px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#e8edf2}
-#s-main .navbtn .ic{width:19px;height:19px}
+#s-main .top .sp{flex:1}
+#s-main .bal{margin-left:auto}
+#s-main .side{position:absolute!important;left:calc(var(--sl,0px) + 8px);top:54px;z-index:5;display:flex!important;flex-direction:column!important;gap:6px;padding:0;margin:0}
+#s-main .navbtn{position:relative;flex:none;width:56px;height:50px;padding:2px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#e8edf2}
+#s-main .navbtn .ic{width:20px;height:20px}
 #s-main .navbtn em{font:600 8.5px/1 sans-serif;font-style:normal;color:var(--mute,#8b97a2)}
 #s-main .navbtn .bd{position:absolute;top:1px;right:2px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--gold,#f2b632);color:#1a1405;font:700 9px/14px sans-serif;text-align:center}
 #s-main .navbtn .bd:empty{display:none}
-#s-main .bal{margin-left:auto}
-#s-main .stage{grid-column:1!important;grid-row:2!important}
+#s-main .stage{position:relative;grid-column:1!important;grid-row:2!important}
+#s-main .pcard{position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:4;margin:0;max-width:62%}
 #s-main .right{display:none!important}
 #s-main .play{position:fixed;right:calc(var(--sr,0px) + 14px);bottom:calc(var(--sb,0px) + 14px);z-index:6;height:48px;min-width:170px;margin:0}
 .item.on{box-shadow:0 0 0 2px var(--gold,#f2b632) inset}
 .ced-grip{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#f2b632;touch-action:none;flex:none;cursor:grab}
 .ced-panel.min .field,.ced-panel.min b{display:none}
+.sx{position:fixed;inset:0;z-index:150;background:rgba(8,11,16,.98);display:flex;flex-direction:column;color:#e8edf2}
+.sx-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.08);font-size:17px}
+.sx-main{flex:1;min-height:0;display:flex}
+.sx-nav{width:30%;max-width:220px;padding:10px;display:flex;flex-direction:column;gap:8px;border-right:1px solid rgba(255,255,255,.08)}
+.sx-tab{padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#cfd8e0;font:600 15px sans-serif;text-align:left}
+.sx-tab.on{background:linear-gradient(135deg,#f2b632,#d8921c);color:#1a1405;border-color:transparent}
+.sx-body{flex:1;min-width:0;overflow-y:auto;padding:12px 18px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.srow .sl{font:600 14px sans-serif}
+.seg{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.sg{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#cfd8e0;font:600 13px sans-serif}
+.sg.on{background:#f2b632;color:#1a1405;border-color:#f2b632}
+.sx-card{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)}
+.sx-k{color:#8b97a2;font:600 12px sans-serif}.sx-v{font:600 15px sans-serif;margin-top:3px}
+.sx-sub{margin-top:8px;color:#8b97a2;font:600 12px sans-serif}
+.btn.danger{background:rgba(190,50,50,.25);border-color:rgba(255,90,90,.5);color:#ffb0b0}
+.xh-prev{position:relative;width:240px;height:150px;border-radius:12px;background:linear-gradient(135deg,#2a3340,#3b4656);flex:none;overflow:hidden}
+.xh-sw{display:flex;gap:8px}.xh-c{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.3)}.xh-c.on{border-color:#fff;box-shadow:0 0 0 2px #f2b632}
+.mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.mkbar{display:flex;gap:8px;margin-bottom:10px}
+.mkp{margin-top:4px;color:#f2b632;font:700 13px sans-serif}
+.tile svg,.revealq svg{width:70%;height:70%}
 </style>
 </head>
 <body>
@@ -339,21 +358,19 @@ input{font:inherit;color:var(--text);-webkit-user-select:text;user-select:text}
 <div id="app">
   <!-- ГЛАВНЫЙ ЭКРАН -->
   <section class="screen on" id="s-main">
-    <header class="top">
-      <button class="pcard" id="pcard" aria-label="Профиль"></button>
-      <nav class="side">
+    <header class="top"><span class="sp"></span><div class="bal">
+        <span class="cur c" title="Серебро"><i>C</i><b id="balC">0</b></span>
+        <span class="cur g" title="Золото"><i>G</i><b id="balG">0</b></span>
+      </div></header>
+    <nav class="side">
         <button class="navbtn" id="navInv" aria-label="Инвентарь"><svg class="ic"><use href="#i-inv"/></svg><em>Инвентарь</em><span class="bd" id="invCount"></span></button>
         <button class="navbtn" id="navMarket" aria-label="Рынок"><svg class="ic"><use href="#i-market"/></svg><em>Рынок</em></button>
         <button class="navbtn" id="navFr" aria-label="Друзья"><svg class="ic"><use href="#i-users"/></svg><em>Друзья</em><span class="bd" id="frBd"></span></button>
         <button class="navbtn" id="navSt" aria-label="Статистика"><svg class="ic"><use href="#i-stat"/></svg><em>Статистика</em></button>
         <button class="navbtn" id="btnGear" aria-label="Настройки"><svg class="ic"><use href="#i-gear"/></svg><em>Настройки</em></button>
       </nav>
-      <div class="bal">
-        <span class="cur c" title="Серебро"><i>C</i><b id="balC">0</b></span>
-        <span class="cur g" title="Золото"><i>G</i><b id="balG">0</b></span>
-      </div>
-    </header>
     <main class="stage">
+      <button class="pcard" id="pcard" aria-label="Профиль"></button>
       <div id="stageWrap"><canvas id="c3d"></canvas></div>
       <div class="fallback" id="fallback">Не удалось загрузить 3D-модель</div>
       <div class="modechip" id="modeChip">Командный бой<small>5×5</small></div>
@@ -412,8 +429,8 @@ const CFG = {
   xpByPlace: p => p === 1 ? [250, 500] : p <= 3 ? [200, 400] : [100, 200],   // опыт за место в команде (0 убийств = 0 опыта)
   dropFirst: { pSilver: 70, silver: [50, 70], pBox: 29 },                      // 1 место: 70% серебро, 29% ящик, остальное (1%) — скин
   dropOther: { pSilver: 90, silver: [20, 50] },                                // 2–5 места: 90% серебро, 10% ящик
-  knifeInSkinDrop: 0.01,                     // шанс ножа среди выпавших скинов (1/100 от 1% = 1 из 10 000 за матч)
-  knifeInBox: 0.001,                         // шанс ножа при открытии ящика (ВРЕМЕННО)
+  knifeInSkinDrop: 0,                     // шанс ножа среди выпавших скинов (1/100 от 1% = 1 из 10 000 за матч)
+  knifeInBox: 0,                         // шанс ножа при открытии ящика (ВРЕМЕННО)
   maxFriends: 100,                            // предел друзей (в интерфейсе не показывается)
   medalEvery: 100,                           // медаль за каждые 100 уровней (рядом с ником)
   startSilver: 300,
@@ -423,16 +440,15 @@ const CFG = {
   }
 };
 const RARITY = [
-  { id: 'common',  name: 'Обычный',     color: '#8b97a2', w: 55 },
-  { id: 'rare',    name: 'Редкий',      color: '#3f95d6', w: 25 },
-  { id: 'special', name: 'Особый',      color: '#2f55b8', w: 12 },
-  { id: 'epic',    name: 'Эпический',   color: '#7a1fb5', w: 5.5 },
-  { id: 'mythic', name: 'Мифический', color: '#e0316c', w: 2.2 },
-  { id: 'legend',  name: 'Легендарный', color: '#b4207a', w: 2 },
-  { id: 'secret',  name: 'Тайный',      color: '#c0262b', w: 0.5 }
+  { id: 'common',   name: 'Обычный',     color: '#8b97a2', w: 50 },
+  { id: 'improved', name: 'Улучшенный',  color: '#4fbf7a', w: 28 },
+  { id: 'rare',     name: 'Редкий',      color: '#3f95d6', w: 14 },
+  { id: 'epic',     name: 'Эпический',   color: '#8a3fd0', w: 6 },
+  { id: 'mythic',   name: 'Мифический',  color: '#e0316c', w: 1.8 },
+  { id: 'legend',   name: 'Легендарный', color: '#f0b030', w: 0.5 }
 ];
 const KNIFE_R = { id: 'knife', name: 'Нож', color: '#e8b83a' };
-const WEAPONS = { rifle: 'AK-47', awp: 'AWP', usp: 'USP-S', glock: 'Glock', deagle: 'Desert Eagle', p250: 'P250', knife: 'Нож' };
+const WEAPONS = { rifle: 'AK-47', awp: 'AWP', usp: 'USP-S', glock: 'Glock', deagle: 'Desert Eagle', p250: 'P250', m9: 'M9 Bayonet', knife: 'Нож' };
 
 const SKINS = [
   { id: 'glock_camo', weapon: 'glock', name: 'Camouflage', rarity: 'common' },
@@ -440,18 +456,27 @@ const SKINS = [
   { id: 'usp_pink', weapon: 'usp', name: 'PinkStrike', rarity: 'mythic' },
   { id: 'deagle_mecha', weapon: 'deagle', name: 'Mecha', rarity: 'rare' },
   { id: 'deagle_ocean', weapon: 'deagle', name: 'Ocean', rarity: 'epic' },
-  { id: 'p250_classic', weapon: 'p250', name: 'Classic', rarity: 'common' }
+  { id: 'p250_classic', weapon: 'p250', name: 'Classic', rarity: 'common' },
+  { id: 'm9cb', weapon: 'm9', name: 'Cherry Burgundy', rarity: 'legend' }
 ];
 const skinById = id => SKINS.find(k => k.id === id) || null;
 const skinTitle = k => (WEAPONS[k.weapon] || k.weapon) + ' | ' + k.name;
 const hasSkins = r => SKINS.some(k => k.rarity === r.id);
 const skinPick = (rarityId, rng) => { const pool = SKINS.filter(k => k.rarity === rarityId); return pool.length ? pool[Math.floor(rng() * pool.length)].id : null; };
-const gunSVG = (w, c) => '<svg viewBox="0 0 120 80" width="100%" height="100%"><rect x="14" y="24" width="88" height="16" rx="3" fill="' + c + '"/><rect x="82" y="40" width="14" height="5" rx="1" fill="' + c + '" opacity=".75"/><polygon points="36,40 64,40 58,68 40,68" fill="' + c + '" opacity=".9"/><rect x="22" y="28" width="52" height="3" fill="#0b0f14" opacity=".35"/></svg>';
+const gunSVG = (w, c) => {
+  const f = 'fill="' + c + '"';
+  let body;
+  if (w === 'm9') body = '<path d="M10 54 L92 34 L112 40 L92 47 L28 60 Z" ' + f + '/><rect x="6" y="50" width="28" height="11" rx="3" ' + f + ' opacity=".85"/><rect x="34" y="52" width="6" height="9" ' + f + ' opacity=".6"/><path d="M40 52 L92 38" stroke="#0b0f14" stroke-opacity=".35" stroke-width="2"/>';
+  else if (w === 'deagle') body = '<rect x="8" y="20" width="104" height="22" rx="3" ' + f + '/><polygon points="34,42 72,42 64,74 38,74" ' + f + ' opacity=".9"/><rect x="84" y="42" width="18" height="6" ' + f + ' opacity=".7"/><rect x="16" y="26" width="68" height="4" fill="#0b0f14" opacity=".35"/>';
+  else if (w === 'glock' || w === 'p250') body = '<rect x="16" y="24" width="84" height="15" rx="2" ' + f + '/><polygon points="40,39 66,39 59,68 42,68" ' + f + ' opacity=".9"/><rect x="60" y="39" width="14" height="5" ' + f + ' opacity=".7"/><rect x="24" y="28" width="50" height="3" fill="#0b0f14" opacity=".35"/>';
+  else body = '<rect x="14" y="24" width="88" height="16" rx="3" ' + f + '/><rect x="82" y="40" width="14" height="5" rx="1" ' + f + ' opacity=".75"/><polygon points="36,40 64,40 58,68 40,68" ' + f + ' opacity=".9"/><rect x="22" y="28" width="52" height="3" fill="#0b0f14" opacity=".35"/>';
+  return '<svg viewBox="0 0 120 80" width="100%" height="100%">' + body + '</svg>';
+};
 const rndInt = (a, b, rng) => a + Math.floor(rng() * (b - a + 1));
 const rarityById = id => id === 'knife' ? KNIFE_R : (RARITY.find(r => r.id === id) || RARITY[0]);
-function pickRarity(rng) {
-  const pool = RARITY.filter(hasSkins), list = pool.length ? pool : RARITY;
-  let x = rng() * list.reduce((s, r) => s + r.w, 0);
+function pickRarity(rng, minIdx) {
+  const have = RARITY.filter(hasSkins), pool = have.filter(r => RARITY.indexOf(r) >= (minIdx || 0)), list = pool.length ? pool : (have.length ? have : RARITY);
+  let x = rng() * list.reduce((t, r) => t + r.w, 0);
   for (const r of list) { x -= r.w; if (x < 0) return r; }
   return list[0];
 }
@@ -506,9 +531,9 @@ function applyMatch(p, m, rng) {             // применяет резуль�
   Object.keys(m.wk || {}).forEach(k => { s.wk[k] = (s.wk[k] || 0) + m.wk[k]; });
   return { m, xp, startLevel, startXp, endLevel: p.level, endXp: p.xp, ups, drop };
 }
-function openBoxRoll(rng) {                  // что выпадает из ящика (скины пока без названий — показываем «?»)
+function openBoxRoll(rng, premium) {                  // что выпадает из ящика (скины пока без названий — показываем «?»)
   if (rng() < CFG.knifeInBox) return { type: 'skin', rarity: 'knife', knife: true };
-  const rr = pickRarity(rng).id;
+  const rr = pickRarity(rng, premium ? 2 : 0).id;
   return { type: 'skin', rarity: rr, knife: false, sid: skinPick(rr, rng) };
 }
 const ID_KEY = 'id_counter_v1', DEMO_IDS = ['41830027', '58120934', '70391845', '33920718', '82045519'];
@@ -639,15 +664,9 @@ function skinModal(it) {
       h('div', { style: 'color:var(--mute);font-size:13px;margin-top:6px', text: 'Скин для ' + WEAPONS[sk.weapon] + '. Появится в руках и в игре.' }))
   ], [act, h('button', { class: 'btn', text: 'Закрыть', onclick: closeModal })]);
 }
-function ghostTile(r) { return h('div', { class: 'tile', style: '--rc:' + r.color }, h('span', { class: 'q', text: '?' }), h('i')); }
-
-/* =====================================================================
-   НАВИГАЦИЯ: главный экран + стек подэкранов
-   ===================================================================== */
-let stack = [];
-function showScreen(name) {
-  ['main', 'sub', 'res'].forEach(n => $('#s-' + n).classList.toggle('on', n === name));
-  if (name === 'main') startStage(); else stopStage();
+function ghostTile(r) {
+  const pool = SKINS.filter(k => k.rarity === r.id), k = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+  return h('div', { class: 'tile', style: '--rc:' + r.color, html: gunSVG(k ? k.weapon : 'usp', r.color) });
 }
 function renderTop() {
   const v = stack[stack.length - 1];
@@ -742,6 +761,7 @@ function modeModal() {
 
 /* ---------- настройки и тестовые кнопки ---------- */
 const CTRL_KEY = 'ctrl_v1';
+const GFX_DEF = { tex: 'mid', model: 'mid', res: 'high', fps: 'max' }, XH_DEF = { on: false, color: '#3dff3d', size: 10, thick: 2, gap: 4, dot: false, op: 1 };
 const CTRL_BTNS = [
   { id: 'btn-fire', label: 'Огонь', x: 0.89, y: 0.44, d: 0.127 },
   { id: 'btn-jump', label: 'Прыжок', x: 0.761, y: 0.804, d: 0.079 },
@@ -753,7 +773,9 @@ const CTRL_BTNS = [
   { id: 'sbtn', label: 'Таблица', x: 0.79, y: 0.138, d: 0.05 },
   { id: 'gear', label: 'Настр.', x: 0.673, y: 0.099, d: 0.052 },
   { id: 'scb', label: 'Прицел', x: 0.789, y: 0.62, d: 0.066 },
-  { id: 'bact', label: 'Бомба', x: 0.5, y: 0.7, d: 0.27, ar: 0.19 }
+  { id: 'bact', label: 'Бомба', x: 0.5, y: 0.7, d: 0.27, ar: 0.19 },
+  { id: 'bdrop', label: 'Бросить', x: 0.575, y: 0.549, d: 0.06 },
+  { id: 'bpick', label: 'Подобрать', x: 0.5, y: 0.62, d: 0.2, ar: 0.2 }
 ];
 const CTRL_GHOSTS = [
   ['Здоровье', 0.167, 0.239, 0.278, 0.333, 0], ['Счёт', 0.5, 0.081, 0.21, 0.12, 0], ['Мини-карта', 0.899, 0.265, 0.145, 0, 1], ['Джойстик', 0.14, 0.7, 0.2, 0, 1]
@@ -761,10 +783,10 @@ const CTRL_GHOSTS = [
 const ctrlLoad = () => {
   let c = {};
   try { c = JSON.parse(localStorage.getItem(CTRL_KEY)) || {}; } catch (e) {}
-  return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
+  return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, autoPick: c.autoPick !== false, gfx: Object.assign({}, GFX_DEF, c.gfx || {}), xh: Object.assign({}, XH_DEF, c.xh || {}), btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
 };
 const ctrlSave = c => {
-  const o = { sens: c.sens, ads: c.ads, invY: c.invY, vm: c.vm, vg: c.vg, btn: {} };
+  const o = { sens: c.sens, ads: c.ads, invY: c.invY, vm: c.vm, vg: c.vg, autoPick: c.autoPick, gfx: c.gfx, xh: c.xh, btn: {} };
   Object.keys(c.btn).forEach(k => {
     const s = c.btn[k];
     if (s && typeof s.x === 'number' && typeof s.y === 'number') o.btn[k] = { x: +s.x.toFixed(4), y: +s.y.toFixed(4), s: s.s ? +(+s.s).toFixed(3) : 1 };
@@ -785,28 +807,93 @@ function stepRow(label, value, on) {
   return h('div', { class: 'field', style: 'display:flex;align-items:center;justify-content:space-between;gap:12px' }, h('span', { text: label }),
     h('span', { style: 'display:flex;align-items:center;gap:10px' }, h('button', { class: 'btn', text: '−', onclick: () => set(v - 0.1) }), out, h('button', { class: 'btn', text: '+', onclick: () => set(v + 0.1) })));
 }
+function segRow(label, opts, value, on) {
+  const wrap = h('div', { class: 'seg' }), btns = [];
+  opts.forEach(o => {
+    const b = h('button', { class: 'sg' + (String(o[0]) === String(value) ? ' on' : ''), text: o[1], onclick: () => { btns.forEach(x => x.classList.toggle('on', x === b)); on(o[0]); } });
+    btns.push(b); wrap.append(b);
+  });
+  return h('div', { class: 'srow' }, h('span', { class: 'sl', text: label }), wrap);
+}
+function toggleRow(label, value, on) {
+  let v = value;
+  const b = h('button', { class: 'sg' + (v ? ' on' : ''), text: v ? 'Вкл' : 'Выкл' });
+  b.addEventListener('click', () => { v = !v; b.classList.toggle('on', v); b.textContent = v ? 'Вкл' : 'Выкл'; on(v); });
+  return h('div', { class: 'srow' }, h('span', { class: 'sl', text: label }), b);
+}
 function settingsModal() {
-  const c = ctrlLoad();
-  const pct = v => Math.round(v * 100) + '%';
-  const inv = document.createElement('input');
-  inv.type = 'checkbox'; inv.checked = c.invY;
-  inv.addEventListener('change', () => { c.invY = inv.checked; ctrlSave(c); });
-  modal('Настройки', [
-    h('div', { class: 'field' }, h('b', { text: 'Управление' })),
-    rangeRow('Чувствительность камеры', 0.3, 2.5, 0.05, c.sens, pct, v => { c.sens = v; ctrlSave(c); }).row,
-    rangeRow('Чувствительность в прицеле', 0.3, 2, 0.05, c.ads, pct, v => { c.ads = v; ctrlSave(c); }).row,
-    h('label', { class: 'field', style: 'display:flex;align-items:center;gap:10px' }, inv, h('span', { text: 'Инвертировать вертикаль' })),
-    h('div', { class: 'field' }, h('b', { text: 'Звук' })),
-    stepRow('Звук в меню', c.vm, v => { c.vm = v; ctrlSave(c); }),
-    stepRow('Звук в игре', c.vg, v => { c.vg = v; ctrlSave(c); }),
-    h('div', { class: 'field' }, h('b', { text: 'Интерфейс' }), h('button', { class: 'btn', text: 'Настроить кнопки', onclick: () => { closeModal(); ctrlEditor(); } })),
-    h('div', { style: 'color:var(--mute);font-size:12px;margin-top:6px', text: 'Для тестов' }),
+  const c = ctrlLoad(), pct = v => Math.round(v * 100) + '%';
+  const body = h('div', { class: 'sx-body' });
+  const dev = [
     h('div', { class: 'field' }, 'Добавить', h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' },
       h('button', { class: 'btn', text: '+1000 серебра', onclick: () => { P.silver += 1000; save(); refreshBalances(); toast('+1000 серебра'); } }),
       h('button', { class: 'btn', text: '+100 золота', onclick: () => { P.gold += 100; save(); refreshBalances(); toast('+100 золота'); } }),
       h('button', { class: 'btn', text: '+5000 опыта', onclick: () => { const ups = gainXp(P, 5000); ups.forEach(u => { P.silver += u.silver; if (u.box) addItem(P, { type: 'box', kind: u.box }); }); save(); closeModal(); renderMain(); toast('Опыт добавлен' + (ups.length ? ', новый уровень: ' + P.level : '')); } }))),
     h('div', { class: 'field' }, 'Данные', h('button', { class: 'btn red', text: 'Сбросить весь профиль', onclick: () => confirmBox('Сбросить профиль?', 'Ник, уровень, инвентарь и статистика будут удалены.', 'Сбросить', () => { P = newProfile(); save(); try { localStorage.removeItem('lastMatch'); } catch (e) {} stack = []; renderMain(); showScreen('main'); toast('Профиль сброшен'); }, true) }))
-  ], null);
+  ];
+  const card = (k, v) => h('div', { class: 'sx-card' }, h('div', { class: 'sx-k', text: k }), h('div', { class: 'sx-v', text: v }));
+  const LMH = [['low', 'Низкое'], ['mid', 'Среднее'], ['high', 'Высокое']];
+  const panes = {
+    gen: () => [
+      card('Почта аккаунта', 'Здесь появится почта, к которой привязан аккаунт'),
+      card('Способ входа', 'Google'),
+      card('Версия игры', 'X'),
+      h('button', { class: 'btn danger', text: 'Выйти из аккаунта', onclick: () => modal('Выйти из аккаунта?', [h('div', { text: 'Вход через аккаунт Google появится позже. Сейчас прогресс хранится на этом устройстве.' })], [h('button', { class: 'btn gold', text: 'Выйти', onclick: () => { closeModal(); toast('Вход через Google появится позже'); } }), h('button', { class: 'btn', text: 'Отмена', onclick: closeModal })]) }),
+      h('div', { class: 'sx-sub', text: 'Для тестов' })
+    ].concat(dev),
+    gfx: () => [
+      segRow('Детализация текстур', LMH, c.gfx.tex, v => { c.gfx.tex = v; ctrlSave(c); }),
+      segRow('Детализация моделей', LMH, c.gfx.model, v => { c.gfx.model = v; ctrlSave(c); }),
+      segRow('Расширение экрана', LMH, c.gfx.res, v => { c.gfx.res = v; ctrlSave(c); }),
+      segRow('Количество FPS', [[60, '60'], [90, '90'], [120, '120'], [144, '144'], ['max', 'MAX']], c.gfx.fps, v => { c.gfx.fps = v; ctrlSave(c); })
+    ],
+    ctl: () => [
+      rangeRow('Чувствительность камеры', 0.3, 2.5, 0.05, c.sens, pct, v => { c.sens = v; ctrlSave(c); }).row,
+      rangeRow('Чувствительность в прицеле', 0.3, 2, 0.05, c.ads, pct, v => { c.ads = v; ctrlSave(c); }).row,
+      toggleRow('Инвертировать вертикаль', c.invY, v => { c.invY = v; ctrlSave(c); }),
+      toggleRow('Автоподбор оружия', c.autoPick, v => { c.autoPick = v; ctrlSave(c); }),
+      h('div', { class: 'srow' }, h('span', { class: 'sl', text: 'Кнопки на экране' }), h('button', { class: 'btn', text: 'Настроить', onclick: () => { root.remove(); ctrlEditor(); } })),
+      h('div', { class: 'srow' }, h('span', { class: 'sl', text: 'Прицел' }), h('button', { class: 'btn', text: 'Настроить', onclick: () => { root.remove(); xhEditor(); } }))
+    ],
+    snd: () => [
+      stepRow('Звук в меню', c.vm, v => { c.vm = v; ctrlSave(c); }),
+      stepRow('Звук в игре', c.vg, v => { c.vg = v; ctrlSave(c); })
+    ]
+  };
+  const nav = h('div', { class: 'sx-nav' }), tbtn = {};
+  const show = id => { Object.keys(tbtn).forEach(k => tbtn[k].classList.toggle('on', k === id)); body.replaceChildren(...panes[id]()); };
+  [['gen', 'Общее'], ['gfx', 'Графика'], ['ctl', 'Управление'], ['snd', 'Звук']].forEach(t => { const b = h('button', { class: 'sx-tab', text: t[1], onclick: () => show(t[0]) }); tbtn[t[0]] = b; nav.append(b); });
+  const root = h('div', { class: 'sx' }, h('div', { class: 'sx-head' }, h('b', { text: 'Настройки' }), h('button', { class: 'btn', text: 'Закрыть', onclick: () => root.remove() })), h('div', { class: 'sx-main' }, nav, body));
+  document.body.append(root);
+  show('gen');
+}
+function xhEditor() {
+  const c = ctrlLoad(), X = c.xh;
+  const prev = h('div', { class: 'xh-prev' });
+  const draw = () => {
+    const t = X.thick, s = X.size, gp = X.gap, col = X.color;
+    const bar = (l, tp, w, hh) => '<i style="position:absolute;left:' + l + 'px;top:' + tp + 'px;width:' + w + 'px;height:' + hh + 'px;background:' + col + ';opacity:' + X.op + '"></i>';
+    prev.innerHTML = '<div style="position:absolute;left:50%;top:50%">' + bar(-t / 2, -gp - s, t, s) + bar(-t / 2, gp, t, s) + bar(-gp - s, -t / 2, s, t) + bar(gp, -t / 2, s, t) + (X.dot ? '<i style="position:absolute;left:' + (-t) + 'px;top:' + (-t) + 'px;width:' + (t * 2) + 'px;height:' + (t * 2) + 'px;border-radius:50%;background:' + col + ';opacity:' + X.op + '"></i>' : '') + '</div>';
+  };
+  const upd = () => { ctrlSave(c); draw(); };
+  const sw = h('div', { class: 'xh-sw' }), swb = [];
+  ['#3dff3d', '#ffffff', '#ff4d4d', '#ffd23d', '#3dd5ff', '#ff5cf0'].forEach(col => {
+    const b = h('button', { class: 'xh-c' + (col === X.color ? ' on' : ''), style: 'background:' + col, onclick: () => { X.color = col; swb.forEach(x => x.classList.toggle('on', x === b)); upd(); } });
+    swb.push(b); sw.append(b);
+  });
+  const rows = h('div', { class: 'sx-body' },
+    toggleRow('Свой прицел', X.on, v => { X.on = v; upd(); }),
+    h('div', { class: 'srow' }, h('span', { class: 'sl', text: 'Цвет' }), sw),
+    rangeRow('Длина', 2, 24, 1, X.size, v => v + ' px', v => { X.size = v; upd(); }).row,
+    rangeRow('Толщина', 1, 6, 1, X.thick, v => v + ' px', v => { X.thick = v; upd(); }).row,
+    rangeRow('Зазор в центре', 0, 16, 1, X.gap, v => v + ' px', v => { X.gap = v; upd(); }).row,
+    rangeRow('Прозрачность', 0.3, 1, 0.05, X.op, v => Math.round(v * 100) + '%', v => { X.op = v; upd(); }).row,
+    toggleRow('Точка в центре', X.dot, v => { X.dot = v; upd(); }));
+  const root = h('div', { class: 'sx' }, h('div', { class: 'sx-head' }, h('b', { text: 'Настройка прицела' }), h('span', { style: 'display:flex;gap:8px' },
+    h('button', { class: 'btn', text: 'Сбросить', onclick: () => { Object.assign(X, XH_DEF); ctrlSave(c); root.remove(); xhEditor(); } }),
+    h('button', { class: 'btn gold', text: 'Готово', onclick: () => { ctrlSave(c); root.remove(); settingsModal(); } }))),
+    h('div', { class: 'sx-main', style: 'gap:16px;padding:12px 16px' }, prev, rows));
+  document.body.append(root); draw();
 }
 function ctrlEditor() {
   const c = ctrlLoad();
@@ -872,7 +959,9 @@ function refreshBalances() {
 }
 function renderMain() {
   const pc = $('#pcard'); pc.replaceChildren();
-  pc.append(h('span', { class: 'nick', text: P.nick }), h('span', { class: 'lv', text: 'Ур. ' + P.level }), h('span', { class: 'rk', text: '' }));
+  pc.append(avatarFor(P, 46, 'av'),
+    h('div', { class: 'meta' }, h('div', { class: 'nick' }, P.nick, medalEl(P.level)), h('div', { class: 'pid', text: 'ID: ' + P.id }), h('div', { class: 'xpbar' }, h('i', { style: 'width:' + xpPct() + '%' }))),
+    h('span', { class: 'lvl', text: String(P.level) }));
   refreshBalances();
   $('#invCount').textContent = P.items.length ? String(P.items.length) : '';
   $('#modeChip').replaceChildren('Командный бой', h('small', { text: '5×5' }));
@@ -944,11 +1033,12 @@ function vCrate(kind, ownedUid) {
 function openBox(boxUid, strip, track) {
   if (spinning) return;
   const idx = P.items.findIndex(i => i.uid === boxUid); if (idx < 0) return;
-  const res = openBoxRoll(Math.random), r = rarityById(res.rarity);
+  const prem = !!(CFG.boxes[P.items[idx].kind] && CFG.boxes[P.items[idx].kind].price.gold);
+  const res = openBoxRoll(Math.random, prem), r = rarityById(res.rarity);
   P.items.splice(idx, 1); addItem(P, { type: 'skin', rarity: res.rarity, knife: !!res.knife, sid: res.sid || null }); save();
   spinning = true; $('#subBack').style.pointerEvents = 'none';
   const N = 42, stop = 34, tw = 88, gap = 8; track.replaceChildren();
-  for (let i = 0; i < N; i++) track.append(ghostTile(i === stop ? r : (Math.random() < 0.08 ? KNIFE_R : pickRarity(Math.random))));
+  for (let i = 0; i < N; i++) track.append(ghostTile(i === stop ? r : pickRarity(Math.random, prem ? 2 : 0)));
   track.style.left = '0'; track.style.transition = 'none'; track.style.transform = 'translateX(0)';
   const vw = strip.clientWidth || 360, target = stop * (tw + gap) + tw / 2 - vw / 2 + (Math.random() * 40 - 20);
   const fin = () => { spinning = false; $('#subBack').style.pointerEvents = ''; revealSkin(res, r); };
@@ -1008,10 +1098,32 @@ function vFriends() {
     b.append(card);
   } };
 }
+const MARKET_PRICE = { common: 250, improved: 600, rare: 1500, epic: 4000, mythic: 9000, legend: 25000 };
+function marketModal(k) {
+  const r = rarityById(k.rarity), price = MARKET_PRICE[k.rarity];
+  const buy = h('button', { class: 'btn gold', text: 'Купить · ' + price + ' С', onclick: () => {
+    if (P.silver < price) { toast('Не хватает серебра'); return; }
+    P.silver -= price; addItem(P, { type: 'skin', rarity: k.rarity, knife: false, sid: k.id }); save(); closeModal(); renderTop(); toast('Куплено: ' + skinTitle(k));
+  } });
+  modal(skinTitle(k), [
+    h('div', { class: 'revealq', style: '--rc:' + r.color, html: gunSVG(k.weapon, r.color) }),
+    h('div', { style: 'text-align:center' }, h('div', { style: 'color:' + r.color + ';font-weight:700', text: r.name }),
+      h('div', { style: 'color:var(--mute);font-size:13px;margin-top:6px', text: 'Скин для ' + WEAPONS[k.weapon] + '. У тебя серебра: ' + P.silver }))
+  ], [buy, h('button', { class: 'btn', text: 'Закрыть', onclick: closeModal })]);
+}
 function vMarket() {
-  return { title: 'РЫНОК', render(b) {
-    b.append(h('div', { class: 'empty' }, ico('market', ''), h('b', { text: 'Рынок скинов — скоро' }), h('p', { text: 'Здесь можно будет покупать и продавать скины и ящики. Старые ящики, которые лежат в инвентаре, пригодятся.' })));
-    b.firstChild.firstChild.style.fontSize = '44px'; b.firstChild.firstChild.style.color = 'var(--gold)';
+  return { title: 'Рынок', render(b) {
+    let flt = 'all';
+    const grid = h('div', { class: 'mkgrid' }), bar = h('div', { class: 'mkbar' });
+    const draw = () => {
+      const list = SKINS.filter(k => flt === 'all' || (flt === 'knife' ? k.weapon === 'm9' : k.weapon !== 'm9')).sort((x, y) => RARITY.findIndex(r => r.id === y.rarity) - RARITY.findIndex(r => r.id === x.rarity));
+      grid.replaceChildren(...list.map(k => {
+        const r = rarityById(k.rarity);
+        return h('button', { class: 'item skin', style: '--rc:' + r.color, onclick: () => marketModal(k) }, h('div', { class: 'art', html: gunSVG(k.weapon, r.color) }), h('div', { class: 'lab', text: skinTitle(k) }), h('div', { class: 'mkp', text: MARKET_PRICE[k.rarity] + ' С' }));
+      }));
+    };
+    [['all', 'Все'], ['pistol', 'Пистолеты'], ['knife', 'Ножи']].forEach(t => bar.append(h('button', { class: 'btn', text: t[1], onclick: () => { flt = t[0]; draw(); } })));
+    b.append(bar, grid); draw();
   } };
 }
 
