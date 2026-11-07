@@ -10,13 +10,14 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const me = { name: _prof.nick || 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: _prof.id || (10000000 + Math.floor(Math.random() * 89999999)) }; stats.push(me);
   const MS = { hits: 0, headHits: 0, headKills: 0, wk: {} };            // статистика игрока за матч: попадания, хедшоты, убийства по оружию
   const BOMB = /[?&]mode=bomb/.test(location.search);
-  let bm = null, bLk = false;
+  let bm = null, bLk = false, hasPrim = true, hasPist = true, drops = [], dropUi = null;
   const CTRL = (() => {
     let c = {};
     try { c = JSON.parse(localStorage.getItem('ctrl_v1')) || {}; } catch (e) {}
-    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {} };
+    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {}, gfx: Object.assign({ tex: 'mid', model: 'mid', res: 'high', fps: 'max' }, c.gfx || {}), xh: Object.assign({ on: false, color: '#3dff3d', size: 10, thick: 2, gap: 4, dot: false, op: 1 }, c.xh || {}), autoPick: c.autoPick !== false };
   })();
-  const SKIN_OF = { glock_camo: 'glock', usp_print: 'usp', usp_pink: 'usp', deagle_mecha: 'deagle', deagle_ocean: 'deagle', p250_classic: 'p250' };
+  const RESK = ({ low: 0.6, mid: 0.85, high: 1 })[CTRL.gfx.res] || 1, MSTEP = ({ low: 3, mid: 2, high: 1 })[CTRL.gfx.model] || 2;
+  const SKIN_OF = { m9cb: 'm9', glock_camo: 'glock', usp_print: 'usp', usp_pink: 'usp', deagle_mecha: 'deagle', deagle_ocean: 'deagle', p250_classic: 'p250' };
   const EQ = (() => { try { const p = JSON.parse(localStorage.getItem('profile_v1')) || {}; return p.equip && typeof p.equip === 'object' ? p.equip : {}; } catch (e) { return {}; } })();
   const skinKey = n => (EQ[n] && SKIN_OF[EQ[n]] === n ? EQ[n] : n);
   const WSW_ICON = {
@@ -27,6 +28,32 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function wswIcon() { const sw = document.getElementById('wsw'); if (sw) sw.innerHTML = WSW_ICON[curW] || WSW_ICON.rifle; }
   const CTRL_ALIAS = { gear: ['btn-settings', 'settings-btn', 'btn-gear', 'gear-btn', 'gear', 'settings', 'btn-set'] };
   const ctrlEl = id => document.getElementById(id) || (CTRL_ALIAS[id] || []).map(a => document.getElementById(a)).find(Boolean) || null;
+  function applyFps() {
+    if (typeof renderer === 'undefined' || !renderer || renderer.__cap) return;
+    renderer.__cap = true;
+    const fps = CTRL.gfx.fps === 'max' ? 0 : +CTRL.gfx.fps || 0;
+    if (!fps) return;
+    const raw = renderer.render.bind(renderer);
+    let last = 0;
+    renderer.render = (s, c) => { const t = performance.now(); if (t - last < 1000 / fps - 1.5) return; last = t; raw(s, c); };
+  }
+  setInterval(applyFps, 500);
+  function applyCrosshair() {
+    const X = CTRL.xh, orig = document.getElementById('crosshair');
+    let el = document.getElementById('xh');
+    if (!X.on) { if (el) el.style.display = 'none'; if (orig) orig.style.visibility = ''; return; }
+    if (orig) orig.style.visibility = 'hidden';
+    if (!el) { el = document.createElement('div'); el.id = 'xh'; el.style.cssText = 'position:fixed;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:9'; document.body.appendChild(el); }
+    const sig = JSON.stringify(X);
+    if (el.dataset.sig !== sig) {
+      el.dataset.sig = sig;
+      const t = +X.thick, s = +X.size, gp = +X.gap, col = /^#[0-9a-f]{3,8}$/i.test(X.color) ? X.color : '#3dff3d';
+      const bar = (l, tp, w, hh) => '<i style="position:absolute;left:' + l + 'px;top:' + tp + 'px;width:' + w + 'px;height:' + hh + 'px;background:' + col + ';opacity:' + X.op + '"></i>';
+      el.innerHTML = bar(-t / 2, -gp - s, t, s) + bar(-t / 2, gp, t, s) + bar(-gp - s, -t / 2, s, t) + bar(gp, -t / 2, s, t) + (X.dot ? '<i style="position:absolute;left:' + (-t) + 'px;top:' + (-t) + 'px;width:' + (t * 2) + 'px;height:' + (t * 2) + 'px;border-radius:50%;background:' + col + ';opacity:' + X.op + '"></i>' : '');
+    }
+    el.style.display = (started && !over && !scoped && !player.dead) ? 'block' : 'none';
+  }
+  setInterval(applyCrosshair, 120);
   function applyControls() {
     Object.keys(CTRL.btn).forEach(id => {
       const s = CTRL.btn[id], el = ctrlEl(id);
@@ -41,7 +68,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   setInterval(applyControls, 1000);
   let AUTO = false, AUTODONE = false;                                    // автозапуск матча из меню (?play=1)
   if (/[?&]play=1/.test(location.search)) AUTO = true;                  // пришли из меню
-  let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, mapOK = false;
+  let tabOn = false, grid = null, tg = null, curW = 'rifle', shopEnd = 0, lookScale = 1, scoped = false, jumpHeld = false, lastLand = 0, hopMul = 1, mapOK = false;
   const NICKS = ['Саша_61', 'ваня', 'Тимур', 'Дэн', 'Кирилл', 'Макс', 'Артём', 'Лёха', 'Рома', 'Стас', 'Егор', 'Никита'];
   let T = 0, timeLeft = MATCH, started = false, over = false, respawnIn = 0, burst = 0, lastShot = 0;
   const SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
@@ -624,7 +651,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   function respawnPlayer() {
     unscope();
     const s = (BOMB && bm && bm.side.A === 'T' ? SPAWN.B : SPAWN.A)[Math.floor(Math.random() * 5)];
-    player.pos.set(s[0], 1.6, s[1]); player.vel.set(0, 0, 0); player.hp = 100; player.dead = false;
+    player.pos.set(s[0], 1.6, s[1]); hopMul = 1; player.vel.set(0, 0, 0); player.hp = 100; player.dead = false;
     resetLoadout(); openShop(); cameraYaw = (BOMB && bm && bm.side.A === 'T') ? Math.PI : 0; cameraPitch = 0;
     mine.clear(); took.clear(); gave.clear(); const kc = document.getElementById('kcard'); if (kc) kc.style.display = 'none';
     document.getElementById('msg').textContent = ''; updateUI();
@@ -789,7 +816,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const loadout = { pistol: 'usp', primary: 'rifle', knife: 'knife' }, store = { rifle: { mag: PRIM.rifle.mag, res: PRIM.rifle.res }, pistol: { mag: PIST.usp.mag, res: PIST.usp.res } };
   const wname = () => curW === 'pistol' ? PIST[loadout.pistol].name : curW === 'rifle' ? PRIM[loadout.primary].name : curW === 'knife' ? KNV[loadout.knife || 'knife'].name : WS[curW].name;
   function equip(slot) {
-    if (BOMB && bm && slot === 'rifle' && !bPlayer(bm, 'P').items.primary) return;
+    if ((slot === 'rifle' && !hasPrim) || (slot === 'pistol' && !hasPist)) return;
     unscope();
     if (store[curW]) { store[curW].mag = player.ammoInMag; store[curW].res = player.reserveAmmo; }
     curW = slot;
@@ -797,13 +824,14 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     player.maxMag = w.mag; player.ammoInMag = st.mag; player.reserveAmmo = st.res; player.shootInterval = w.int; player.isReloading = false;
     document.getElementById('weapon-name').innerText = ''; updateUI();
     wswIcon();
-    if (window.HW_set) window.HW_set(slot === 'pistol' ? skinKey(loadout.pistol) : slot === 'rifle' ? loadout.primary : slot === 'knife' ? (loadout.knife || 'knife') : slot);
+    if (window.HW_set) window.HW_set(slot === 'pistol' ? skinKey(loadout.pistol) : slot === 'rifle' ? loadout.primary : slot === 'knife' ? skinKey(loadout.knife || 'knife') : slot);
   }
   window.GAME_SET = n => {                          // переключение из ⚙ тоже меняет оружие в игре (нож бьёт, а не стреляет)
     if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = ''; wswIcon(); if (window.HW_set) window.HW_set(skinKey(n)); } else equip('pistol'); }
     else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
   };
   function resetLoadout() {
+    hasPrim = true; hasPist = true;
     if (BOMB && bm) return bombResetLoadout(); store.rifle = { mag: PRIM[loadout.primary].mag, res: PRIM[loadout.primary].res }; store.pistol = { mag: PIST[loadout.pistol].mag, res: PIST[loadout.pistol].res }; curW = 'knife'; equip('rifle'); }
   window.updateUI = function () {
     document.getElementById('hp-val').innerText = Math.round(player.hp);
@@ -891,7 +919,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     d.innerHTML = '<div id="hm"><i></i><i></i><i></i><i></i></div>' +
       '<div id="wheel"><div id="wk" style="margin-left:-105px"><span>Нож</span></div><div id="wp" style="margin-left:35px"><span>Пистолет</span></div><div id="wr" style="margin-top:47px"><span>Автомат</span></div></div>' +
       '<button id="cart" class="interactive-ui">🛒</button><button id="wsw" class="interactive-ui">AK-47</button>' +
-      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div><div class="it" data-p="p250">P250</div></div><div class="col"><h4>Винтовки и дробовики</h4><div class="it" data-r="rifle">AK-47</div><div class="it" data-r="awp">AWP</div><div class="it" data-r="m4a4">M4A4</div><div class="it" data-r="m16">M16A4</div><div class="it" data-r="m249">M249</div><div class="it" data-r="mossberg">Mossberg 590</div><div class="it" data-r="m870">M870</div></div><div class="col"><h4>Ножи</h4><div class="it" data-k="knife">Нож</div><div class="it" data-k="m9">M9 Bayonet</div><div class="it" data-k="m9cb">M9 Bayonet | Cherry Burgundy</div></div></div></div>';
+      '<div id="shop" class="interactive-ui"><div id="shT"></div><div id="shB"><i></i></div><div id="shX">✕</div><div id="shC"><div class="col"><h4>Пистолеты</h4><div class="it" data-p="usp">USP-S</div><div class="it" data-p="deagle">Desert Eagle</div><div class="it" data-p="glock">Glock</div><div class="it" data-p="p250">P250</div></div><div class="col"><h4>Винтовки и дробовики</h4><div class="it" data-r="rifle">AK-47</div><div class="it" data-r="awp">AWP</div><div class="it" data-r="m4a4">M4A4</div><div class="it" data-r="m16">M16A4</div><div class="it" data-r="m249">M249</div><div class="it" data-r="mossberg">Mossberg 590</div><div class="it" data-r="m870">M870</div></div><div class="col"><h4>Ножи</h4><div class="it" data-k="knife">Нож</div><div class="it" data-k="m9">M9 Bayonet</div></div></div></div>';
     document.body.appendChild(d);
     const $ = id => document.getElementById(id), shop = $('shop'), cart = $('cart');
     const toggle = () => { shop.style.display = shop.style.display === 'block' ? 'none' : 'block'; };
@@ -924,7 +952,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     player.speed = WS[curW].spd * (player.isCrouching ? 0.5 : 1);
     if (player.dead && (respawnIn -= dt) <= 0 && !over) respawnPlayer();
     player.vel.y -= 22 * dt;
-    const mv = player.dead ? { x: 0, y: 0 } : moveJoystick;
+    const mv = (player.dead || bLk) ? { x: 0, y: 0 } : moveJoystick;
     const move = new V(mv.x, 0, -mv.y).normalize().applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
     player.pos.x += move.x * player.speed * dt; player.pos.z += move.z * player.speed * dt; player.pos.y += player.vel.y * dt;
     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
@@ -1035,9 +1063,11 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   //  киллчат с силуэтами, боты с набором оружия, обзор по высоте
   // ===================================================================================
   function tryJump() {
-    if (!player.onGround || player.dead || performance.now() - lastLand < 380) return;   // антибанихоп: пауза после приземления
+    if (bLk) return;
+    if (!player.onGround || player.dead || performance.now() - lastLand < 90) return;   // антибанихоп: пауза после приземления
     if (player.isCrouching && window.__setCrouch) window.__setCrouch(false);
     player.vel.y = 7.5; player.onGround = false;
+    if (Math.hypot(moveJoystick.x, moveJoystick.y) > 0.3) hopMul = Math.max(0.5, hopMul * 0.9);
   }
   function climb(move) {                           // упёрся в уступ/вышку и держишь прыжок — карабкаешься вверх
     const feet = player.pos.y - player.currentHeight, px = player.pos.x + move.x * 0.6, pz = player.pos.z + move.z * 0.6;
@@ -1300,9 +1330,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (player.dead && (respawnIn -= dt) <= 0 && !over) respawnPlayer();
     if (jumpHeld) tryJump();
     player.vel.y -= 22 * dt;
-    const mv = player.dead ? { x: 0, y: 0 } : moveJoystick;
+    const mv = (player.dead || bLk) ? { x: 0, y: 0 } : moveJoystick;
+    if (player.onGround && !jumpHeld) hopMul = Math.min(1, hopMul + 0.8 * dt);
     const move = new V(mv.x, 0, -mv.y).normalize().applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
-    player.pos.x += move.x * player.speed * dt; player.pos.z += move.z * player.speed * dt; player.pos.y += player.vel.y * dt;
+    player.pos.x += move.x * player.speed * hopMul * dt; player.pos.z += move.z * player.speed * hopMul * dt; player.pos.y += player.vel.y * dt;
     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
     if (grid && jumpHeld && !player.dead && (mv.x || mv.y)) climb(move);
     resolve(player.pos, 0.33, player.pos.y - player.currentHeight);
@@ -1320,6 +1351,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (!started || over) return;
     T += dt; if (!BOMB) timeLeft -= dt; pathBudget = 1; fr++;
     if (BOMB) bombFrame(dt); else if (timeLeft <= 0) endMatch();
+    dropsFrame(dt);
     const bFreeze = BOMB && bm && bm.phase !== 'live' && bm.phase !== 'planted';
     bots.forEach(b => {
       if (b.dead) { b.respawn -= dt; if (b.respawn <= 0) spawnAt(b); return; }
@@ -1397,7 +1429,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const sw = b.walk ? Math.sin(b.anim) * 0.6 : 0;
       b.lL.rotation.x = sw; b.rL.rotation.x = -sw;
       const far = (pos.x - player.pos.x) * (pos.x - player.pos.x) + (pos.z - player.pos.z) * (pos.z - player.pos.z) > 1600;
-      if (b.mc && (!far || (fr + b.idx) % 2 === 0)) mcAnim(b, sw, dt);        // дальних ботов анимируем через кадр
+      if (b.mc && (!far || (fr + b.idx) % MSTEP === 0)) mcAnim(b, sw, dt);        // дальних ботов анимируем через кадр
     });
     if (BOMB) bombHud(); else {
     const t = Math.max(0, Math.ceil(timeLeft));
@@ -1408,7 +1440,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 
 
   // ---- оптимизация: динамическое разрешение, без теней, радар реже ----
-  let pathBudget = 1, fr = 0, fpsAvg = 60, resT = 0, pr = Math.min(window.devicePixelRatio || 1, 1.5), prMax = pr, perfInit = false;
+  let pathBudget = 1, fr = 0, fpsAvg = 60, resT = 0, pr = Math.min(window.devicePixelRatio || 1, 1.5) * RESK, prMax = pr, perfInit = false;
   function perfTick(dt) {
     if (!perfInit) {
       perfInit = true;
@@ -1481,7 +1513,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   if (!GFX[gfxLevel]) gfxLevel = 'mid';
   function setGfx(l) {
     gfxLevel = l; try { localStorage.setItem('gfx', l); } catch (e) {}
-    const g = GFX[l]; prMax = g.pr; prMin = g.min; pr = prMax;
+    const g = GFX[l]; prMax = g.pr * RESK; prMin = Math.min(g.min, prMax); pr = prMax;
     if (typeof renderer !== 'undefined' && renderer) { renderer.setPixelRatio(pr); renderer.setSize(window.innerWidth, window.innerHeight); }
     if (camera) { camera.far = g.far; camera.updateProjectionMatrix(); }
     if (scene && scene.fog) scene.fog.density = g.fog;
@@ -2272,8 +2304,8 @@ window.processShoot = function (now) {
     e.stopPropagation(); e.preventDefault();
     const k = it.dataset.p || it.dataset.r || it.dataset.d, res = bombBuy(bm, 'P', k);
     if (!res.ok) { bombToast(res.err); return; }
-    if (PIST[k]) { loadout.pistol = k; store.pistol = { mag: PIST[k].mag, res: PIST[k].res }; curW = 'knife'; equip('pistol'); }
-    else if (PRIM[k]) { loadout.primary = k; store.rifle = { mag: PRIM[k].mag, res: PRIM[k].res }; curW = 'knife'; equip('rifle'); }
+    if (PIST[k]) { hasPist = true; loadout.pistol = k; store.pistol = { mag: PIST[k].mag, res: PIST[k].res }; curW = 'knife'; equip('pistol'); }
+    else if (PRIM[k]) { hasPrim = true; loadout.primary = k; store.rifle = { mag: PRIM[k].mag, res: PRIM[k].res }; curW = 'knife'; equip('rifle'); }
     bombToast('Куплено: ' + (PIST[k] ? PIST[k].name : PRIM[k] ? PRIM[k].name : 'Режим сапера'));
     updateUI(); bombShopLabels();
   }
@@ -2282,6 +2314,7 @@ window.processShoot = function (now) {
     loadout.pistol = pist; store.pistol = { mag: PIST[pist].mag, res: PIST[pist].res };
     if (p.items.primary) { loadout.primary = p.items.primary; store.rifle = { mag: PRIM[p.items.primary].mag, res: PRIM[p.items.primary].res }; }
     else store.rifle = { mag: 0, res: 0 };
+    hasPrim = !!p.items.primary; hasPist = true;
     curW = 'knife'; equip(p.items.primary ? 'rifle' : 'pistol');
     bombShopLabels();
   }
@@ -2314,7 +2347,7 @@ window.processShoot = function (now) {
     bombStartRound(bm); bombRoundSetup();
   }
   function bombRoundSetup() {
-    bRoundSeen = bm.round; bEnded = false; bHeld = false; bDropPos = null; bm.tSite = Math.random() < 0.5 ? 'A' : 'B';
+    clearDrops(); bRoundSeen = bm.round; bEnded = false; bHeld = false; bDropPos = null; bm.tSite = Math.random() < 0.5 ? 'A' : 'B';
     bots.forEach((b, i) => bombBotBuy(bm, 'b' + i, Math.random));
     if (bm.round === bm.C.swapAfter + 1) bots.forEach(b => { if (b.mc) { b.inner.remove(b.mc.group); b.mc = null; } dress(b); });
     respawnPlayer();
@@ -2333,7 +2366,11 @@ window.processShoot = function (now) {
   function bombOnDeath(vid, killerStat, weapon) {
     if (!bm) return;
     const p = bPlayer(bm, vid);
-    if (p) { if (p.hasBomb) bDropPos = bPos(vid); p.items = {}; }
+    if (p) {
+      if (p.hasBomb) bDropPos = bPos(vid);
+      if (p.items.primary) { const pos = bPos(vid), pr = PRIM[p.items.primary]; spawnDrop('rifle', p.items.primary, pr.mag, Math.floor(pr.res / 2), pos.x, pos.y, pos.z); }
+      p.items = {};
+    }
     bombDied(bm, vid, bId(killerStat), weapon);
   }
   function bombFlash() {
@@ -2405,7 +2442,9 @@ window.processShoot = function (now) {
     const side = bSide(bm, p), site = bSites.find(s => s.id === b.siteGoal) || bSites[0];
     let goal = null, stop = 1.8;
     if (side === 'T' && bm.phase === 'live' && !p.hasBomb && b.tr && bm.elapsed < b.tr.delay) { b.walk = false; return true; }
-    if (side === 'T') {
+    const lackDr = !p.items.primary && !p.hasBomb ? dropSeek(pos, 18) : null;
+    if (lackDr) { goal = new V(lackDr.x, lackDr.y, lackDr.z); stop = 0.7; }
+    else if (side === 'T') {
       if (bm.phase === 'live') {
         if (p.hasBomb) { goal = new V(site.x, site.y, site.z); stop = 1.2; }
         else if (bm.dropped && bDropPos) goal = new V(bDropPos.x, bDropPos.y, bDropPos.z);
@@ -2473,6 +2512,101 @@ window.processShoot = function (now) {
     bombHud();
     bombMesh();
     if (bm.phase === 'over' && !bEnded) { bEnded = true; score.A = bm.score.A; score.B = bm.score.B; endMatch(); }
+  }
+
+
+  function dropMesh(name) {
+    const grp = new THREE.Group(), gun = blockGun(name);
+    gun.scale.set(1.3, 1.3, 1.3); gun.position.y = 0.14; grp.add(gun);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 28), new THREE.MeshBasicMaterial({ color: 0x4ad0ff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.04; grp.add(ring);
+    return grp;
+  }
+  function spawnDrop(slot, name, mag, res, x, y, z) {
+    if (drops.length >= 14) { const o = drops.shift(); scene.remove(o.mesh); }
+    const mesh = dropMesh(name);
+    mesh.position.set(x, y, z); mesh.rotation.y = Math.random() * 6.28; scene.add(mesh);
+    drops.push({ slot, name, mag, res, x, y, z, mesh, t: T, until: T + 1.5 });
+  }
+  function clearDrops() { drops.forEach(d => scene.remove(d.mesh)); drops = []; }
+  function dropNear(x, y, z, r) {
+    let best = null, bd = r;
+    drops.forEach(d => { const dd = Math.hypot(d.x - x, d.z - z); if (dd < bd && Math.abs(d.y - y) < 1.8) { best = d; bd = dd; } });
+    return best;
+  }
+  function dropSeek(pos, r) {
+    let best = null, bd = r;
+    drops.forEach(d => { if (d.slot !== 'rifle') return; const dd = Math.hypot(d.x - pos.x, d.z - pos.z); if (dd < bd && Math.abs(d.y - pos.y) < 3) { best = d; bd = dd; } });
+    return best;
+  }
+  function dropWeapon() {
+    if (!started || over || player.dead || curW === 'knife') return;
+    const slot = curW;
+    if ((slot === 'rifle' && !hasPrim) || (slot === 'pistol' && !hasPist)) return;
+    const name = slot === 'rifle' ? loadout.primary : loadout.pistol, st = slot === 'rifle' ? store.rifle : store.pistol;
+    spawnDrop(slot, name, st.mag, st.res, player.pos.x - Math.sin(cameraYaw) * 0.9, player.pos.y - player.currentHeight, player.pos.z - Math.cos(cameraYaw) * 0.9);
+    if (slot === 'rifle') { hasPrim = false; store.rifle = { mag: 0, res: 0 }; } else { hasPist = false; store.pistol = { mag: 0, res: 0 }; }
+    if (BOMB && bm) delete bMe().items[slot === 'rifle' ? 'primary' : 'pistol'];
+    unscope();
+    equip(slot === 'rifle' && hasPist ? 'pistol' : 'knife');
+    updateUI();
+  }
+  function takeDrop(d) {
+    const i = drops.indexOf(d);
+    if (i < 0) return;
+    scene.remove(d.mesh); drops.splice(i, 1);
+    const slot = d.slot, had = slot === 'rifle' ? hasPrim : hasPist;
+    if (had) {
+      const nm = slot === 'rifle' ? loadout.primary : loadout.pistol, st = slot === 'rifle' ? store.rifle : store.pistol;
+      spawnDrop(slot, nm, st.mag, st.res, d.x, d.y, d.z);
+    }
+    if (slot === 'rifle') { loadout.primary = d.name; store.rifle = { mag: d.mag, res: d.res }; hasPrim = true; }
+    else { loadout.pistol = d.name; store.pistol = { mag: d.mag, res: d.res }; hasPist = true; }
+    if (BOMB && bm) bMe().items[slot === 'rifle' ? 'primary' : 'pistol'] = d.name;
+    unscope(); curW = 'knife'; equip(slot); updateUI();
+  }
+  function dropsInit() {
+    if (dropUi) return;
+    const st = document.createElement('style');
+    st.textContent = '#bdrop,#bpick{position:fixed;z-index:12;display:none;color:#fff;touch-action:none;-webkit-user-select:none;user-select:none;font-family:sans-serif}'
+      + '#bdrop{left:57.5vw;top:54.9vh;transform:translate(-50%,-50%);width:6vw;height:6vw;min-width:46px;min-height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(20,26,34,.72);align-items:center;justify-content:center;flex-direction:column;font-size:9px;font-weight:700;padding:0}'
+      + '#bpick{left:50vw;top:62vh;transform:translate(-50%,-50%);width:20vw;min-width:150px;padding:10px 14px;border-radius:12px;border:2px solid #4ad0ff;background:rgba(20,26,34,.92);text-align:center;font-size:14px;font-weight:800}';
+    document.head.appendChild(st);
+    const mk = (id, html) => { const b = document.createElement('div'); b.id = id; b.className = 'interactive-ui'; b.innerHTML = html; document.body.appendChild(b); return b; };
+    dropUi = { drop: mk('bdrop', '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3v12m0 0l-5-5m5 5l5-5M5 20h14" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Бросить</span>'), pick: mk('bpick', ''), cur: null };
+    const bind = (el, fn) => {
+      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+      ['touchstart', 'touchmove', 'touchend'].forEach(n => el.addEventListener(n, e => e.stopPropagation(), { passive: true }));
+    };
+    bind(dropUi.drop, dropWeapon);
+    bind(dropUi.pick, () => { if (dropUi.cur) takeDrop(dropUi.cur); });
+  }
+  function dropsFrame(dt) {
+    dropsInit();
+    const live = started && !over && !player.dead;
+    dropUi.drop.style.display = live && ((curW === 'rifle' && hasPrim) || (curW === 'pistol' && hasPist)) ? 'flex' : 'none';
+    drops = drops.filter(d => { if (T - d.t > 120) { scene.remove(d.mesh); return false; } return true; });
+    let near = null;
+    if (live && drops.length) {
+      const d = dropNear(player.pos.x, player.pos.y - player.currentHeight, player.pos.z, 1.3);
+      if (d) {
+        const has = d.slot === 'rifle' ? hasPrim : hasPist;
+        if (!has && CTRL.autoPick && T >= d.until) takeDrop(d); else near = d;
+      }
+    }
+    dropUi.cur = near;
+    if (near) { dropUi.pick.textContent = 'Подобрать · ' + (near.slot === 'rifle' ? PRIM[near.name].name : PIST[near.name].name); dropUi.pick.style.display = 'block'; }
+    else dropUi.pick.style.display = 'none';
+    if (BOMB && bm && (bm.phase === 'live' || bm.phase === 'planted')) bots.forEach((b, i) => {
+      if (b.dead) return;
+      const p = bPlayer(bm, 'b' + i);
+      if (!p || !p.alive || p.items.primary) return;
+      const q = b.mesh.position, d = dropNear(q.x, q.y, q.z, 1.3);
+      if (d && d.slot === 'rifle' && T >= d.until) {
+        scene.remove(d.mesh); drops.splice(drops.indexOf(d), 1);
+        p.items.primary = d.name; b.loadout = { primary: d.name, pistol: b.loadout ? b.loadout.pistol : 'usp' }; setBotWeapon(b, d.name);
+      }
+    });
   }
 
   try {                                            // если телефон отнял видеопамять — восстанавливаем сцену, а не оставляем чёрный экран
