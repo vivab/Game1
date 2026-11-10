@@ -10,6 +10,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const me = { name: _prof.nick || 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: _prof.id || (10000000 + Math.floor(Math.random() * 89999999)) }; stats.push(me);
   const MS = { hits: 0, headHits: 0, headKills: 0, wk: {} };            // статистика игрока за матч: попадания, хедшоты, убийства по оружию
   const BOMB = /[?&]mode=bomb/.test(location.search);
+  let lastCYaw = 0, lastCPitch = 0;
   let bm = null, bLk = false, hasPrim = true, hasPist = true, drops = [], dropUi = null;
   const CTRL = (() => {
     let c = {};
@@ -1333,7 +1334,8 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const mv = (player.dead || bLk) ? { x: 0, y: 0 } : moveJoystick;
     if (player.onGround && !jumpHeld) hopMul = Math.min(1, hopMul + 0.8 * dt);
     const move = new V(mv.x, 0, -mv.y).normalize().applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
-    player.pos.x += move.x * player.speed * hopMul * dt; player.pos.z += move.z * player.speed * hopMul * dt; player.pos.y += player.vel.y * dt;
+    player.pos.x += move.x * player.speed * hopMul * dt; player.pos.z += move.z * player.speed * hopMul * dt;
+    if (window.HW_motion) { window.HW_motion({ speed: Math.hypot(mv.x, mv.y) * (player.onGround ? 1 : 0.35) * hopMul, air: !player.onGround, dyaw: cameraYaw - lastCYaw, dpitch: cameraPitch - lastCPitch, crouch: player.isCrouching }); lastCYaw = cameraYaw; lastCPitch = cameraPitch; } player.pos.y += player.vel.y * dt;
     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
     if (grid && jumpHeld && !player.dead && (mv.x || mv.y)) climb(move);
     resolve(player.pos, 0.33, player.pos.y - player.currentHeight);
@@ -2206,7 +2208,7 @@ window.processShoot = function (now) {
   }
 
 
-  let bSites = [], bBomb = null, bRoundSeen = 0, bHud = null, bBannerT = 0, bEnded = false, bHeld = false, bPrevCrouch = false, bPose = false, bDropPos = null, bToastT = 0;
+  let bSites = [], bBomb = null, bRoundSeen = 0, bHud = null, bBannerT = 0, bEnded = false, bHeld = false, bPrevCrouch = false, bPose = false, bDropPos = null, bDropT = 0, bToastT = 0;
   const bMe = () => bPlayer(bm, 'P');
   const bDist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const bId = x => {
@@ -2257,14 +2259,24 @@ window.processShoot = function (now) {
       + '#bhud{position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:30;padding:4px 14px;background:rgba(15,20,26,.7);border-radius:8px;color:#fff;font:700 14px sans-serif;pointer-events:none;white-space:nowrap}'
       + '#bbanner{position:fixed;left:50%;top:34%;transform:translate(-50%,-50%);z-index:31;padding:12px 26px;background:rgba(12,16,22,.84);border:2px solid #f2b632;border-radius:10px;color:#fff;font:800 22px sans-serif;text-align:center;white-space:pre-line;display:none;pointer-events:none}'
       + '#btoast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:33;padding:8px 16px;background:rgba(20,26,34,.92);border-radius:8px;color:#fff;font:700 14px sans-serif;display:none;pointer-events:none}'
-      + '#bact{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:32;min-width:230px;padding:14px 18px;border-radius:12px;border:2px solid #f2b632;background:rgba(20,26,34,.92);color:#fff;font:800 17px sans-serif;text-align:center;display:none;touch-action:none;overflow:hidden;-webkit-user-select:none;user-select:none}'
-      + '#bact i{position:absolute;left:0;bottom:0;height:5px;width:0;background:#f2b632}';
+      + '#bact,#bbomb{position:fixed;z-index:32;border-radius:50%;border:2px solid #f2b632;background:rgba(20,26,34,.9);display:none;touch-action:none;padding:0;-webkit-user-select:none;user-select:none;transform:translate(-50%,-50%)}'
+      + '#bact{left:76vw;top:50vh;width:7.4vw;height:7.4vw;min-width:54px;min-height:54px}'
+      + '#bbomb{left:57.5vw;top:66vh;width:6vw;height:6vw;min-width:46px;min-height:46px;border-color:rgba(255,255,255,.55);align-items:center;justify-content:center}'
+      + '#bact svg,#bbomb svg{width:100%;height:100%;display:block}'
     document.head.appendChild(st);
     const mk = (id, cls) => { const d = document.createElement('div'); d.id = id; if (cls) d.className = cls; document.body.appendChild(d); return d; };
     bHud = { money: mk('bmoney'), status: mk('bhud'), banner: mk('bbanner'), toast: mk('btoast') };
+    const BOMB_SVG = '<g fill="#fff"><circle cx="21" cy="25" r="9"/><rect x="23" y="12" width="4" height="6" rx="1" transform="rotate(35 25 15)"/></g><path d="M29 11 q3 -4 6 -2" stroke="#f2b632" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="36" cy="9" r="2" fill="#ff6b3d"/>';
+    const DEFUSE_SVG = '<g stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"><path d="M13 31 L31 13"/><path d="M13 13 L31 31"/></g><circle cx="13" cy="31" r="3" fill="#f2b632"/><circle cx="13" cy="13" r="3" fill="#f2b632"/>';
+    bHud.svgBomb = BOMB_SVG; bHud.svgDefuse = DEFUSE_SVG;
     const btn = mk('bact', 'interactive-ui');
-    btn.innerHTML = '<span></span><i></i>';
-    bHud.act = btn; bHud.actText = btn.firstChild; bHud.actBar = btn.lastChild;
+    btn.innerHTML = '<svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="20" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="3"/><circle class="ring" cx="22" cy="22" r="20" fill="none" stroke="#f2b632" stroke-width="3" stroke-dasharray="125.66" stroke-dashoffset="125.66" transform="rotate(-90 22 22)" stroke-linecap="round"/><g class="ic">' + BOMB_SVG + '</g></svg>';
+    bHud.act = btn; bHud.actRing = btn.querySelector('.ring'); bHud.actIcon = btn.querySelector('.ic'); bHud.actKind = '';
+    const bomb2 = mk('bbomb', 'interactive-ui');
+    bomb2.innerHTML = '<svg viewBox="0 0 44 44"><g class="ic">' + BOMB_SVG + '</g></svg>';
+    bHud.drop = bomb2;
+    bomb2.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); bombDropOwn(); });
+    ['touchstart', 'touchmove', 'touchend'].forEach(n => bomb2.addEventListener(n, e => e.stopPropagation(), { passive: true }));
     const down = e => { e.preventDefault(); e.stopPropagation(); bHeld = true; };
     const up = e => { e.preventDefault(); e.stopPropagation(); bHeld = false; };
     ['pointerdown'].forEach(n => btn.addEventListener(n, down));
@@ -2278,6 +2290,15 @@ window.processShoot = function (now) {
       shC.appendChild(col);
       shC.addEventListener('click', bombShopClick, true);
     }
+  }
+  function bombDropOwn() {
+    if (!bm || player.dead) return;
+    const p = bMe();
+    if (!p.hasBomb || (bm.phase !== 'live' && bm.phase !== 'freeze')) return;
+    if (bm.plant && bm.plant.id === 'P') bombCancelPlant(bm);
+    const pos = bPos('P');
+    p.hasBomb = false; bm.dropped = true; bDropT = T + 1.5;
+    bDropPos = { x: pos.x - Math.sin(cameraYaw) * 0.9, y: pos.y, z: pos.z - Math.cos(cameraYaw) * 0.9 };
   }
   function bombToast(msg) {
     if (!bHud) return;
@@ -2398,7 +2419,7 @@ window.processShoot = function (now) {
       const pos = bPos('P'), side = bSide(bm, p);
       if (bm.phase === 'live' && side === 'T' && p.hasBomb) { site = bombSiteAt(pos.x, pos.z, pos.y); if (site) { kind = 'plant'; label = 'ЗАЛОЖИТЬ БОМБУ · точка ' + site.id; } }
       if (bm.phase === 'planted' && side === 'CT' && bm.bomb.pos && bDist(pos, bm.bomb.pos) < 2.4) { kind = 'defuse'; label = 'РАЗМИНИРОВАТЬ' + (p.kit ? ' (сапёр)' : ''); }
-      if (bm.phase === 'live' && side === 'T' && bm.dropped && !p.hasBomb && bDropPos && bDist(pos, bDropPos) < 1.8) bombPickup(bm, 'P');
+      if ((bm.phase === 'live' || bm.phase === 'freeze') && side === 'T' && bm.dropped && !p.hasBomb && bDropPos && T >= bDropT && bDist(pos, bDropPos) < 1.8) bombPickup(bm, 'P');
       const planting = bm.plant && bm.plant.id === 'P', defusing = bm.defuse && bm.defuse.id === 'P';
       if (kind === 'plant' && bHeld && !bm.plant) bombBeginPlant(bm, 'P', site.id);
       if (kind === 'defuse' && bHeld && !bm.defuse) bombBeginDefuse(bm, 'P');
@@ -2411,10 +2432,11 @@ window.processShoot = function (now) {
     if (!planting && bPose) { bPose = false; player.isCrouching = bPrevCrouch; }
     bHud.act.style.display = kind ? 'block' : 'none';
     if (kind) {
-      bHud.actText.textContent = label;
+      if (bHud.actKind !== kind) { bHud.actKind = kind; bHud.actIcon.innerHTML = kind === 'plant' ? bHud.svgBomb : bHud.svgDefuse; }
       const prog = planting ? bm.plant.t / bm.C.plantTime : defusing ? bm.defuse.t / bm.defuse.need : 0;
-      bHud.actBar.style.width = Math.min(100, prog * 100) + '%';
+      bHud.actRing.style.strokeDashoffset = String(125.66 * (1 - Math.min(1, prog)));
     }
+    bHud.drop.style.display = (!player.dead && p.hasBomb && (bm.phase === 'live' || bm.phase === 'freeze')) ? 'flex' : 'none';
   }
   function bombBotsAct() {
     bots.forEach((b, i) => {
@@ -2423,7 +2445,7 @@ window.processShoot = function (now) {
       const side = bSide(bm, p), pos = b.mesh.position;
       if (bm.phase === 'live' && side === 'T') {
         if (p.hasBomb && !bm.plant && !b.target) { const s = bombSiteAt(pos.x, pos.z, pos.y); if (s) bombBeginPlant(bm, id, s.id); }
-        if (bm.dropped && !p.hasBomb && bDropPos && bDist(pos, bDropPos) < 1.6) bombPickup(bm, id);
+        if (bm.dropped && !p.hasBomb && bDropPos && T >= bDropT && bDist(pos, bDropPos) < 1.6) bombPickup(bm, id);
         if (bm.plant && bm.plant.id === id && b.target) bombCancelPlant(bm);
       }
       if (bm.phase === 'planted' && side === 'CT') {
@@ -2463,10 +2485,15 @@ window.processShoot = function (now) {
     else b.walk = false;
     return true;
   }
+  function bombBlink(tLeft, tNow) {
+    if (tLeft <= 1.2) return true;
+    const k = Math.max(0, Math.min(1, tLeft / 40)), period = 0.1 + 0.9 * Math.pow(k, 1.4);
+    return (tNow % period) < period * 0.45;
+  }
   function bombMesh() {
     let pos = null, planted = false;
     if (bm.phase === 'planted' && bm.bomb && bm.bomb.pos) { pos = bm.bomb.pos; planted = true; }
-    else if (bm.dropped && bDropPos && bm.phase === 'live') pos = bDropPos;
+    else if (bm.dropped && bDropPos && (bm.phase === 'live' || bm.phase === 'freeze')) pos = bDropPos;
     if (!pos) { if (bBomb) bBomb.visible = false; return; }
     if (!bBomb) {
       bBomb = new THREE.Group();
@@ -2478,8 +2505,7 @@ window.processShoot = function (now) {
       scene.add(bBomb);
     }
     bBomb.visible = true; bBomb.position.set(pos.x, pos.y, pos.z);
-    const rate = planted ? 2 + (bm.C.bombTime - bm.bomb.t) / 6 : 1;
-    bBomb.userData.led.visible = planted ? (T * rate) % 1 < 0.5 : true;
+    bBomb.userData.led.visible = planted ? bombBlink(bm.bomb.t, T) : true;
   }
   function bombHud() {
     if (!bm || !bHud) return;
@@ -2488,12 +2514,12 @@ window.processShoot = function (now) {
     const ctTeam = bm.side.A === 'CT' ? 'A' : 'B', tTeam = ctTeam === 'A' ? 'B' : 'A';
     document.getElementById('sa').textContent = bm.score[ctTeam];
     document.getElementById('sb').textContent = bm.score[tTeam];
-    document.getElementById('st').textContent = fmt(bm.phase === 'planted' ? bm.bomb.t : bm.phase === 'end' || bm.phase === 'over' ? 0 : bm.t);
+    document.getElementById('st').textContent = bm.phase === 'planted' ? 'БОМБА' : fmt(bm.phase === 'end' || bm.phase === 'over' ? 0 : bm.t);
     bHud.money.innerHTML = '$' + p.money + '<small>' + (side === 'CT' ? 'Спецназ' : 'Террористы') + (p.hasBomb ? ' · бомба у вас' : '') + (p.kit ? ' · сапёр' : '') + '</small>';
     let txt = '';
     if (bm.phase === 'freeze') txt = bm.t <= bm.C.announceAt ? 'Раунд начинается через ' + Math.ceil(bm.t) : 'Закупка · ' + fmt(bm.t);
     else if (bm.phase === 'live') txt = 'Раунд ' + bm.round + ' · ' + (side === 'T' ? 'заложи бомбу' : 'не дай заложить бомбу');
-    else if (bm.phase === 'planted') txt = 'Бомба · точка ' + bm.bomb.site + ' · взрыв через ' + Math.ceil(bm.bomb.t);
+    else if (bm.phase === 'planted') txt = 'Бомба заложена · точка ' + bm.bomb.site;
     else txt = 'Раунд ' + bm.round + ' завершён';
     bHud.status.textContent = txt;
     bHud.status.style.color = bm.phase === 'planted' ? '#ff6b5e' : '#fff';
