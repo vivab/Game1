@@ -372,7 +372,29 @@ const tune = JSON.parse(JSON.stringify(DEF));
     if (w.flash) { const k = 0.7 + Math.random() * 0.8; w.flash.scale.set(k, k, k); w.flash.rotation.y = Math.random() * 6.28; }
   };
   let lastT = performance.now();
-  function tick() {
+  const BOB = { t: 0, a: 0, sx: 0, sy: 0, land: 0, air: false, last: 0 };
+let MOT = { speed: 0, air: false, dyaw: 0, dpitch: 0, crouch: false };
+window.HW_motion = m => { MOT = m; };
+function bobOffsets(S, m, kind, dt) {
+  const sp = Math.min(1.2, m.speed || 0), kb = kind === 'knife' ? 1.25 : kind === 'awp' ? 0.7 : 1;
+  S.a += (sp - S.a) * Math.min(1, dt * 8);
+  S.t += dt * (7 + 6 * S.a);
+  const ba = S.a * kb * (m.crouch ? 0.6 : 1), cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  S.sx += (-cl((m.dyaw || 0) / dt * 0.008, -0.06, 0.06) - S.sx) * Math.min(1, dt * 10);
+  S.sy += (cl((m.dpitch || 0) / dt * 0.008, -0.05, 0.05) - S.sy) * Math.min(1, dt * 10);
+  if (S.air && !m.air) S.land = 1;
+  S.air = !!m.air;
+  S.land = Math.max(0, S.land - dt * 7);
+  return {
+    x: Math.sin(S.t) * 0.011 * ba + S.sx,
+    y: -Math.abs(Math.cos(S.t)) * 0.016 * ba + S.sy + (m.air ? 0.018 : 0) - 0.03 * S.land,
+    z: Math.sin(S.t * 2) * 0.006 * ba,
+    rx: Math.sin(S.t * 2) * 0.012 * ba - 0.05 * S.land,
+    ry: S.sx * 0.5,
+    rz: Math.sin(S.t) * 0.035 * ba + S.sx * 0.6
+  };
+}
+function tick() {
     requestAnimationFrame(tick);
     const ms = performance.now(), dt = Math.min((ms - lastT) / 1000, 0.05); lastT = ms;
     const w = W[cur];
@@ -380,6 +402,7 @@ const tune = JSON.parse(JSON.stringify(DEF));
     const now = ms / 1000, kind = w.knife ? 'knife' : cur === 'awp' ? 'awp' : PRIM_HANDS[cur] ? 'rifle' : 'pistol';
     const o = { x: Math.sin(now * 1.3) * 0.0015, y: Math.sin(now * 1.7) * 0.0025, z: 0, rx: 0, ry: 0, rz: 0, tip: 0 };
     let spin = 0;
+    { const dtb = Math.min(0.05, Math.max(0.001, (ms - (BOB.last || ms)) / 1000)); BOB.last = ms; const bo = bobOffsets(BOB, MOT, kind, dtb); o.x += bo.x; o.y += bo.y; o.z += bo.z; o.rx += bo.rx; o.ry += bo.ry; o.rz += bo.rz; }
     const add = (v, lift) => { o.x += v[0]; o.y += v[1]; o.z += v[2]; if (lift) o.tip += v[3]; else o.rx += v[3]; o.ry += v[4]; o.rz += v[5]; spin += v[6] || 0; };
     if (drw) {                                                          // доставание
       const u = (ms - drw.t0) / 1000 / (DRAW[kind] * (w.m9 ? 1.35 : 1));
