@@ -378,20 +378,20 @@ window.HW_motion = m => { MOT = m; };
 function bobOffsets(S, m, kind, dt) {
   const sp = Math.min(1.2, m.speed || 0), kb = kind === 'knife' ? 1.25 : kind === 'awp' ? 0.7 : 1;
   S.a += (sp - S.a) * Math.min(1, dt * 8);
-  S.t += dt * (7 + 6 * S.a);
+  S.t += dt * (6 + 4 * S.a);
   const ba = S.a * kb * (m.crouch ? 0.6 : 1), cl = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  S.sx += (-cl((m.dyaw || 0) / dt * 0.008, -0.06, 0.06) - S.sx) * Math.min(1, dt * 10);
-  S.sy += (cl((m.dpitch || 0) / dt * 0.008, -0.05, 0.05) - S.sy) * Math.min(1, dt * 10);
+  S.sx += (-cl((m.dyaw || 0) / dt * 0.006, -0.035, 0.035) - S.sx) * Math.min(1, dt * 10);
+  S.sy += (cl((m.dpitch || 0) / dt * 0.006, -0.03, 0.03) - S.sy) * Math.min(1, dt * 10);
   if (S.air && !m.air) S.land = 1;
   S.air = !!m.air;
   S.land = Math.max(0, S.land - dt * 7);
   return {
-    x: Math.sin(S.t) * 0.011 * ba + S.sx,
-    y: -Math.abs(Math.cos(S.t)) * 0.016 * ba + S.sy + (m.air ? 0.018 : 0) - 0.03 * S.land,
-    z: Math.sin(S.t * 2) * 0.006 * ba,
-    rx: Math.sin(S.t * 2) * 0.012 * ba - 0.05 * S.land,
+    x: Math.sin(S.t) * 0.006 * ba + S.sx,
+    y: -Math.abs(Math.cos(S.t)) * 0.009 * ba + S.sy + (m.air ? 0.012 : 0) - 0.02 * S.land,
+    z: Math.sin(S.t * 2) * 0.0035 * ba,
+    rx: Math.sin(S.t * 2) * 0.007 * ba - 0.035 * S.land,
     ry: S.sx * 0.5,
-    rz: Math.sin(S.t) * 0.035 * ba + S.sx * 0.6
+    rz: Math.sin(S.t) * 0.02 * ba + S.sx * 0.6
   };
 }
 function tick() {
