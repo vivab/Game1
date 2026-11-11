@@ -27,6 +27,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     rifle: '<svg viewBox="0 0 40 24" width="36" height="22"><path d="M1 11h9l3-3h14l4 3h8v3H20l-2 7h-5l1-7H6l-5-2z" fill="#fff"/></svg>'
   };
   function wswIcon() { const sw = document.getElementById('wsw'); if (sw) sw.innerHTML = WSW_ICON[curW] || WSW_ICON.rifle; }
+  const moveFactor = m => m < 0.1 ? 0 : m <= 0.6 ? 0.25 + 0.25 * (m - 0.1) / 0.5 : m < 0.85 ? 0.5 + 0.5 * (m - 0.6) / 0.25 : 1;
   const CTRL_ALIAS = { gear: ['btn-settings', 'settings-btn', 'btn-gear', 'gear-btn', 'gear', 'settings', 'btn-set'] };
   const ctrlEl = id => document.getElementById(id) || (CTRL_ALIAS[id] || []).map(a => document.getElementById(a)).find(Boolean) || null;
   function applyFps() {
@@ -1023,7 +1024,12 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const zone = document.getElementById('joystick-zone');
     Object.assign(zone.style, { left: '0', bottom: '0', width: '45%', height: '65%' });
     const joy = nipplejs.create({ zone, mode: 'dynamic', color: 'white', multitouch: true });
-    joy.on('move', (e, data) => { if (data.vector) { moveJoystick.x = data.vector.x; moveJoystick.y = data.vector.y; } });
+    joy.on('move', (e, data) => {
+      if (!data.vector) return;
+      const half = ((data.instance && data.instance.options && data.instance.options.size) || 100) / 2;
+      const f = Math.max(0, Math.min(1, (typeof data.distance === 'number' ? data.distance : (data.force || 1) * half) / half)), vl = Math.hypot(data.vector.x, data.vector.y) || 1;
+      moveJoystick.x = data.vector.x / vl * f; moveJoystick.y = data.vector.y / vl * f;
+    });
     joy.on('end', () => { moveJoystick.x = 0; moveJoystick.y = 0; });
 
     let lookId = null, fireId = null, lx = 0, ly = 0;
@@ -1334,8 +1340,10 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     const mv = (player.dead || bLk) ? { x: 0, y: 0 } : moveJoystick;
     if (player.onGround && !jumpHeld) hopMul = Math.min(1, hopMul + 0.8 * dt);
     const move = new V(mv.x, 0, -mv.y).normalize().applyEuler(new THREE.Euler(0, cameraYaw, 0, 'YXZ'));
-    player.pos.x += move.x * player.speed * hopMul * dt; player.pos.z += move.z * player.speed * hopMul * dt;
-    if (window.HW_motion) { window.HW_motion({ speed: Math.hypot(mv.x, mv.y) * (player.onGround ? 1 : 0.35) * hopMul, air: !player.onGround, dyaw: cameraYaw - lastCYaw, dpitch: cameraPitch - lastCPitch, crouch: player.isCrouching }); lastCYaw = cameraYaw; lastCPitch = cameraPitch; } player.pos.y += player.vel.y * dt;
+    const mf = moveFactor(Math.min(1, Math.hypot(mv.x, mv.y)));
+    player.noise = mf === 0 ? 0 : mf <= 0.55 ? 0.3 : 1;
+    player.pos.x += move.x * player.speed * mf * hopMul * dt; player.pos.z += move.z * player.speed * mf * hopMul * dt;
+    if (window.HW_motion) { window.HW_motion({ speed: mf * (player.onGround ? 1 : 0.35) * hopMul, air: !player.onGround, dyaw: cameraYaw - lastCYaw, dpitch: cameraPitch - lastCPitch, crouch: player.isCrouching }); lastCYaw = cameraYaw; lastCPitch = cameraPitch; } player.pos.y += player.vel.y * dt;
     player.currentHeight = THREE.MathUtils.lerp(player.currentHeight, player.targetHeight, 12 * dt);
     if (grid && jumpHeld && !player.dead && (mv.x || mv.y)) climb(move);
     resolve(player.pos, 0.33, player.pos.y - player.currentHeight);
