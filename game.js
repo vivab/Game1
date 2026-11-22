@@ -9,13 +9,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   const _prof = (() => { try { return JSON.parse(localStorage.getItem('profile_v1')) || {}; } catch (e) { return {}; } })();   // профиль из меню
   const me = { name: _prof.nick || 'Вы', team: 'A', kills: 0, assists: 0, deaths: 0, ping: 40 + Math.floor(Math.random() * 86), id: _prof.id || (10000000 + Math.floor(Math.random() * 89999999)) }; stats.push(me);
   const MS = { hits: 0, headHits: 0, headKills: 0, wk: {} };            // статистика игрока за матч: попадания, хедшоты, убийства по оружию
-  const BOMB = /[?&]mode=bomb/.test(location.search);
+  const BOMB = /[?&]mode=bomb/.test(location.search), RANGE = /[?&]mode=range/.test(location.search);
   let lastCYaw = 0, lastCPitch = 0;
   let bm = null, bLk = false, hasPrim = true, hasPist = true, drops = [], dropUi = null;
   const CTRL = (() => {
     let c = {};
     try { c = JSON.parse(localStorage.getItem('ctrl_v1')) || {}; } catch (e) {}
-    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {}, gfx: Object.assign({ tex: 'mid', model: 'mid', res: 'high', fps: 'max' }, c.gfx || {}), xh: Object.assign({ on: false, color: '#3dff3d', size: 10, thick: 2, gap: 4, dot: false, op: 1 }, c.xh || {}), autoPick: c.autoPick !== false };
+    return { sens: +c.sens || 1, ads: +c.ads || 1, invY: !!c.invY, vm: typeof c.vm === 'number' ? c.vm : 0.7, vg: typeof c.vg === 'number' ? c.vg : 0.7, btn: c.btn && typeof c.btn === 'object' ? c.btn : {}, gfx: Object.assign({ tex: 'mid', model: 'mid', res: 'high', fps: 'max', shadows: 'low', corpses: 'fade' }, c.gfx || {}), xh: Object.assign({ on: false, color: '#3dff3d', size: 10, thick: 2, gap: 4, dot: false, op: 1 }, c.xh || {}), autoPick: c.autoPick !== false };
   })();
   const RESK = ({ low: 0.6, mid: 0.85, high: 1 })[CTRL.gfx.res] || 1, MSTEP = ({ low: 3, mid: 2, high: 1 })[CTRL.gfx.model] || 2;
   const SKIN_OF = { m9cb: 'm9', glock_camo: 'glock', usp_print: 'usp', usp_pink: 'usp', deagle_mecha: 'deagle', deagle_ocean: 'deagle', p250_classic: 'p250' };
@@ -414,7 +414,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function dress(b) {
     if (b.mc) return;
-    b.mc = makeMC(BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team); b.inner.add(b.mc.group); b.vis.visible = false;
+    b.mc = makeMC(RANGE ? (b.rgSkin || b.team) : BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team); b.inner.add(b.mc.group); b.vis.visible = false;
     setBotWeapon(b, rollWeapon());
   }
   const repose = b => { if (b.mc) { poseMC(b); alignGun(b); } };
@@ -490,7 +490,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   // ---------- карта Crid ----------
   const MAPFILE = 'lowpoly__fps__tdm__game__map_by_resoforge.glb';
   function loadMap() {
-    new THREE.GLTFLoader().load(MAPFILE, g => {
+    (RANGE ? { load: (f, ok) => ok({ scene: buildArena() }) } : new THREE.GLTFLoader()).load(MAPFILE, g => {
       try { applyMap(g.scene); } catch (e) { console.log('карта', e); dbg('ошибка карты: ' + e.message); mapOK = true; mapBtn(); }
     }, e => { if (e && e.lengthComputable) setLoadProgress(e.loaded / e.total); }, () => { dbg('не загрузилась карта ' + MAPFILE); mapOK = true; mapBtn(); });
   }
@@ -870,7 +870,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     el.style.color = kill ? '#ef4444' : '#fff'; el.style.opacity = 1;
     clearTimeout(hmT); hmT = setTimeout(() => { el.style.opacity = 0; }, kill ? 320 : 150);
   }
-  function openShop() { shopEnd = performance.now() + (BOMB && bm ? (Math.max(0.5, bm.t) + bm.C.shopAfter) * 1000 + 300 : 10000); }
+  function openShop() { shopEnd = performance.now() + (BOMB && bm ? (Math.max(0.5, bm.t) + bm.C.shopAfter) * 1000 + 300 : RANGE ? 1e12 : 10000); }
   function shopTick() {
     const cart = document.getElementById('cart'), shop = document.getElementById('shop');
     if (!cart) return;
@@ -1196,7 +1196,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   function spawnAt(b) {
     const reg = BOMB && bm ? (bm.side[b.team] === 'CT' ? 'A' : 'B') : b.team, s = SPAWN[reg][b.idx % 5];                                   // каждый на своём месте, не друг в друге
-    b.mesh.position.set(s[0], 0, s[1]); b.mesh.rotation.y = reg === 'A' ? Math.PI : 0;
+    b.mesh.position.set(s[0], 0, s[1]); b.dying = null; b.mesh.quaternion.set(0, 0, 0, 1); b.mesh.rotation.set(0, reg === 'A' ? Math.PI : 0, 0);
     if (!b.tr) rollTraits(b);
     b.hp = 100; b.dead = false; b.mesh.visible = true; b.path = []; b.goal = null; b.target = null; b.ls = null; b.dmg.clear(); b.jy = 0; b.vy = 0; b.crouch = false; b.plan = null; b.stuck = 0; b.sx = undefined; b.sT = 0; b.ghostUntil = 0; b.noPath = 0; b.nudge = null;
     rollLoadout(b);
@@ -1243,12 +1243,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
 
   // ---- урон ----
   function damageBot(o, dmg, team, from, byPlayer, who, head, wt) {
+    if (RANGE && !o.dead) rgHit(o, dmg, head);
     if (o.dead) return;
     o.hp -= dmg; o.hitT = T; if (who) o.dmg.add(who);
     if (who === me) { const r = gave.get(o.stat) || { dmg: 0, hits: 0 }; r.dmg += dmg; r.hits++; gave.set(o.stat, r); if (wt !== 'knife') { MS.hits++; if (head) MS.headHits++; } }
     intel[o.team] = { pos: new V(from.x, 0, from.z), t: T };
     if (o.hp <= 0) {
-      o.dead = true; o.mesh.visible = false; o.respawn = BOMB ? 1e9 : 3; if (!BOMB) score[team]++; o.stat.deaths++; o.ls = null; if (BOMB) bombOnDeath('b' + bots.indexOf(o), who, wt);
+      o.dead = true; startDeath(o, from && typeof from.x === 'number' ? from : null); o.respawn = (BOMB || RANGE) ? 1e9 : 3; if (RANGE) rgKill(o); if (!BOMB && !RANGE) score[team]++; o.stat.deaths++; o.ls = null; if (BOMB) bombOnDeath('b' + bots.indexOf(o), who, wt);
       if (who) { feed(who, o.stat, wt, head); who.kills++; o.dmg.forEach(a => { if (a !== who && a.team === who.team) a.assists++; }); }
       if (who === me) { const w = wt || 'rifle'; MS.wk[w] = (MS.wk[w] || 0) + 1; if (head) MS.headKills++; }
       if (byPlayer) { player.score++; updateUI(); }
@@ -1359,14 +1360,17 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   // ---- мышление ботов ----
   window.updateBots = function (dt) {
     if (!started || over) return;
-    T += dt; if (!BOMB) timeLeft -= dt; pathBudget = 1; fr++;
-    if (BOMB) bombFrame(dt); else if (timeLeft <= 0) endMatch();
+    T += dt; if (!BOMB && !RANGE) timeLeft -= dt; pathBudget = 1; fr++;
+    if (BOMB) bombFrame(dt); else if (RANGE) { try { rgFrame(dt); } catch (e) { if (!rg.err) { rg.err = 1; console.error(e); } } } else if (timeLeft <= 0) endMatch();
     dropsFrame(dt);
+    try { applyGraphics(); } catch (e) {}
+    updateDeaths(dt);
     const bFreeze = BOMB && bm && bm.phase !== 'live' && bm.phase !== 'planted';
     bots.forEach(b => {
       if (b.dead) { b.respawn -= dt; if (b.respawn <= 0) spawnAt(b); return; }
       if (!b.loadout) rollLoadout(b);
         if (bFreeze) { b.walk = false; return; }
+        if (RANGE) return;
       const pos = b.mesh.position;
       b.walk = false; b.react -= dt; b.nextPath -= dt; b.think -= dt;
       if (b.think <= 0) { b.think = 0.07 + Math.random() * 0.06; perceive(b); }
@@ -1441,7 +1445,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const far = (pos.x - player.pos.x) * (pos.x - player.pos.x) + (pos.z - player.pos.z) * (pos.z - player.pos.z) > 1600;
       if (b.mc && (!far || (fr + b.idx) % MSTEP === 0)) mcAnim(b, sw, dt);        // дальних ботов анимируем через кадр
     });
-    if (BOMB) bombHud(); else {
+    if (BOMB) bombHud(); else if (RANGE) { } else {
     const t = Math.max(0, Math.ceil(timeLeft));
     document.getElementById('sa').textContent = score.A; document.getElementById('sb').textContent = score.B;
     document.getElementById('st').textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
@@ -1790,6 +1794,7 @@ window.processShoot = function (now) {
       hit = raycaster.intersectObjects(bt)[0];
       const og = raycaster.ray.origin, dr = raycaster.ray.direction;
       wallD = rayTG(og, dr, 150);
+    if (RANGE) rgBoardCheck(og, dr, wallD);
       if (hit && wallD >= 0 && wallD < hit.distance) hit = null;
       if (!hit) {
         if (wallD >= 0) {
@@ -2089,7 +2094,7 @@ window.processShoot = function (now) {
     document.head.appendChild(st);
     const d = document.createElement('div'); d.id = 'autoload';
     const art = 'url("data:image/svg+xml,' + encodeURIComponent(MAP_ART) + '")';
-    d.innerHTML = '<div class="bg"></div><div class="sh"></div><div class="md">' + (BOMB ? 'ЗАКЛАДКА БОМБЫ' : 'КОМАНДНЫЙ БОЙ') + '</div><div class="nm">CRID</div><div class="sb">' + (BOMB ? '5 на 5 · до 10 побед в раундах' : '5 на 5 · 2 минуты') + '</div>'
+    d.innerHTML = '<div class="bg"></div><div class="sh"></div><div class="md">' + (BOMB ? 'ЗАКЛАДКА БОМБЫ' : RANGE ? 'ПОЛИГОН' : 'КОМАНДНЫЙ БОЙ') + '</div><div class="nm">CRID</div><div class="sb">' + (BOMB ? '5 на 5 · до 10 побед в раундах' : RANGE ? 'Тренировка · рекорды' : '5 на 5 · 2 минуты') + '</div>'
       + '<div class="pl">' + ((_prof && _prof.nick) ? _prof.nick : 'Игрок') + ' · загрузка карты…</div><div class="br"><i id="albar"></i></div><div class="tp">Подсказка: ' + LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)] + '</div>';
     d.firstChild.style.backgroundImage = 'url(crid.jpg),' + art;                  // фон: твоя картинка crid.jpg, а если её нет — нарисованная карта
     (document.body || document.documentElement).appendChild(d);
@@ -2641,6 +2646,284 @@ window.processShoot = function (now) {
         p.items.primary = d.name; b.loadout = { primary: d.name, pistol: b.loadout ? b.loadout.pistol : 'usp' }; setBotWeapon(b, d.name);
       }
     });
+  }
+
+
+  const SH = { low: { size: 1024, r: 22 }, mid: { size: 2048, r: 32 }, high: { size: 2048, r: 46 } };
+  let gfxSun = null, gfxInit = false, gfxHemi = null;
+  function gfxRecompile() {
+    scene.traverse(o => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { m.needsUpdate = true; }); });
+  }
+  function applyGraphics() {
+    if (typeof scene === 'undefined' || typeof renderer === 'undefined' || !scene || !renderer) return;
+    const lvl = CTRL.gfx.shadows, on = lvl !== 'off';
+    if (!gfxInit) {
+      gfxSun = scene.children.find(c => c.isDirectionalLight) || null;
+      if (!gfxSun) return;
+      gfxInit = true;
+      if (on) {
+        const q = SH[lvl] || SH.low;
+        renderer.shadowMap.type = lvl === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+        gfxSun.castShadow = true; gfxSun.shadow.mapSize.set(q.size, q.size);
+        const c = gfxSun.shadow.camera; c.left = -q.r; c.right = q.r; c.top = q.r; c.bottom = -q.r; c.near = 1; c.far = 140; c.updateProjectionMatrix();
+        gfxSun.shadow.bias = -0.0006; gfxSun.shadow.normalBias = 0.04;
+        gfxSun.color.setHex(0xfff1d6); gfxSun.intensity = 1.15;
+        scene.add(gfxSun.target);
+        gfxHemi = new THREE.HemisphereLight(0xbfdcff, 0x8a7a5a, 0.3); scene.add(gfxHemi);
+      } else gfxSun.castShadow = false;
+    }
+    if (on && !renderer.shadowMap.enabled) { renderer.shadowMap.enabled = true; gfxRecompile(); }
+    if (!on && renderer.shadowMap.enabled) renderer.shadowMap.enabled = false;
+    if (on && gfxSun && started) {
+      gfxSun.target.position.set(player.pos.x, 0, player.pos.z);
+      gfxSun.position.set(player.pos.x + 22, 44, player.pos.z + 12);
+      gfxSun.target.updateMatrixWorld();
+    }
+  }
+  const CORPSE_LIFE = 1.6, dq1 = new THREE.Quaternion(), dq2 = new THREE.Quaternion(), dax = new V(), dup = new V(0, 1, 0);
+  function startDeath(o, from) {
+    const px = o.mesh.position.x, pz = o.mesh.position.z, dx = px - (from ? from.x : px), dz = pz - (from ? from.z : pz + 1), len = Math.hypot(dx, dz) || 1;
+    o.dying = { t0: T, ax: dz / len, az: -dx / len, yaw: o.mesh.rotation.y, a: 0, sp: 7 + Math.random() * 4 };
+    o.mesh.visible = true;
+  }
+  function updateDeaths(dt) {
+    bots.forEach(b => {
+      const d = b.dying;
+      if (!d) return;
+      if (d.a < 1.5) {
+        d.a = Math.min(1.5, d.a + dt * d.sp);
+        dax.set(d.ax, 0, d.az); dq1.setFromAxisAngle(dax, d.a); dq2.setFromAxisAngle(dup, d.yaw);
+        b.mesh.quaternion.copy(dq1.multiply(dq2));
+      }
+      if (CTRL.gfx.corpses !== 'round' && T - d.t0 > CORPSE_LIFE) { b.mesh.visible = false; b.dying = null; }
+    });
+  }
+
+  const RG_KEY = 'range_v1', RG_NAMES = { free: 'Свободная стрельба', standing: 'Стоячие цели', moving: 'Движущиеся цели', reaction: 'Реакция' };
+  const RG_SPEED = { slow: { spawn: 1.5, life: 4.2, move: 1.6, name: 'Медленно' }, mid: { spawn: 1.0, life: 3.0, move: 3.2, name: 'Средне' }, fast: { spawn: 0.6, life: 2.0, move: 5.2, name: 'Быстро' } };
+  const rgRec = (() => { try { return JSON.parse(localStorage.getItem(RG_KEY)) || {}; } catch (e) { return {}; } })();
+  const rgSave = () => { try { localStorage.setItem(RG_KEY, JSON.stringify(rgRec)); } catch (e) {} };
+  const rgKey = (mode, speed, dur) => mode === 'reaction' ? 'reaction' : mode + '_' + speed + '_' + dur;
+  const rg = { mode: 'free', speed: 'mid', dur: 60, running: false, t: 0, kills: 0, shots: 0, hits: 0, misses: 0, spawnT: 0, shotDmg: 0, shotT: -9, total: 0, lastPart: '', ready: false, ui: null, dmgBoard: null, reBoard: null, rx: { state: 'idle', tGo: 0, tWait: 0, tEnd: 0, time: 0 }, react: null, rxDrawn: '', decals: [], err: 0 };
+  function buildArena() {
+    const grp = new THREE.Group();
+    const box = (w, h, d, x, y, z, col) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness: 0.9 })); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; grp.add(m); return m; };
+    box(60, 0.5, 76, 0, -0.25, 0, 0x93a57c);
+    box(0.6, 3.5, 76, -29.7, 1.75, 0, 0x6b7280); box(0.6, 3.5, 76, 29.7, 1.75, 0, 0x6b7280);
+    box(60, 3.5, 0.6, 0, 1.75, -37.7, 0x6b7280); box(60, 3.5, 0.6, 0, 1.75, 37.7, 0x6b7280);
+    box(34, 7, 1, 0, 3.5, -34, 0xd8d2c4);
+    box(2.2, 0.9, 2.2, -20, 0.45, 22, 0x7c6a52); box(2.2, 0.9, 2.2, 20, 0.45, 22, 0x7c6a52);
+    return grp;
+  }
+  function rgPickSpot(rng, px, pz) {
+    for (let i = 0; i < 12; i++) {
+      const x = (rng() * 2 - 1) * 18, z = -24 + rng() * 30;
+      if (Math.hypot(x - px, z - pz) > 10 && !(Math.abs(x + 14) < 5 && Math.abs(z - 16) < 5)) return { x, z };
+    }
+    return { x: 0, z: -10 };
+  }
+  function rgReactStart(rx, now, rng) { rx.state = 'wait'; rx.tWait = now + 1.5 + rng() * 3.5; }
+  function rgReactTick(rx, now, rng) {
+    if (rx.state === 'wait' && now >= rx.tWait) { rx.state = 'go'; rx.tGo = now; }
+    else if ((rx.state === 'done' || rx.state === 'early') && now - rx.tEnd > 2) rgReactStart(rx, now, rng);
+  }
+  function rgReactHit(rx, now) {
+    if (rx.state === 'go') { rx.state = 'done'; rx.time = now - rx.tGo; rx.tEnd = now; return { time: rx.time }; }
+    if (rx.state === 'wait') { rx.state = 'early'; rx.tEnd = now; return { early: true }; }
+    return null;
+  }
+  function rgFinishRun(r) {
+    const key = rgKey(r.mode, r.speed, r.dur), prev = rgRec[key] || 0, isRecord = r.kills > prev;
+    if (isRecord) { rgRec[key] = r.kills; rgSave(); }
+    return { key, prev, isRecord, kills: r.kills, acc: r.shots ? Math.round(100 * r.hits / r.shots) : 0 };
+  }
+  function rgReactRecord(time) {
+    const prev = rgRec.reaction || 0, isRecord = !prev || time < prev;
+    if (isRecord) { rgRec.reaction = time; rgSave(); }
+    return { prev, isRecord };
+  }
+  function rgAddHit(r, dmg, head, now) {
+    if (now - r.shotT > 0.12) r.shotDmg = 0;
+    r.shotDmg += dmg; r.shotT = now; r.total += dmg; r.hits++; r.lastPart = head ? 'ГОЛОВА' : 'ТЕЛО';
+  }
+  function rgMakeBoard(w, h, px, py, pz, cw, ch) {
+    const cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    const tex = new THREE.CanvasTexture(cv), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+    mesh.position.set(px, py, pz); scene.add(mesh);
+    return { mesh, cv, ctx: cv.getContext('2d'), tex, w, h };
+  }
+  function rgDraw(b, bg, lines) {
+    const c = b.ctx;
+    c.fillStyle = bg; c.fillRect(0, 0, b.cv.width, b.cv.height);
+    c.textAlign = 'center';
+    lines.forEach(l => { c.font = '800 ' + l.size + 'px sans-serif'; c.fillStyle = l.color || '#ffffff'; c.fillText(l.text, b.cv.width / 2, l.y); });
+    b.tex.needsUpdate = true;
+  }
+  function rgDrawDamage() {
+    if (!rg.dmgBoard) return;
+    rgDraw(rg.dmgBoard, '#0f172a', [{ text: 'УРОН ВЫСТРЕЛА', size: 46, y: 64, color: '#94a3b8' }, { text: rg.shotDmg ? String(Math.round(rg.shotDmg)) : '—', size: 190, y: 235, color: rg.lastPart === 'ГОЛОВА' ? '#ef4444' : '#f2b632' }, { text: (rg.lastPart || '') + (rg.total ? '   ·   всего ' + Math.round(rg.total) : ''), size: 50, y: 320, color: '#ffffff' }]);
+  }
+  function rgDrawReact() {
+    if (!rg.reBoard) return;
+    const s = rg.rx.state, rec = rgRec.reaction, key = s + (s === 'done' ? rg.rx.time : '');
+    if (rg.rxDrawn === key) return;
+    rg.rxDrawn = key;
+    if (s === 'wait') rgDraw(rg.reBoard, '#f4f4f5', [{ text: 'ЖДИ…', size: 120, y: 200, color: '#27272a' }, { text: rec ? 'рекорд ' + rec.toFixed(3) + ' с' : '', size: 40, y: 270, color: '#71717a' }]);
+    else if (s === 'go') rgDraw(rg.reBoard, '#22c55e', [{ text: 'СТРЕЛЯЙ!', size: 120, y: 200, color: '#052e16' }]);
+    else if (s === 'done') rgDraw(rg.reBoard, '#ef4444', [{ text: rg.rx.time.toFixed(3) + ' с', size: 130, y: 190, color: '#ffffff' }, { text: rg.react && rg.react.isRecord ? 'НОВЫЙ РЕКОРД!' : (rec ? 'рекорд ' + rec.toFixed(3) + ' с' : ''), size: 54, y: 280, color: '#fff7ed' }]);
+    else if (s === 'early') rgDraw(rg.reBoard, '#f97316', [{ text: 'СЛИШКОМ РАНО', size: 90, y: 210, color: '#ffffff' }]);
+    else rgDraw(rg.reBoard, '#334155', [{ text: 'РЕАКЦИЯ', size: 100, y: 200, color: '#cbd5e1' }, { text: 'выбери режим в меню полигона', size: 36, y: 270, color: '#94a3b8' }]);
+  }
+  function rgHit(o, dmg, head) {
+    if (!rg.dmgBoard) return;
+    if (o.rgMan) o.hp = 1e6;
+    rgAddHit(rg, dmg, head, T);
+    rgDrawDamage();
+  }
+  function rgKill(o) { if (rg.running && o.rgPool) rg.kills++; }
+  function rgBoardCheck(og, dr, wallD) {
+    rg.shots++;
+    if (rg.mode !== 'reaction' || !rg.reBoard || rg.rx.state === 'idle' || Math.abs(dr.z) < 1e-6) return;
+    const m = rg.reBoard.mesh, t = (m.position.z - og.z) / dr.z;
+    if (t <= 0 || (wallD > 0 && t > wallD)) return;
+    if (Math.abs(og.x + dr.x * t - m.position.x) > rg.reBoard.w / 2 || Math.abs(og.y + dr.y * t - m.position.y) > rg.reBoard.h / 2) return;
+    const res = rgReactHit(rg.rx, performance.now() / 1000);
+    if (!res) return;
+    if (res.time !== undefined) { const rec = rgReactRecord(res.time); rg.react = { time: res.time, isRecord: rec.isRecord, prev: rec.prev }; }
+    rgDrawReact();
+  }
+  function rgSpawn(b, spot, sp) {
+    b.dead = false; b.hp = 100; b.dying = null; b.mesh.quaternion.set(0, 0, 0, 1); b.mesh.rotation.set(0, 0, 0);
+    b.mesh.position.set(spot.x, 0, spot.z); b.mesh.visible = true; b.rgLife = sp.life; b.rgDir = Math.random() < 0.5 ? -1 : 1;
+  }
+  function rgPose(b, tpose) {
+    const m = b.mc;
+    if (b.gun) b.gun.visible = false;
+    [m.armL, m.armR].forEach(a => { a.rotation.set(0, 0, tpose ? Math.sign(a.position.x || 1) * Math.PI / 2 : 0); });
+    m.legL.rotation.set(0, 0, 0); m.legR.rotation.set(0, 0, 0);
+  }
+  function rgPrepare() {
+    if (!rg.dmgBoard && typeof scene !== 'undefined') {
+      rg.dmgBoard = rgMakeBoard(10, 3.6, 0, 3.8, -8, 640, 360); rgDrawDamage();
+      rg.reBoard = rgMakeBoard(5, 3, -14, 2.2, 16, 640, 384); rgDrawReact();
+      window.createBulletHole = function (point, normal) {
+        const m = new THREE.Mesh(rgDecalGeo, rgDecalMat);
+        m.position.copy(point).addScaledVector(normal, 0.012); m.quaternion.setFromUnitVectors(new V(0, 0, 1), normal);
+        scene.add(m); rg.decals.push(m);
+        if (rg.decals.length > 500) scene.remove(rg.decals.shift());
+      };
+    }
+    if (rg.ready || bots.length < 9 || !bots.every(b => b.mc)) return;
+    rg.ready = true;
+    bots.forEach((b, i) => {
+      b.team = 'B'; b.rgMan = i < 2; b.rgPool = i >= 2; b.respawn = 1e9; b.rgSkin = i === 0 ? 'A' : i === 1 ? 'B' : (i % 2 ? 'A' : 'B');
+      b.inner.remove(b.mc.group); b.mc = null; dress(b); rgPose(b, b.rgMan);
+      b.dying = null; b.mesh.quaternion.set(0, 0, 0, 1); b.mesh.rotation.set(0, 0, 0);
+      if (b.rgMan) { b.dead = false; b.hp = 1e6; b.mesh.position.set(i === 0 ? -4 : 4, 0, 6); b.mesh.visible = true; }
+      else { b.dead = true; b.mesh.visible = false; }
+    });
+  }
+  const rgDecalGeo = new THREE.PlaneGeometry(0.12, 0.12), rgDecalMat = new THREE.MeshBasicMaterial({ color: 0x111111, polygonOffset: true, polygonOffsetFactor: -4, side: THREE.DoubleSide });
+  function rgHidePool() { bots.forEach(b => { if (b.rgPool) { b.dead = true; b.dying = null; b.mesh.visible = false; } }); }
+  function rgStartRun() {
+    rg.kills = 0; rg.shots = 0; rg.hits = 0; rg.misses = 0; rg.t = 0; rg.spawnT = 0; rg.total = 0; rg.shotDmg = 0; rg.lastPart = ''; rg.react = null; rg.rxDrawn = '';
+    rgHidePool(); rgDrawDamage();
+    if (rg.mode === 'free') { rg.running = false; rg.rx.state = 'idle'; rgDrawReact(); }
+    else if (rg.mode === 'reaction') { rg.running = true; rgReactStart(rg.rx, performance.now() / 1000, Math.random); rgDrawReact(); }
+    else { rg.running = true; rg.rx.state = 'idle'; rgDrawReact(); }
+    rgUiRefresh();
+  }
+  function rgEndRun() {
+    rg.running = false; rgHidePool();
+    const res = rgFinishRun(rg);
+    rg.result = res;
+    rgUiRefresh(true);
+  }
+  function rgFrame(dt) {
+    if (!rg.ui) rgUi();
+    rgPrepare();
+    if (!rg.ready || !started) return;
+    store.rifle.res = 999; store.pistol.res = 999;
+    if (rg.running && (rg.mode === 'standing' || rg.mode === 'moving')) {
+      const sp = RG_SPEED[rg.speed];
+      rg.t += dt; rg.spawnT -= dt;
+      if (rg.spawnT <= 0) {
+        if (bots.filter(b => b.rgPool && !b.dead).length < 4) {
+          const b = bots.find(x => x.rgPool && x.dead && !x.dying && !x.mesh.visible);
+          if (b) rgSpawn(b, rgPickSpot(Math.random, player.pos.x, player.pos.z), sp);
+        }
+        rg.spawnT = sp.spawn;
+      }
+      bots.forEach(b => {
+        if (!b.rgPool || b.dead) return;
+        b.rgLife -= dt;
+        if (rg.mode === 'moving') {
+          b.mesh.position.x += b.rgDir * sp.move * dt;
+          if (Math.abs(b.mesh.position.x) > 22) { b.mesh.position.x = Math.sign(b.mesh.position.x) * 22; b.rgDir = -Math.sign(b.mesh.position.x); }
+          else if (Math.random() < dt * 0.4) b.rgDir = -b.rgDir;
+        }
+        if (b.rgLife <= 0) { b.dead = true; b.mesh.visible = false; rg.misses++; }
+      });
+      if (rg.t >= rg.dur) rgEndRun();
+    }
+    if (rg.mode === 'reaction' && rg.running) { rgReactTick(rg.rx, performance.now() / 1000, Math.random); rgDrawReact(); }
+    rgHud();
+  }
+  const fmtT = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function rgHud() {
+    const u = rg.ui; if (!u) return;
+    let txt = RG_NAMES[rg.mode];
+    if (rg.running && (rg.mode === 'standing' || rg.mode === 'moving')) txt += ' · ' + fmtT(rg.dur - rg.t) + ' · убито ' + rg.kills + ' · промахов ' + rg.misses + ' · точность ' + (rg.shots ? Math.round(100 * rg.hits / rg.shots) : 0) + '%';
+    else if (rg.mode === 'reaction' && rg.running) txt += rgRec.reaction ? ' · рекорд ' + rgRec.reaction.toFixed(3) + ' с' : '';
+    u.hud.textContent = txt;
+  }
+  function rgUi() {
+    const st = document.createElement('style');
+    st.textContent = '#rgb{position:fixed;left:14px;top:176px;z-index:30;padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(15,20,26,.8);color:#fff;font:700 14px sans-serif}'
+      + '#rgh{position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:30;padding:4px 14px;background:rgba(15,20,26,.75);border-radius:8px;color:#fff;font:700 13px sans-serif;pointer-events:none;white-space:nowrap}'
+      + '#rgp{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:60;width:min(86vw,560px);max-height:92vh;overflow-y:auto;padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(10,14,20,.96);color:#fff;font-family:sans-serif;display:none}'
+      + '#rgp h3{margin:0 0 8px;font-size:18px}#rgp .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}#rgp .row span{width:78px;color:#94a3b8;font-size:13px}'
+      + '#rgp button{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#e2e8f0;font:600 13px sans-serif}'
+      + '#rgp button.on{background:#f2b632;color:#1a1405;border-color:#f2b632}#rgp .go{background:#22c55e;color:#052e16;border-color:#22c55e}'
+      + '#rgp .rec{margin:6px 0;color:#f2b632;font-size:14px;font-weight:700}';
+    document.head.appendChild(st);
+    const mk = (tag, id, cls, text) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+    const btn = mk('button', 'rgb', 'interactive-ui', 'Полигон'), hud = mk('div', 'rgh'), panel = mk('div', 'rgp', 'interactive-ui');
+    document.body.appendChild(btn); document.body.appendChild(hud); document.body.appendChild(panel);
+    rg.ui = { btn, hud, panel };
+    btn.addEventListener('click', () => { rgUiRefresh(); panel.style.display = 'block'; });
+    rgUiRefresh();
+    panel.style.display = 'block';
+  }
+  function rgUiRefresh(showResult) {
+    const u = rg.ui; if (!u) return;
+    const p = u.panel; p.innerHTML = '';
+    const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+    p.appendChild(mk('h3', '', 'Полигон'));
+    if (showResult && rg.result) {
+      const r = rg.result;
+      p.appendChild(mk('div', 'rec', 'Время вышло · убито ' + r.kills + ' · точность ' + r.acc + '%' + (r.isRecord ? ' · НОВЫЙ РЕКОРД!' : r.prev ? ' · рекорд ' + r.prev : '')));
+    }
+    const seg = (label, opts, cur, on, hide) => {
+      if (hide) return;
+      const row = mk('div', 'row'); row.appendChild(mk('span', '', label));
+      opts.forEach(o => { const b = mk('button', String(o[0]) === String(cur) ? 'on' : '', o[1]); b.addEventListener('click', () => { on(o[0]); rgUiRefresh(); }); row.appendChild(b); });
+      p.appendChild(row);
+    };
+    const noRun = rg.mode === 'free' || rg.mode === 'reaction';
+    seg('Режим', [['free', 'Свободная'], ['standing', 'Стоячие'], ['moving', 'Движущиеся'], ['reaction', 'Реакция']], rg.mode, v => { rg.mode = v; });
+    seg('Скорость', [['slow', 'Медленно'], ['mid', 'Средне'], ['fast', 'Быстро']], rg.speed, v => { rg.speed = v; }, noRun);
+    seg('Время', [[30, '30 с'], [60, '60 с'], [120, '2 мин'], [180, '3 мин']], rg.dur, v => { rg.dur = v; }, noRun);
+    const best = rgRec[rgKey(rg.mode, rg.speed, rg.dur)];
+    if (rg.mode === 'reaction') p.appendChild(mk('div', 'rec', best ? 'Лучшая реакция: ' + best.toFixed(3) + ' с' : 'Рекорда ещё нет'));
+    else if (!noRun) p.appendChild(mk('div', 'rec', best ? 'Рекорд: ' + best + ' убийств' : 'Рекорда ещё нет'));
+    const row = mk('div', 'row');
+    const go = mk('button', 'go', rg.mode === 'free' ? 'Применить' : 'Начать'); go.addEventListener('click', () => { rg.result = null; rgStartRun(); p.style.display = 'none'; });
+    const clr = mk('button', '', 'Очистить следы'); clr.addEventListener('click', () => { rg.decals.forEach(m => scene.remove(m)); rg.decals = []; });
+    const cls = mk('button', '', 'Закрыть'); cls.addEventListener('click', () => { p.style.display = 'none'; });
+    row.appendChild(go); row.appendChild(clr); row.appendChild(cls); p.appendChild(row);
+    if (showResult) p.style.display = 'block';
   }
 
   try {                                            // если телефон отнял видеопамять — восстанавливаем сцену, а не оставляем чёрный экран
