@@ -751,8 +751,8 @@ function profileModal() {
 
 /* ---------- выбор режима и запуск ---------- */
 function modeModal() {
-  let sel = P.mode === 'tdm' || P.mode === 'bomb' ? P.mode : null;
-  const defs = [['tdm', 'Командный бой', '5×5 · 2 минуты · карта Crid'], ['bomb', 'Закладка бомбы', '5×5 · до 10 побед · деньги, закупка, бомба · карта Crid']];
+  let sel = P.mode === 'tdm' || P.mode === 'bomb' || P.mode === 'range' ? P.mode : null;
+  const defs = [['tdm', 'Командный бой', '5×5 · 2 минуты · карта Crid'], ['bomb', 'Закладка бомбы', '5×5 · до 10 побед · деньги, закупка, бомба · карта Crid'], ['range', 'Полигон', 'Один игрок · тренировка, мишени, реакция · рекорды']];
   const go = h('button', { class: 'btn gold', style: 'min-width:200px;min-height:52px;font-size:20px', text: 'Играть', onclick: () => { P.mode = sel; save(); closeModal(); startLoadScreen(); } });
   if (!sel) go.setAttribute('disabled', '');
   const cards = defs.map(d => h('button', { class: 'mode' + (sel === d[0] ? ' sel' : ''), onclick: () => { sel = d[0]; cards.forEach((x, k) => x.classList.toggle('sel', defs[k][0] === sel)); go.removeAttribute('disabled'); } },
@@ -762,7 +762,7 @@ function modeModal() {
 
 /* ---------- настройки и тестовые кнопки ---------- */
 const CTRL_KEY = 'ctrl_v1';
-const GFX_DEF = { tex: 'mid', model: 'mid', res: 'high', fps: 'max' }, XH_DEF = { on: false, color: '#3dff3d', size: 10, thick: 2, gap: 4, dot: false, op: 1 };
+const GFX_DEF = { tex: 'mid', model: 'mid', res: 'high', fps: 'max', shadows: 'low', corpses: 'fade' }, XH_DEF = { on: false, color: '#3dff3d', size: 10, thick: 2, gap: 4, dot: false, op: 1 };
 const CTRL_BTNS = [
   { id: 'btn-fire', label: 'Огонь', x: 0.89, y: 0.44, d: 0.127 },
   { id: 'btn-jump', label: 'Прыжок', x: 0.761, y: 0.804, d: 0.079 },
@@ -847,7 +847,9 @@ function settingsModal() {
       segRow('Детализация текстур', LMH, c.gfx.tex, v => { c.gfx.tex = v; ctrlSave(c); }),
       segRow('Детализация моделей', LMH, c.gfx.model, v => { c.gfx.model = v; ctrlSave(c); }),
       segRow('Расширение экрана', LMH, c.gfx.res, v => { c.gfx.res = v; ctrlSave(c); }),
-      segRow('Количество FPS', [[60, '60'], [90, '90'], [120, '120'], [144, '144'], ['max', 'MAX']], c.gfx.fps, v => { c.gfx.fps = v; ctrlSave(c); })
+      segRow('Количество FPS', [[60, '60'], [90, '90'], [120, '120'], [144, '144'], ['max', 'MAX']], c.gfx.fps, v => { c.gfx.fps = v; ctrlSave(c); }),
+      segRow('Тени', [['off', 'Выкл'], ['low', 'Низкие'], ['mid', 'Средние'], ['high', 'Высокие']], c.gfx.shadows, v => { c.gfx.shadows = v; ctrlSave(c); }),
+      segRow('Тела убитых', [['fade', 'Исчезают'], ['round', 'До конца раунда']], c.gfx.corpses, v => { c.gfx.corpses = v; ctrlSave(c); })
     ],
     ctl: () => [
       rangeRow('Чувствительность камеры', 0.3, 2.5, 0.05, c.sens, pct, v => { c.sens = v; ctrlSave(c); }).row,
@@ -966,7 +968,8 @@ function renderMain() {
     h('span', { class: 'lvl', text: String(P.level) }));
   refreshBalances();
   $('#invCount').textContent = P.items.length ? String(P.items.length) : '';
-  $('#modeChip').replaceChildren('Командный бой', h('small', { text: '5×5' }));
+  const mchip = P.mode === 'bomb' ? ['Закладка бомбы', '5×5'] : P.mode === 'range' ? ['Полигон', 'соло'] : ['Командный бой', '5×5'];
+  $('#modeChip').replaceChildren(mchip[0], h('small', { text: mchip[1] }));
   // друзья
   const fl = $('#frList'); fl.replaceChildren();
   $('#frCnt').textContent = String(P.friends.length); $('#frBd').textContent = P.friends.length ? String(P.friends.length) : '';
@@ -1246,11 +1249,11 @@ function startLoadScreen() {
   if ($('#load')) return;
   const d = h('div', { id: 'load', class: 'loadscr' });
   d.style.backgroundImage = mapArt();
-  d.append(h('div', { class: 'ls-sh' }), h('div', { class: 'ls-md', text: P.mode === 'bomb' ? 'Закладка бомбы' : 'КОМАНДНЫЙ БОЙ' }), h('div', { class: 'ls-nm', text: 'CRID' }), h('div', { class: 'ls-sb', text: P.mode === 'bomb' ? '5 на 5 · до 10 побед в раундах' : '5 на 5 · 2 минуты' }),
+  d.append(h('div', { class: 'ls-sh' }), h('div', { class: 'ls-md', text: P.mode === 'bomb' ? 'Закладка бомбы' : P.mode === 'range' ? 'Полигон' : 'Командный бой' }), h('div', { class: 'ls-nm', text: P.mode === 'range' ? 'ARENA' : 'CRID' }), h('div', { class: 'ls-sb', text: P.mode === 'bomb' ? '5 на 5 · до 10 побед в раундах' : P.mode === 'range' ? 'Тренировка · рекорды' : '5 на 5 · 2 минуты' }),
     h('div', { class: 'ls-pl', text: P.nick + ' · подключение…' }), h('div', { class: 'ls-br' }, h('i', { id: 'lsBar' })), h('div', { class: 'ls-tp', text: 'Подсказка: ' + LOAD_TIPS[Math.floor(Math.random() * LOAD_TIPS.length)] }));
   document.body.append(d);
   requestAnimationFrame(() => { const b = $('#lsBar'); if (b) b.style.width = '55%'; });
-  setTimeout(() => { location.href = GAME_URL + (P.mode === 'bomb' ? '&mode=bomb' : ''); }, 700);
+  setTimeout(() => { location.href = GAME_URL + (P.mode === 'bomb' ? '&mode=bomb' : P.mode === 'range' ? '&mode=range' : ''); }, 700);
 }
 
 /* =====================================================================
